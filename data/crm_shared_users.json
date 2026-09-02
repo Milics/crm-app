@@ -1,0 +1,74 @@
+[
+  {
+    "id": "usr_super_admin",
+    "username": "admin",
+    "password": "admin123",
+    "name": "超级管理员",
+    "role": "super_admin",
+    "isActive": true,
+    "phone": "13800138000",
+    "canManageMaterials": true,
+    "createdAt": "2026-09-03T00:02:21.402",
+    "createdBy": "系统初始化"
+  },
+  {
+    "id": "usr_manager_wang",
+    "username": "wangzhuguan",
+    "password": "123456",
+    "name": "王主管",
+    "role": "advisor",
+    "isActive": true,
+    "phone": "13733334444",
+    "canManageMaterials": false,
+    "createdAt": "2026-09-03T00:02:21.402",
+    "createdBy": "超级管理员"
+  },
+  {
+    "id": "usr_1788340055423",
+    "username": "lgd1992",
+    "password": "123456",
+    "name": "李广东",
+    "role": "advisor",
+    "isActive": true,
+    "phone": "15738801926",
+    "canManageMaterials": true,
+    "createdAt": "2026-09-03T00:02:21.402",
+    "createdBy": "超级管理员"
+  },
+  {
+    "id": "usr_advisor_zhang",
+    "username": "zhanglaoshi",
+    "password": "123456",
+    "name": "张老师",
+    "role": "advisor",
+    "isActive": true,
+    "phone": "13911112222",
+    "canManageMaterials": true,
+    "createdAt": "2026-09-03T00:02:21.402",
+    "createdBy": "超级管理员"
+  },
+  {
+    "id": "usr_1788342882634",
+    "username": "gpy1992",
+    "password": "123456",
+    "name": "郭培杨",
+    "role": "advisor",
+    "isActive": true,
+    "phone": "13290823050",
+    "canManageMaterials": true,
+    "createdAt": "2026-09-03T00:02:21.402",
+    "createdBy": "超级管理员"
+  },
+  {
+    "id": "usr_advisor_li",
+    "username": "lilaoshi",
+    "password": "123456",
+    "name": "李老师",
+    "role": "advisor",
+    "isActive": true,
+    "phone": "13733334444",
+    "canManageMaterials": false,
+    "createdAt": "2026-09-03T00:02:21.402",
+    "createdBy": "超级管理员"
+  }
+]

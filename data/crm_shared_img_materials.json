@@ -1,0 +1,90 @@
+[
+  {
+    "id": "im1",
+    "category": "课程海报",
+    "title": "全程集训班招生海报",
+    "desc": "1080×1920px · 适合朋友圈",
+    "ownerName": "超级管理员",
+    "isPublic": true,
+    "reviewStatus": "approved",
+    "rejectReason": "",
+    "createdAt": "2026-09-03T00:02:21.405"
+  },
+  {
+    "id": "im2",
+    "category": "课程海报",
+    "title": "周末走读班宣传图",
+    "desc": "750×1000px · 适合私信发送",
+    "ownerName": "超级管理员",
+    "isPublic": true,
+    "reviewStatus": "approved",
+    "rejectReason": "",
+    "createdAt": "2026-09-03T00:02:21.405"
+  },
+  {
+    "id": "im3",
+    "category": "课程海报",
+    "title": "早鸟优惠限时海报",
+    "desc": "1080×1080px · 方形，适合微信",
+    "ownerName": "超级管理员",
+    "isPublic": true,
+    "reviewStatus": "approved",
+    "rejectReason": "",
+    "createdAt": "2026-09-03T00:02:21.405"
+  },
+  {
+    "id": "im4",
+    "category": "成绩展示",
+    "title": "历届学员成绩汇总",
+    "desc": "多图合集 · 真实数据",
+    "ownerName": "超级管理员",
+    "isPublic": true,
+    "reviewStatus": "approved",
+    "rejectReason": "",
+    "createdAt": "2026-09-03T00:02:21.405"
+  },
+  {
+    "id": "im5",
+    "category": "成绩展示",
+    "title": "高分学员录取截图",
+    "desc": "3张组合 · 院校录取通知书",
+    "ownerName": "超级管理员",
+    "isPublic": true,
+    "reviewStatus": "approved",
+    "rejectReason": "",
+    "createdAt": "2026-09-03T00:02:21.405"
+  },
+  {
+    "id": "im6",
+    "category": "课程介绍",
+    "title": "课程大纲一览图",
+    "desc": "各科知识点覆盖",
+    "ownerName": "超级管理员",
+    "isPublic": true,
+    "reviewStatus": "approved",
+    "rejectReason": "",
+    "createdAt": "2026-09-03T00:02:21.405"
+  },
+  {
+    "id": "im7",
+    "category": "课程介绍",
+    "title": "师资团队介绍",
+    "desc": "主讲老师照片+资质",
+    "ownerName": "超级管理员",
+    "isPublic": true,
+    "reviewStatus": "approved",
+    "rejectReason": "",
+    "createdAt": "2026-09-03T00:02:21.405"
+  },
+  {
+    "id": "im8",
+    "category": "学员好评",
+    "title": "学员感谢截图合集",
+    "desc": "微信/朋友圈好评截图",
+    "ownerName": "超级管理员",
+    "isPublic": true,
+    "reviewStatus": "approved",
+    "rejectReason": "",
+    "createdAt": "2026-09-03T00:02:21.405"
+  }
+]

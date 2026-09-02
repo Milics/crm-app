@@ -1,0 +1,11 @@
+.dart_tool
+.git
+.github
+build
+android
+ios
+web
+windows
+macos
+linux
+test

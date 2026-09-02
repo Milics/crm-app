@@ -1,0 +1,112 @@
+[
+  {
+    "id": "tm1",
+    "category": "初次接触",
+    "title": "首次问候语",
+    "content": "你好呀！我是全科专升本的招生老师，看到你对专升本有了解意向～\n\n我们专注专升本辅导多年，有全程集训班、周末走读班等多种班型。\n\n你现在是大几呀？目前在备考哪个方向呢？",
+    "ownerName": "超级管理员",
+    "isPublic": true,
+    "reviewStatus": "approved",
+    "rejectReason": "",
+    "createdAt": "2026-09-03T00:02:21.405"
+  },
+  {
+    "id": "tm2",
+    "category": "初次接触",
+    "title": "抖音引流话术",
+    "content": "刚刷到你的视频，感觉你挺认真在备考的～\n\n我们机构有针对专升本的系统课程，英语+数学+专业课都有覆盖，很多同学考完都说效果不错。\n\n有兴趣了解一下吗？可以先加个微信，我把资料发给你看看 👉",
+    "ownerName": "超级管理员",
+    "isPublic": true,
+    "reviewStatus": "approved",
+    "rejectReason": "",
+    "createdAt": "2026-09-03T00:02:21.405"
+  },
+  {
+    "id": "tm3",
+    "category": "课程介绍",
+    "title": "全程集训班介绍",
+    "content": "【全程集训班】适合全职备考的同学 🎯\n\n✅ 英语+数学+专业课全覆盖\n✅ 小班授课，30人以内\n✅ 老师1v1答疑，随时线上问\n✅ 历年真题+模拟卷全套\n✅ 考前密训冲刺\n\n报名截止前还有早鸟优惠，有兴趣可以来详细了解一下～",
+    "ownerName": "超级管理员",
+    "isPublic": true,
+    "reviewStatus": "approved",
+    "rejectReason": "",
+    "createdAt": "2026-09-03T00:02:21.405"
+  },
+  {
+    "id": "tm4",
+    "category": "课程介绍",
+    "title": "周末走读班介绍",
+    "content": "【周末走读班】不耽误平时工作/上课 ⏰\n\n📅 每周六日集中授课\n📚 系统梳理考点，高效备考\n💬 微信群全程跟进答疑\n📝 课后作业批改反馈\n\n适合在职或者平时时间不固定的同学！",
+    "ownerName": "超级管理员",
+    "isPublic": true,
+    "reviewStatus": "approved",
+    "rejectReason": "",
+    "createdAt": "2026-09-03T00:02:21.405"
+  },
+  {
+    "id": "tm5",
+    "category": "课程介绍",
+    "title": "分期付款说明",
+    "content": "关于学费，我们支持灵活分期 💰\n\n🔸 一次性缴清可享最大优惠\n🔸 两期分付：报名时50%，开课后30天内结清\n🔸 三期分付：每月等额，无额外手续费\n\n具体金额我来帮你算一下，你更倾向哪种方式？",
+    "ownerName": "超级管理员",
+    "isPublic": true,
+    "reviewStatus": "approved",
+    "rejectReason": "",
+    "createdAt": "2026-09-03T00:02:21.405"
+  },
+  {
+    "id": "tm6",
+    "category": "跟进回访",
+    "title": "二次跟进话术",
+    "content": "上次聊完之后，我一直有关注你的情况～\n\n我们最近刚出了一份【专升本考情分析报告】，里面有各院校的录取分数线和热门专业分析，要不要发给你参考？\n\n顺便问一下，你现在备考方向定下来了吗？",
+    "ownerName": "超级管理员",
+    "isPublic": true,
+    "reviewStatus": "approved",
+    "rejectReason": "",
+    "createdAt": "2026-09-03T00:02:21.405"
+  },
+  {
+    "id": "tm7",
+    "category": "跟进回访",
+    "title": "解决顾虑-学费",
+    "content": "我理解学费确实是个需要考虑的因素。\n\n给你算一笔账：专升本通过后，本科学历带来的收入提升，一般3-6个月就能把课程费用赚回来了 💡\n\n而且我们有分期方案，第一期只需要交XX元，压力不大。你要不要来门店坐坐，我给你详细介绍一下？",
+    "ownerName": "超级管理员",
+    "isPublic": true,
+    "reviewStatus": "approved",
+    "rejectReason": "",
+    "createdAt": "2026-09-03T00:02:21.405"
+  },
+  {
+    "id": "tm8",
+    "category": "跟进回访",
+    "title": "约试听邀请",
+    "content": "我们这周六下午有一节【免费公开课】，老师会讲专升本英语的核心考点和答题技巧，完全免费来听！\n\n来听一节课感受一下，不满意完全没关系，也不会有任何销售压力 😊\n\n你周六下午方便吗？我帮你留一个名额？",
+    "ownerName": "超级管理员",
+    "isPublic": true,
+    "reviewStatus": "approved",
+    "rejectReason": "",
+    "createdAt": "2026-09-03T00:02:21.405"
+  },
+  {
+    "id": "tm9",
+    "category": "成交转化",
+    "title": "限时优惠提醒",
+    "content": "好消息！今天是早鸟价的最后一天 ⏰\n\n明天起恢复原价，差价有好几百块呢。\n\n你之前说在考虑，今天下定决心的话，我可以帮你锁定名额，先交一个小定金就行，剩下的开课前补齐。怎么样？",
+    "ownerName": "超级管理员",
+    "isPublic": true,
+    "reviewStatus": "approved",
+    "rejectReason": "",
+    "createdAt": "2026-09-03T00:02:21.405"
+  },
+  {
+    "id": "tm10",
+    "category": "成交转化",
+    "title": "成功案例分享",
+    "content": "给你分享一个去年的学员案例 🎉\n\n王同学，基础很薄弱，英语40多分，在我们这报了全程班，认真学了6个月，最后考了92分，成功考上了省内重点本科！\n\n她说备考期间老师的跟进帮了她很多，有不懂的随时能问到人。\n\n你的情况其实比她当时还要好一点，有信心的！",
+    "ownerName": "超级管理员",
+    "isPublic": true,
+    "reviewStatus": "approved",
+    "rejectReason": "",
+    "createdAt": "2026-09-03T00:02:21.405"
+  }
+]

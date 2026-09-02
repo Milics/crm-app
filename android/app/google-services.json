@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "208676454654",
+    "project_id": "crm-advisor-1788162363",
+    "storage_bucket": "crm-advisor-1788162363.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:208676454654:android:b40cbca314cd6283e325af",
+        "android_client_info": {
+          "package_name": "com.crm.crm_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBYjpTX6L0h9zIcfK9K_f4Dkt2ehHHFs-o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

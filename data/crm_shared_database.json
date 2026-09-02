@@ -1,0 +1,843 @@
+[
+  {
+    "id": "1788343427076",
+    "wxNick": "过郭培杨测试数据",
+    "wxId": "123456789",
+    "phone": "13290826050",
+    "grade": "12",
+    "school": "天津理工大学",
+    "subject": "美术专业综合",
+    "source": "地推",
+    "classType": "全程集训班",
+    "status": "following",
+    "intentLevel": "high",
+    "nextVisitTime": "2026-09-03T10:00:00.000",
+    "createTime": "2026-09-02T18:03:47.076917",
+    "visitLogs": [],
+    "chatRecords": [],
+    "tags": [
+      "家长决策"
+    ],
+    "remark": "",
+    "ownerName": "郭培杨"
+  },
+  {
+    "id": "1788197247395",
+    "wxNick": "测试数据5",
+    "wxId": "123456321",
+    "phone": "123456",
+    "grade": "24",
+    "school": "财大",
+    "subject": "文史",
+    "source": "其他",
+    "classType": "单科提分班",
+    "status": "contacted",
+    "intentLevel": "high",
+    "nextVisitTime": "2026-09-05T14:30:00.000",
+    "createTime": "2026-09-01T01:27:27.395874",
+    "visitLogs": [
+      {
+        "id": "1788336370765",
+        "clueId": "1788197247395",
+        "contactMethod": "wechat",
+        "visitResult": "normal",
+        "visitContent": "延期",
+        "concerns": [],
+        "nextVisitTime": "2026-09-05T14:30:00.000",
+        "createTime": "2026-09-02T16:06:10.765402"
+      }
+    ],
+    "chatRecords": [],
+    "tags": [],
+    "remark": "",
+    "ownerName": ""
+  },
+  {
+    "id": "1788196502601",
+    "wxNick": "测试同步4",
+    "wxId": "",
+    "phone": "",
+    "grade": "",
+    "school": "",
+    "subject": "",
+    "source": "",
+    "classType": "",
+    "status": "following",
+    "intentLevel": "low",
+    "nextVisitTime": "2026-09-02T10:00:00.000",
+    "createTime": "2026-09-01T01:15:02.601",
+    "visitLogs": [],
+    "chatRecords": [],
+    "tags": [
+      "家长决策"
+    ],
+    "remark": "",
+    "ownerName": ""
+  },
+  {
+    "id": "1788196332812",
+    "wxNick": "测试同步3",
+    "wxId": "153465",
+    "phone": "1254",
+    "grade": "24",
+    "school": "河大",
+    "subject": "理工",
+    "source": "",
+    "classType": "",
+    "status": "following",
+    "intentLevel": "high",
+    "nextVisitTime": "2026-09-02T10:00:00.000",
+    "createTime": "2026-09-01T01:12:12.812",
+    "visitLogs": [],
+    "chatRecords": [],
+    "tags": [
+      "二战升本",
+      "住宿需求"
+    ],
+    "remark": "",
+    "ownerName": ""
+  },
+  {
+    "id": "sync_test_01",
+    "wxNick": "张同学（自动化同步测试）",
+    "wxId": "wx_zhang01",
+    "phone": "13888888888",
+    "subject": "计算机科学与技术",
+    "source": "小红书",
+    "status": "contacting",
+    "createTime": "2026-09-01T01:10:00.000Z"
+  },
+  {
+    "id": "1788189895199",
+    "wxNick": "测试同步2",
+    "wxId": "",
+    "phone": "",
+    "grade": "",
+    "school": "",
+    "subject": "",
+    "source": "",
+    "classType": "",
+    "status": "following",
+    "intentLevel": "none",
+    "nextVisitTime": "2026-09-01T10:00:00.000",
+    "createTime": "2026-08-31T23:24:55.199",
+    "visitLogs": [],
+    "chatRecords": [],
+    "tags": [],
+    "remark": "",
+    "ownerName": ""
+  },
+  {
+    "id": "1788186240315",
+    "wxNick": "测试同步1",
+    "wxId": "123456",
+    "phone": "1555555",
+    "grade": "24",
+    "school": "郑州大学",
+    "subject": "美术",
+    "source": "小红书",
+    "classType": "全程集训班",
+    "status": "following",
+    "intentLevel": "high",
+    "nextVisitTime": "2026-09-01T10:00:00.000",
+    "createTime": "2026-08-31T22:24:00.315",
+    "visitLogs": [],
+    "chatRecords": [],
+    "tags": [
+      "家长决策"
+    ],
+    "remark": "",
+    "ownerName": ""
+  },
+  {
+    "id": "1788184925476",
+    "wxNick": "测试数据",
+    "wxId": "123456",
+    "phone": "423756",
+    "grade": "23",
+    "school": "郑州大学",
+    "subject": "美术",
+    "source": "小红书",
+    "classType": "寒假集训班",
+    "status": "following",
+    "intentLevel": "high",
+    "nextVisitTime": "2026-08-31T10:00:00.000",
+    "createTime": "2026-08-31T22:02:05.476323",
+    "visitLogs": [],
+    "chatRecords": [],
+    "tags": [
+      "目标名校",
+      "家长决策"
+    ],
+    "remark": "",
+    "ownerName": ""
+  },
+  {
+    "id": "1788184879093",
+    "wxNick": "测试",
+    "wxId": "测试微信",
+    "phone": "123456",
+    "grade": "23",
+    "school": "天津理工大学",
+    "subject": "美术",
+    "source": "转介绍",
+    "classType": "全程集训班",
+    "status": "following",
+    "intentLevel": "high",
+    "nextVisitTime": "2026-09-03T10:00:00.000",
+    "createTime": "2026-08-31T22:01:19.093030",
+    "visitLogs": [],
+    "chatRecords": [],
+    "tags": [
+      "住宿需求"
+    ],
+    "remark": "",
+    "ownerName": ""
+  },
+  {
+    "id": "1788165706686",
+    "wxNick": "测试测试1",
+    "wxId": "测试测试1",
+    "phone": "123456",
+    "grade": "25",
+    "school": "河南经贸",
+    "subject": "美术",
+    "source": "老带新",
+    "classType": "寒假集训班",
+    "status": "following",
+    "intentLevel": "high",
+    "nextVisitTime": "2026-09-01T10:00:00.000",
+    "createTime": "2026-08-31T16:41:46.686",
+    "visitLogs": [],
+    "chatRecords": [],
+    "tags": [
+      "价格敏感",
+      "住宿需求"
+    ],
+    "remark": "",
+    "ownerName": ""
+  },
+  {
+    "id": "1788164371780",
+    "wxNick": "测试",
+    "wxId": "测试",
+    "phone": "123456789",
+    "grade": "25",
+    "school": "河南经贸",
+    "subject": "美术",
+    "source": "小红书",
+    "classType": "全程集训班",
+    "status": "following",
+    "intentLevel": "high",
+    "nextVisitTime": null,
+    "createTime": "2026-08-31T16:19:31.780",
+    "visitLogs": [],
+    "chatRecords": [],
+    "tags": [
+      "价格敏感",
+      "基础薄弱"
+    ],
+    "remark": "",
+    "ownerName": ""
+  },
+  {
+    "id": "1788163280908",
+    "wxNick": "测试",
+    "wxId": "测试",
+    "phone": "123456789",
+    "grade": "25",
+    "school": "测试测试",
+    "subject": "美术",
+    "source": "小红书",
+    "classType": "全程集训班",
+    "status": "following",
+    "intentLevel": "high",
+    "nextVisitTime": null,
+    "createTime": "2026-08-31T16:01:20.908",
+    "visitLogs": [],
+    "chatRecords": [],
+    "tags": [
+      "价格敏感"
+    ],
+    "remark": "",
+    "ownerName": ""
+  },
+  {
+    "id": "15",
+    "wxNick": "韩冰冰",
+    "wxId": "",
+    "phone": "",
+    "grade": "",
+    "school": "",
+    "subject": "",
+    "source": "转介绍",
+    "classType": "",
+    "status": "following",
+    "intentLevel": "none",
+    "nextVisitTime": null,
+    "createTime": "2026-08-30T19:57:55.452782",
+    "visitLogs": [],
+    "chatRecords": [],
+    "tags": [],
+    "remark": "",
+    "ownerName": ""
+  },
+  {
+    "id": "12",
+    "wxNick": "杨晨曦",
+    "wxId": "",
+    "phone": "",
+    "grade": "",
+    "school": "",
+    "subject": "理工",
+    "source": "抖音",
+    "classType": "",
+    "status": "following",
+    "intentLevel": "low",
+    "nextVisitTime": "2026-09-06T21:57:55.452782",
+    "createTime": "2026-08-29T21:57:55.452782",
+    "visitLogs": [],
+    "chatRecords": [],
+    "tags": [],
+    "remark": "",
+    "ownerName": ""
+  },
+  {
+    "id": "6",
+    "wxNick": "刘思雨",
+    "wxId": "",
+    "phone": "",
+    "grade": "",
+    "school": "",
+    "subject": "",
+    "source": "抖音",
+    "classType": "",
+    "status": "following",
+    "intentLevel": "none",
+    "nextVisitTime": null,
+    "createTime": "2026-08-28T21:57:55.452782",
+    "visitLogs": [],
+    "chatRecords": [],
+    "tags": [],
+    "remark": "",
+    "ownerName": ""
+  },
+  {
+    "id": "10",
+    "wxNick": "周鹏程",
+    "wxId": "zpc_2024",
+    "phone": "",
+    "grade": "",
+    "school": "",
+    "subject": "教育",
+    "source": "转介绍",
+    "classType": "",
+    "status": "following",
+    "intentLevel": "medium",
+    "nextVisitTime": "2026-09-04T21:57:55.452782",
+    "createTime": "2026-08-27T21:57:55.452782",
+    "visitLogs": [
+      {
+        "id": "v10",
+        "clueId": "10",
+        "contactMethod": "phone",
+        "visitResult": "followUp",
+        "visitContent": "朋友介绍，说对教育学感兴趣，但还没确定考哪个学校，需要进一步了解院校情况。",
+        "concerns": [
+          "时间"
+        ],
+        "nextVisitTime": "2026-09-04T21:57:55.452782",
+        "createTime": "2026-08-27T21:57:55.452782"
+      }
+    ],
+    "chatRecords": [],
+    "tags": [],
+    "remark": "",
+    "ownerName": ""
+  },
+  {
+    "id": "8",
+    "wxNick": "吴晓峰",
+    "wxId": "wxf2025",
+    "phone": "",
+    "grade": "",
+    "school": "",
+    "subject": "理工",
+    "source": "老带新",
+    "classType": "周末走读班",
+    "status": "contacted",
+    "intentLevel": "medium",
+    "nextVisitTime": "2026-09-01T21:57:55.452782",
+    "createTime": "2026-08-26T21:57:55.452782",
+    "visitLogs": [
+      {
+        "id": "v8",
+        "clueId": "8",
+        "contactMethod": "wechat",
+        "visitResult": "normal",
+        "visitContent": "是现在学员吴同学的同班同学，想一起报班，对数学+英语双科有需求。初次沟通，发送了课程介绍。",
+        "concerns": [
+          "学费"
+        ],
+        "nextVisitTime": "2026-09-01T21:57:55.452782",
+        "createTime": "2026-08-26T21:57:55.452782"
+      }
+    ],
+    "chatRecords": [],
+    "tags": [],
+    "remark": "",
+    "ownerName": ""
+  },
+  {
+    "id": "3",
+    "wxNick": "王小燕",
+    "wxId": "yanyan_xhs",
+    "phone": "15923456789",
+    "grade": "24级",
+    "school": "郑州电力高等专科学校",
+    "subject": "文史",
+    "source": "小红书",
+    "classType": "",
+    "status": "following",
+    "intentLevel": "medium",
+    "nextVisitTime": "2026-09-02T21:57:55.452782",
+    "createTime": "2026-08-25T21:57:55.452782",
+    "visitLogs": [
+      {
+        "id": "v3b",
+        "clueId": "3",
+        "contactMethod": "wechat",
+        "visitResult": "followUp",
+        "visitContent": "小红书私信过来询问专升本备考时间，说她现在工作比较忙，想了解周末走读班的安排。",
+        "concerns": [
+          "时间"
+        ],
+        "nextVisitTime": "2026-09-02T21:57:55.452782",
+        "createTime": "2026-08-25T21:57:55.452782"
+      }
+    ],
+    "chatRecords": [],
+    "tags": [
+      "在职备考",
+      "时间紧张"
+    ],
+    "remark": "",
+    "ownerName": ""
+  },
+  {
+    "id": "11",
+    "wxNick": "苏梦琪",
+    "wxId": "smq_study",
+    "phone": "",
+    "grade": "",
+    "school": "",
+    "subject": "经管",
+    "source": "老带新",
+    "classType": "全程集训班",
+    "status": "invited",
+    "intentLevel": "high",
+    "nextVisitTime": "2026-08-29T21:57:55.452782",
+    "createTime": "2026-08-24T21:57:55.452782",
+    "visitLogs": [
+      {
+        "id": "v11a",
+        "clueId": "11",
+        "contactMethod": "wechat",
+        "visitResult": "intentUp",
+        "visitContent": "学姐带来的，说学姐考上了很受她影响，自己也想考。意向非常高，问了班型和价格。",
+        "concerns": [],
+        "nextVisitTime": "2026-08-27T21:57:55.452782",
+        "createTime": "2026-08-24T21:57:55.452782"
+      },
+      {
+        "id": "v11b",
+        "clueId": "11",
+        "contactMethod": "phone",
+        "visitResult": "followUp",
+        "visitContent": "打电话确认报名，但说最近期末考试，等考完再来交钱，让我过两天再联系。",
+        "concerns": [
+          "时间"
+        ],
+        "nextVisitTime": "2026-08-29T21:57:55.452782",
+        "createTime": "2026-08-27T21:57:55.452782"
+      }
+    ],
+    "chatRecords": [],
+    "tags": [],
+    "remark": "",
+    "ownerName": ""
+  },
+  {
+    "id": "2",
+    "wxNick": "李明明",
+    "wxId": "lmm_study",
+    "phone": "13698765432",
+    "grade": "23级",
+    "school": "河南职业技术学院",
+    "subject": "大学语文",
+    "source": "地推",
+    "classType": "全程集训班",
+    "status": "contacted",
+    "intentLevel": "high",
+    "nextVisitTime": "2026-09-05T14:30:00.000",
+    "createTime": "2026-08-23T21:57:55.452782",
+    "visitLogs": [
+      {
+        "id": "1788345718108",
+        "clueId": "2",
+        "contactMethod": "wechat",
+        "visitResult": "followUp",
+        "visitContent": "有所动摇，可能来试听",
+        "concerns": [
+          "距离"
+        ],
+        "nextVisitTime": "2026-09-05T14:30:00.000",
+        "createTime": "2026-09-02T18:41:58.108"
+      },
+      {
+        "id": "v3",
+        "clueId": "2",
+        "contactMethod": "face",
+        "visitResult": "trialBooked",
+        "visitContent": "地推获客，对高数辅导有需求，之前挂科过一次。意向较强，约好明天下午2点到门店详谈，确认报名。",
+        "concerns": [
+          "基础"
+        ],
+        "nextVisitTime": "2026-08-31T00:57:55.452782",
+        "createTime": "2026-08-23T21:57:55.452782"
+      }
+    ],
+    "chatRecords": [],
+    "tags": [
+      "基础薄弱",
+      "目标名校"
+    ],
+    "remark": "",
+    "ownerName": ""
+  },
+  {
+    "id": "5",
+    "wxNick": "赵文文",
+    "wxId": "zww_666",
+    "phone": "",
+    "grade": "",
+    "school": "",
+    "subject": "艺术",
+    "source": "地推",
+    "classType": "全程集训班",
+    "status": "attended",
+    "intentLevel": "high",
+    "nextVisitTime": "2026-08-28T21:57:55.452782",
+    "createTime": "2026-08-22T21:57:55.452782",
+    "visitLogs": [
+      {
+        "id": "v5",
+        "clueId": "5",
+        "contactMethod": "phone",
+        "visitResult": "unreachable",
+        "visitContent": "打了两次电话没接，发微信也没回，下次再试试。",
+        "concerns": [],
+        "nextVisitTime": "2026-08-28T21:57:55.452782",
+        "createTime": "2026-08-25T21:57:55.452782"
+      }
+    ],
+    "chatRecords": [],
+    "tags": [],
+    "remark": "",
+    "ownerName": ""
+  },
+  {
+    "id": "1",
+    "wxNick": "小雪同学",
+    "wxId": "xiaoxue_2025",
+    "phone": "13812345678",
+    "grade": "24级",
+    "school": "河南经贸职业学院",
+    "subject": "经管",
+    "source": "抖音",
+    "classType": "全程集训班",
+    "status": "contacted",
+    "intentLevel": "medium",
+    "nextVisitTime": "2026-08-31T21:57:55.452782",
+    "createTime": "2026-08-20T21:57:55.452782",
+    "visitLogs": [
+      {
+        "id": "v1",
+        "clueId": "1",
+        "contactMethod": "wechat",
+        "visitResult": "normal",
+        "visitContent": "初次接触，对英语专升本感兴趣，目前在上大学二年级，明年准备考。让她先了解一下课程。",
+        "concerns": [
+          "学费",
+          "基础"
+        ],
+        "nextVisitTime": "2026-08-27T21:57:55.452782",
+        "createTime": "2026-08-20T21:57:55.452782"
+      },
+      {
+        "id": "v2",
+        "clueId": "1",
+        "contactMethod": "phone",
+        "visitResult": "intentUp",
+        "visitContent": "第二次跟进，她说已经看了课程介绍，觉得价格偏贵，需要再想想。告知了分期付款方式。",
+        "concerns": [
+          "学费",
+          "时间"
+        ],
+        "nextVisitTime": "2026-08-31T21:57:55.452782",
+        "createTime": "2026-08-27T21:57:55.452782"
+      }
+    ],
+    "chatRecords": [],
+    "tags": [
+      "跨专业",
+      "价格敏感"
+    ],
+    "remark": "",
+    "ownerName": ""
+  },
+  {
+    "id": "7",
+    "wxNick": "陈佳佳",
+    "wxId": "jiajia_study",
+    "phone": "13788990011",
+    "grade": "",
+    "school": "",
+    "subject": "经管",
+    "source": "转介绍",
+    "classType": "全程集训班",
+    "status": "attended",
+    "intentLevel": "high",
+    "nextVisitTime": "2026-08-31T05:57:55.452782",
+    "createTime": "2026-08-18T21:57:55.452782",
+    "visitLogs": [
+      {
+        "id": "v7a",
+        "clueId": "7",
+        "contactMethod": "wechat",
+        "visitResult": "normal",
+        "visitContent": "由老学员王同学转介绍过来，对经管专升本有明确意向，想了解英语课程。",
+        "concerns": [
+          "基础"
+        ],
+        "nextVisitTime": "2026-08-22T21:57:55.452782",
+        "createTime": "2026-08-18T21:57:55.452782"
+      },
+      {
+        "id": "v7b",
+        "clueId": "7",
+        "contactMethod": "phone",
+        "visitResult": "followUp",
+        "visitContent": "电话沟通，她说家人还不太支持，学费方面有顾虑，需要再和家人商量。",
+        "concerns": [
+          "学费",
+          "时间"
+        ],
+        "nextVisitTime": "2026-08-26T21:57:55.452782",
+        "createTime": "2026-08-22T21:57:55.452782"
+      },
+      {
+        "id": "v7c",
+        "clueId": "7",
+        "contactMethod": "wechat",
+        "visitResult": "intentUp",
+        "visitContent": "家人同意了！她说想报全程班，询问具体上课时间和教材情况。意向提升，约明天面谈。",
+        "concerns": [],
+        "nextVisitTime": "2026-08-31T05:57:55.452782",
+        "createTime": "2026-08-29T21:57:55.452782"
+      }
+    ],
+    "chatRecords": [],
+    "tags": [],
+    "remark": "",
+    "ownerName": ""
+  },
+  {
+    "id": "14",
+    "wxNick": "谢一鸣",
+    "wxId": "xym_notes",
+    "phone": "",
+    "grade": "",
+    "school": "",
+    "subject": "经管",
+    "source": "小红书",
+    "classType": "",
+    "status": "contacted",
+    "intentLevel": "medium",
+    "nextVisitTime": "2026-09-03T21:57:55.452782",
+    "createTime": "2026-08-16T21:57:55.452782",
+    "visitLogs": [
+      {
+        "id": "v14a",
+        "clueId": "14",
+        "contactMethod": "wechat",
+        "visitResult": "normal",
+        "visitContent": "看了我们小红书发的备考攻略主动来咨询，对专升本整体流程不太清楚。",
+        "concerns": [
+          "基础"
+        ],
+        "nextVisitTime": "2026-08-20T21:57:55.452782",
+        "createTime": "2026-08-16T21:57:55.452782"
+      },
+      {
+        "id": "v14b",
+        "clueId": "14",
+        "contactMethod": "wechat",
+        "visitResult": "followUp",
+        "visitContent": "发送了院校信息和往年录取情况，他说还在比较其他机构，让他再考虑几天。",
+        "concerns": [
+          "学费"
+        ],
+        "nextVisitTime": "2026-09-03T21:57:55.452782",
+        "createTime": "2026-08-20T21:57:55.452782"
+      }
+    ],
+    "chatRecords": [],
+    "tags": [],
+    "remark": "",
+    "ownerName": ""
+  },
+  {
+    "id": "4",
+    "wxNick": "张大伟",
+    "wxId": "zdw88",
+    "phone": "18611223344",
+    "grade": "22级",
+    "school": "焦作大学",
+    "subject": "教育",
+    "source": "抖音",
+    "classType": "寒暑假集训班",
+    "status": "enrolled",
+    "intentLevel": "high",
+    "nextVisitTime": null,
+    "createTime": "2026-08-15T21:57:55.452782",
+    "visitLogs": [
+      {
+        "id": "v4a",
+        "clueId": "4",
+        "contactMethod": "wechat",
+        "visitResult": "normal",
+        "visitContent": "第一次沟通，对教育学考研感兴趣，想提前备考。",
+        "concerns": [
+          "基础"
+        ],
+        "nextVisitTime": "2026-08-20T21:57:55.452782",
+        "createTime": "2026-08-15T21:57:55.452782"
+      },
+      {
+        "id": "v4b",
+        "clueId": "4",
+        "contactMethod": "phone",
+        "visitResult": "intentUp",
+        "visitContent": "二次跟进，明确意向，推荐寒暑假集训班，当场报名意向强烈。",
+        "concerns": [],
+        "nextVisitTime": "2026-08-27T21:57:55.452782",
+        "createTime": "2026-08-20T21:57:55.452782"
+      },
+      {
+        "id": "v4c",
+        "clueId": "4",
+        "contactMethod": "face",
+        "visitResult": "normal",
+        "visitContent": "已转化为正式学员，到店签订合同，缴费完成。",
+        "concerns": [],
+        "nextVisitTime": null,
+        "createTime": "2026-08-27T21:57:55.452782"
+      }
+    ],
+    "chatRecords": [],
+    "tags": [
+      "二战升本",
+      "住宿需求"
+    ],
+    "remark": "",
+    "ownerName": ""
+  },
+  {
+    "id": "9",
+    "wxNick": "林小雨",
+    "wxId": "lxy_pink",
+    "phone": "",
+    "grade": "",
+    "school": "",
+    "subject": "美术",
+    "source": "小红书",
+    "classType": "",
+    "status": "paused",
+    "intentLevel": "none",
+    "nextVisitTime": null,
+    "createTime": "2026-08-10T21:57:55.452782",
+    "visitLogs": [
+      {
+        "id": "v9a",
+        "clueId": "9",
+        "contactMethod": "wechat",
+        "visitResult": "normal",
+        "visitContent": "小红书私信来询问，对美术专升本感兴趣，但说距离太远。",
+        "concerns": [
+          "住宿",
+          "距离"
+        ],
+        "nextVisitTime": "2026-08-16T21:57:55.452782",
+        "createTime": "2026-08-10T21:57:55.452782"
+      },
+      {
+        "id": "v9b",
+        "clueId": "9",
+        "contactMethod": "wechat",
+        "visitResult": "noIntent",
+        "visitContent": "再次联系，说决定在本地报班了，明确表示不考虑我们。",
+        "concerns": [],
+        "nextVisitTime": null,
+        "createTime": "2026-08-16T21:57:55.452782"
+      }
+    ],
+    "chatRecords": [],
+    "tags": [],
+    "remark": "",
+    "ownerName": ""
+  },
+  {
+    "id": "13",
+    "wxNick": "方芳",
+    "wxId": "fangfang88",
+    "phone": "",
+    "grade": "",
+    "school": "",
+    "subject": "文史",
+    "source": "地推",
+    "classType": "单科提分班",
+    "status": "enrolled",
+    "intentLevel": "high",
+    "nextVisitTime": null,
+    "createTime": "2026-08-05T21:57:55.452782",
+    "visitLogs": [
+      {
+        "id": "v13a",
+        "clueId": "13",
+        "contactMethod": "face",
+        "visitResult": "trialBooked",
+        "visitContent": "街头地推认识，对语文单科提分有需求，以前报过其他机构效果不好。",
+        "concerns": [
+          "效果"
+        ],
+        "nextVisitTime": "2026-08-10T21:57:55.452782",
+        "createTime": "2026-08-05T21:57:55.452782"
+      },
+      {
+        "id": "v13b",
+        "clueId": "13",
+        "contactMethod": "face",
+        "visitResult": "intentUp",
+        "visitContent": "参加免费试听课，对授课效果很满意，当场报名单科提分班，已缴费。",
+        "concerns": [],
+        "nextVisitTime": null,
+        "createTime": "2026-08-10T21:57:55.452782"
+      }
+    ],
+    "chatRecords": [],
+    "tags": [],
+    "remark": "",
+    "ownerName": ""
+  }
+]
