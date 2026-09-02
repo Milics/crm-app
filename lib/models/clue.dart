@@ -1,3 +1,15 @@
+/// 安全解析日期字符串，容忍 null、'None'、空字符串和非法格式，返回 null 而非抛异常
+DateTime? _safeParseDatetime(dynamic value) {
+  if (value == null) return null;
+  final str = value.toString().trim();
+  if (str.isEmpty || str == 'null' || str == 'None') return null;
+  try {
+    return DateTime.parse(str);
+  } catch (_) {
+    return null;
+  }
+}
+
 /// 线索状态枚举
 enum ClueStatus {
   following,  // 待跟进
@@ -119,10 +131,8 @@ class Clue {
           (e) => e.name == json['intentLevel'],
           orElse: () => IntentLevel.none,
         ),
-        nextVisitTime: json['nextVisitTime'] != null
-            ? DateTime.parse(json['nextVisitTime'])
-            : null,
-        createTime: DateTime.parse(json['createTime']),
+        nextVisitTime: _safeParseDatetime(json['nextVisitTime']),
+        createTime: _safeParseDatetime(json['createTime']) ?? DateTime.now(),
         visitLogs: (json['visitLogs'] as List<dynamic>?)
                 ?.map((v) => VisitLog.fromJson(v))
                 .toList() ??
@@ -216,10 +226,8 @@ class VisitLog {
         ),
         visitContent: json['visitContent'] ?? '',
         concerns: List<String>.from(json['concerns'] ?? []),
-        nextVisitTime: json['nextVisitTime'] != null
-            ? DateTime.parse(json['nextVisitTime'])
-            : null,
-        createTime: DateTime.parse(json['createTime']),
+        nextVisitTime: _safeParseDatetime(json['nextVisitTime']),
+        createTime: _safeParseDatetime(json['createTime']) ?? DateTime.now(),
       );
 }
 
@@ -252,7 +260,7 @@ class ChatRecord {
         clueId: json['clueId'],
         imagePath: json['imagePath'] ?? '',
         ocrText: json['ocrText'] ?? '',
-        createTime: DateTime.parse(json['createTime']),
+        createTime: _safeParseDatetime(json['createTime']) ?? DateTime.now(),
       );
 }
 
