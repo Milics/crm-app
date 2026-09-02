@@ -1,11 +1,11 @@
 {
-    "name": "crm_app",
-    "short_name": "crm_app",
+    "name": "专升本招生CRM",
+    "short_name": "招生CRM",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#1976D2",
+    "theme_color": "#1976D2",
+    "description": "专升本招生CRM系统 - 招生顾问专用",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
