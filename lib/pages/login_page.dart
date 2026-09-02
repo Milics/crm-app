@@ -68,23 +68,33 @@ class _LoginPageState extends State<LoginPage> {
             children: [
               // Logo区域
               Container(
-                width: 80,
-                height: 80,
+                width: 90,
+                height: 90,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(22),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
+                      color: Colors.black.withOpacity(0.18),
                       blurRadius: 20,
                       offset: const Offset(0, 8),
                     ),
                   ],
                 ),
-                child: const Icon(
-                  Icons.school,
-                  size: 48,
-                  color: Color(0xFF1976D2),
+                padding: const EdgeInsets.all(8),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.asset(
+                    'assets/images/logo.png',
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(
+                        Icons.school,
+                        size: 48,
+                        color: Color(0xFF1976D2),
+                      );
+                    },
+                  ),
                 ),
               ),
               const SizedBox(height: 20),

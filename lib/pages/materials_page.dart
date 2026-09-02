@@ -166,7 +166,7 @@ class _MaterialsPageState extends State<MaterialsPage>
               Container(
                 color: Colors.white,
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 child: Row(
                   children: [
                     _ScopeTabButton(
@@ -179,7 +179,7 @@ class _MaterialsPageState extends State<MaterialsPage>
                       onTap: () =>
                           setState(() => _currentScope = _MaterialScope.public),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     _ScopeTabButton(
                       label: '🔒 我的专属池',
                       count: _tabController.index == 0
@@ -191,7 +191,7 @@ class _MaterialsPageState extends State<MaterialsPage>
                           () => _currentScope = _MaterialScope.private),
                     ),
                     if (isSuper) ...[
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       _ScopeTabButton(
                         label: '📋 待审核',
                         count: pendingCount,
@@ -410,7 +410,7 @@ class _ScopeTabButton extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
           decoration: BoxDecoration(
             color: isSelected
                 ? selectedColor.withValues(alpha: 0.1)
@@ -418,28 +418,33 @@ class _ScopeTabButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: isSelected
-                  ? selectedColor.withValues(alpha: 0.4)
-                  : Colors.transparent,
+                ? selectedColor.withValues(alpha: 0.4)
+                : Colors.transparent,
               width: 1.2,
             ),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight:
-                      isSelected ? FontWeight.bold : FontWeight.normal,
-                  color: isSelected ? selectedColor : const Color(0xFF555555),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight:
+                        isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected ? selectedColor : const Color(0xFF555555),
+                  ),
                 ),
               ),
               if (count > 0) ...[
-                const SizedBox(width: 4),
+                const SizedBox(width: 3),
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                   decoration: BoxDecoration(
                     color: badgeColor ??
                         (isSelected
@@ -448,9 +453,9 @@ class _ScopeTabButton extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    '$count',
+                    count > 99 ? '99+' : '$count',
                     style: const TextStyle(
-                      fontSize: 10,
+                      fontSize: 9.5,
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                     ),

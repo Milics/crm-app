@@ -15,6 +15,7 @@ class CrmSyncService {
 
   // 候选服务端点列表（涵盖云端域名、Mac 当前 IP、USB 端口映射、本机 Localhost 等）
   final List<String> _candidateUrls = [
+    'https://crm-app-ojs3.onrender.com', // 🌟 用户专属云端 7x24 小时公网同步中枢
     'http://127.0.0.1:8888', // ADB reverse 端口映射 / 本机 Chrome
     'http://localhost:8888',
     'http://192.168.31.104:8888', // Mac 当前 Wi-Fi 局域网 IP

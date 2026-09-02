@@ -8,7 +8,7 @@
     "isActive": true,
     "phone": "13800138000",
     "canManageMaterials": true,
-    "createdAt": "2026-09-03T00:02:21.402",
+    "createdAt": "2026-09-03T00:49:14.393",
     "createdBy": "系统初始化"
   },
   {
@@ -20,7 +20,7 @@
     "isActive": true,
     "phone": "13733334444",
     "canManageMaterials": false,
-    "createdAt": "2026-09-03T00:02:21.402",
+    "createdAt": "2026-09-03T00:49:14.393",
     "createdBy": "超级管理员"
   },
   {
@@ -32,7 +32,7 @@
     "isActive": true,
     "phone": "15738801926",
     "canManageMaterials": true,
-    "createdAt": "2026-09-03T00:02:21.402",
+    "createdAt": "2026-09-03T00:49:14.393",
     "createdBy": "超级管理员"
   },
   {
@@ -44,7 +44,7 @@
     "isActive": true,
     "phone": "13911112222",
     "canManageMaterials": true,
-    "createdAt": "2026-09-03T00:02:21.402",
+    "createdAt": "2026-09-03T00:49:14.393",
     "createdBy": "超级管理员"
   },
   {
@@ -56,7 +56,7 @@
     "isActive": true,
     "phone": "13290823050",
     "canManageMaterials": true,
-    "createdAt": "2026-09-03T00:02:21.402",
+    "createdAt": "2026-09-03T00:49:14.393",
     "createdBy": "超级管理员"
   },
   {
@@ -68,7 +68,7 @@
     "isActive": true,
     "phone": "13733334444",
     "canManageMaterials": false,
-    "createdAt": "2026-09-03T00:02:21.402",
+    "createdAt": "2026-09-03T00:49:14.393",
     "createdBy": "超级管理员"
   }
 ]

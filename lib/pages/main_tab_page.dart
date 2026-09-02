@@ -61,87 +61,89 @@ class _FishStyleBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const barHeight = 56.0;
+    // 获取设备底部安全区域高度，全面屏 iPhone 通常为 34dp，Web 兜底至少留出 20dp
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    final safeBottom = bottomInset > 0 ? bottomInset : 20.0;
+    final totalHeight = barHeight + safeBottom;
 
     return Container(
       color: Colors.transparent,
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: barHeight,
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.bottomCenter,
-            children: [
-              // 1. 闲鱼经典平滑拱顶白色底栏背景（更高更舒展的小山包）
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: _FishBarPainter(),
-                ),
-              ),
-
-              // 2. 导航 Tab 项
-              SizedBox(
-                height: barHeight,
-                child: Row(
-                  children: [
-                    // 左侧两个 Tab
-                    Expanded(
-                      child: _TabItem(
-                        icon: Icons.groups_outlined,
-                        activeIcon: Icons.groups_rounded,
-                        label: '线索',
-                        index: 0,
-                        currentIndex: currentIndex,
-                        onTap: onTabChanged,
-                      ),
-                    ),
-                    Expanded(
-                      child: _TabItem(
-                        icon: Icons.schedule_outlined,
-                        activeIcon: Icons.schedule_rounded,
-                        label: '待回访',
-                        index: 1,
-                        currentIndex: currentIndex,
-                        onTap: onTabChanged,
-                      ),
-                    ),
-
-                    // 中间占位给拱形黄色按钮
-                    const SizedBox(width: 80),
-
-                    // 右侧两个 Tab
-                    Expanded(
-                      child: _TabItem(
-                        icon: Icons.bar_chart_outlined,
-                        activeIcon: Icons.bar_chart_rounded,
-                        label: '统计',
-                        index: 2,
-                        currentIndex: currentIndex,
-                        onTap: onTabChanged,
-                      ),
-                    ),
-                    Expanded(
-                      child: _TabItem(
-                        icon: Icons.person_outline_rounded,
-                        activeIcon: Icons.person_rounded,
-                        label: '我的',
-                        index: 3,
-                        currentIndex: currentIndex,
-                        onTap: onTabChanged,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // 3. 中间闲鱼亮黄色正圆微凸发布按钮
-              Positioned(
-                top: -12, // 拱顶在 -20，顶部留出 8px 白色拱形背景，底部在 46px 与 Tab 文字底对齐
-                child: _FishPublishButton(onTap: onPublishPressed),
-              ),
-            ],
+      height: totalHeight,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.topCenter,
+        children: [
+          // 1. 闲鱼经典平滑拱顶白色底栏背景（铺满底部安全区）
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _FishBarPainter(totalHeight: totalHeight),
+            ),
           ),
-        ),
+
+          // 2. 导航 Tab 项（保留在 barHeight 区域内，底部留出 safeBottom 防遮挡）
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: barHeight,
+            child: Row(
+              children: [
+                // 左侧两个 Tab
+                Expanded(
+                  child: _TabItem(
+                    icon: Icons.groups_outlined,
+                    activeIcon: Icons.groups_rounded,
+                    label: '线索',
+                    index: 0,
+                    currentIndex: currentIndex,
+                    onTap: onTabChanged,
+                  ),
+                ),
+                Expanded(
+                  child: _TabItem(
+                    icon: Icons.schedule_outlined,
+                    activeIcon: Icons.schedule_rounded,
+                    label: '待回访',
+                    index: 1,
+                    currentIndex: currentIndex,
+                    onTap: onTabChanged,
+                  ),
+                ),
+
+                // 中间占位给拱形黄色按钮
+                const SizedBox(width: 80),
+
+                // 右侧两个 Tab
+                Expanded(
+                  child: _TabItem(
+                    icon: Icons.bar_chart_outlined,
+                    activeIcon: Icons.bar_chart_rounded,
+                    label: '统计',
+                    index: 2,
+                    currentIndex: currentIndex,
+                    onTap: onTabChanged,
+                  ),
+                ),
+                Expanded(
+                  child: _TabItem(
+                    icon: Icons.person_outline_rounded,
+                    activeIcon: Icons.person_rounded,
+                    label: '我的',
+                    index: 3,
+                    currentIndex: currentIndex,
+                    onTap: onTabChanged,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // 3. 中间闲鱼亮黄色正圆微凸发布按钮
+          Positioned(
+            top: -12,
+            child: _FishPublishButton(onTap: onPublishPressed),
+          ),
+        ],
       ),
     );
   }
@@ -149,10 +151,13 @@ class _FishStyleBottomBar extends StatelessWidget {
 
 /// 绘制闲鱼经典的平滑拱形底栏背景 Path
 class _FishBarPainter extends CustomPainter {
+  final double? totalHeight;
+  const _FishBarPainter({this.totalHeight});
+
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
-    final h = size.height;
+    final h = totalHeight ?? size.height;
     final cx = w / 2;
 
     // 闲鱼舒展拱形小山包参数：宽 100dp，高 20dp
@@ -177,8 +182,8 @@ class _FishBarPainter extends CustomPainter {
     );
 
     path.lineTo(w, 0);
-    path.lineTo(w, h + 34); // 延伸至安全区底部
-    path.lineTo(0, h + 34);
+    path.lineTo(w, h + 50); // 延伸铺满整个屏幕底部边缘
+    path.lineTo(0, h + 50);
     path.close();
 
     // 1. 绘制柔和向上投影

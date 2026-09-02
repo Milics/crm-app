@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'providers/app_provider.dart';
 import 'pages/login_page.dart';
@@ -44,6 +45,11 @@ class CrmApp extends StatelessWidget {
           foregroundColor: Colors.white,
           elevation: 0,
           centerTitle: true,
+          systemOverlayStyle: SystemUiOverlayStyle(
+            statusBarColor: Color(0xFF1976D2),
+            statusBarIconBrightness: Brightness.light,
+            statusBarBrightness: Brightness.dark,
+          ),
         ),
         navigationBarTheme: NavigationBarThemeData(
           indicatorColor: const Color(0xFF1976D2).withOpacity(0.15),

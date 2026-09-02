@@ -301,29 +301,58 @@ class MinePage extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Row(
-          children: const [
-            Icon(Icons.school, color: Color(0xFF1976D2)),
-            SizedBox(width: 8),
-            Text('关于应用'),
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Image.asset(
+                'assets/images/logo.png',
+                width: 24,
+                height: 24,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Icon(Icons.school, size: 24, color: Color(0xFF1976D2)),
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Text('关于应用'),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            Text(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Icon(Icons.school, size: 40, color: Color(0xFF1976D2)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
               '全科专升本 · 招生CRM',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
-            SizedBox(height: 10),
-            Text('版本：V1.0.0 (Release)',
+            const SizedBox(height: 8),
+            const Text('版本：V1.0.0 (Release)',
                 style: TextStyle(color: Colors.black87, fontSize: 13)),
-            SizedBox(height: 4),
-            Text('适用对象：专升本招生团队 / 咨询顾问',
+            const SizedBox(height: 4),
+            const Text('适用对象：专升本招生团队 / 咨询顾问',
                 style: TextStyle(color: Colors.grey, fontSize: 13)),
-            SizedBox(height: 8),
-            Text(
+            const SizedBox(height: 8),
+            const Text(
               '功能亮点：全流程线索跟进、跟进时间轴、话术与物料库、支持多维度检索与数据持久化。',
+              textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey, fontSize: 12, height: 1.4),
             ),
           ],
