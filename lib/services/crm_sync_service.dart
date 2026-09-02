@@ -26,9 +26,12 @@ class CrmSyncService {
   String? _customCloudUrl;
   String? get customCloudUrl => _customCloudUrl;
 
-  String? _activeBaseUrl;
+  // 默认直接激活用户专属的 7x24 小时公网同步中枢
+  String? _activeBaseUrl = 'https://crm-app-ojs3.onrender.com';
   String? get activeBaseUrl => _activeBaseUrl;
   bool get isConnected => _activeBaseUrl != null;
+
+  String? lastError;
 
   /// 设置并保存自定义云端同步域名
   Future<bool> setCustomCloudUrl(String url) async {
@@ -59,13 +62,16 @@ class CrmSyncService {
       try {
         final res = await http
             .get(Uri.parse('$url/api/health'))
-            .timeout(const Duration(milliseconds: 3000));
+            .timeout(const Duration(seconds: 8));
         if (res.statusCode == 200) {
           _activeBaseUrl = url;
+          lastError = null;
           debugPrint('🟢 [CrmSync] 成功连通数据同步服务器: $_activeBaseUrl');
           return true;
         }
-      } catch (_) {}
+      } catch (e) {
+        lastError = e.toString();
+      }
     }
     return false;
   }
@@ -76,22 +82,19 @@ class CrmSyncService {
 
   /// 获取云端所有员工账号
   Future<List<AppUser>?> fetchUsers() async {
-    if (_activeBaseUrl == null) {
-      final found = await detectServer();
-      if (!found) return null;
-    }
-
+    final baseUrl = _activeBaseUrl ?? 'https://crm-app-ojs3.onrender.com';
     try {
       final res = await http
-          .get(Uri.parse('$_activeBaseUrl/api/users'))
-          .timeout(const Duration(seconds: 4));
+          .get(Uri.parse('$baseUrl/api/users'))
+          .timeout(const Duration(seconds: 10));
       if (res.statusCode == 200) {
         final list = jsonDecode(res.body) as List<dynamic>;
+        _activeBaseUrl = baseUrl;
         return list.map((e) => AppUser.fromJson(e)).toList();
       }
     } catch (e) {
       debugPrint('⚠️ [CrmSync] 拉取员工账号异常: $e');
-      _activeBaseUrl = null;
+      lastError = e.toString();
     }
     return null;
   }
@@ -99,39 +102,36 @@ class CrmSyncService {
   /// 保存单个或批量员工账号到云端
   Future<bool> saveUsers(List<AppUser> users) async {
     if (users.isEmpty) return true;
-    if (_activeBaseUrl == null) {
-      final found = await detectServer();
-      if (!found) return false;
-    }
+    final baseUrl = _activeBaseUrl ?? 'https://crm-app-ojs3.onrender.com';
 
     try {
       final payload = users.map((u) => u.toJson()).toList();
       final res = await http
           .post(
-            Uri.parse('$_activeBaseUrl/api/users'),
+            Uri.parse('$baseUrl/api/users'),
             headers: {'Content-Type': 'application/json; charset=utf-8'},
             body: jsonEncode(payload),
           )
-          .timeout(const Duration(seconds: 4));
-      return res.statusCode == 200;
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        _activeBaseUrl = baseUrl;
+        return true;
+      }
     } catch (e) {
       debugPrint('⚠️ [CrmSync] 保存员工账号异常: $e');
-      _activeBaseUrl = null;
-      return false;
+      lastError = e.toString();
     }
+    return false;
   }
 
   /// 删除单个员工账号
   Future<bool> deleteUser(String id) async {
-    if (_activeBaseUrl == null) {
-      final found = await detectServer();
-      if (!found) return false;
-    }
+    final baseUrl = _activeBaseUrl ?? 'https://crm-app-ojs3.onrender.com';
 
     try {
       final res = await http
-          .delete(Uri.parse('$_activeBaseUrl/api/users/$id'))
-          .timeout(const Duration(seconds: 4));
+          .delete(Uri.parse('$baseUrl/api/users/$id'))
+          .timeout(const Duration(seconds: 10));
       return res.statusCode == 200;
     } catch (_) {
       return false;
@@ -144,24 +144,23 @@ class CrmSyncService {
 
   /// 获取云端全部线索
   Future<List<Clue>?> fetchAllClues() async {
-    if (_activeBaseUrl == null) {
-      final found = await detectServer();
-      if (!found) return null;
-    }
+    final baseUrl = _activeBaseUrl ?? 'https://crm-app-ojs3.onrender.com';
 
     try {
       final res = await http
-          .get(Uri.parse('$_activeBaseUrl/api/clues'))
-          .timeout(const Duration(seconds: 4));
+          .get(Uri.parse('$baseUrl/api/clues'))
+          .timeout(const Duration(seconds: 10));
       if (res.statusCode == 200) {
         final list = jsonDecode(res.body) as List<dynamic>;
         final clues = list.map((e) => Clue.fromJson(e)).toList();
+        _activeBaseUrl = baseUrl;
+        lastError = null;
         debugPrint('🟢 [CrmSync] 成功从同步服务器拉取 ${clues.length} 条线索');
         return clues;
       }
     } catch (e) {
       debugPrint('⚠️ [CrmSync] 拉取数据异常: $e');
-      _activeBaseUrl = null;
+      lastError = e.toString();
     }
     return null;
   }
@@ -169,26 +168,27 @@ class CrmSyncService {
   /// 保存单个或批量线索
   Future<bool> saveClues(List<Clue> clues) async {
     if (clues.isEmpty) return true;
-    if (_activeBaseUrl == null) {
-      final found = await detectServer();
-      if (!found) return false;
-    }
+    final baseUrl = _activeBaseUrl ?? 'https://crm-app-ojs3.onrender.com';
 
     try {
       final payload = clues.map((c) => c.toJson()).toList();
       final res = await http
           .post(
-            Uri.parse('$_activeBaseUrl/api/clues'),
+            Uri.parse('$baseUrl/api/clues'),
             headers: {'Content-Type': 'application/json; charset=utf-8'},
             body: jsonEncode(payload),
           )
-          .timeout(const Duration(seconds: 4));
-      return res.statusCode == 200;
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        _activeBaseUrl = baseUrl;
+        lastError = null;
+        return true;
+      }
     } catch (e) {
       debugPrint('⚠️ [CrmSync] 保存数据异常: $e');
-      _activeBaseUrl = null;
-      return false;
+      lastError = e.toString();
     }
+    return false;
   }
 
   /// 删除单个线索

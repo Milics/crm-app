@@ -46,6 +46,16 @@
   </style>
 </head>
 <body>
+  <script>
+    // 强制自动更新 Service Worker，确保 iOS PWA 和 Safari 随时加载最新云端同步逻辑
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for(let registration of registrations) {
+          registration.update();
+        }
+      });
+    }
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

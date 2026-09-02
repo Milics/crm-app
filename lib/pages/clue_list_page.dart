@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/app_provider.dart';
 import '../models/clue.dart';
+import '../services/crm_sync_service.dart';
 import 'clue_detail_page.dart';
 
 
@@ -191,10 +192,14 @@ class _ClueListPageState extends State<ClueListPage>
             onRefresh: () async {
               final success = await provider.refreshClues();
               if (context.mounted) {
+                final err = CrmSyncService().lastError;
+                final msg = success
+                    ? '☁️ 已从云端同步最新数据'
+                    : (err != null ? '⚠️ 同步失败: $err' : '⚠️ 同步失败，请检查网络');
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(success ? '☁️ 已从云端同步最新数据' : '⚠️ 同步失败，请检查网络'),
-                    duration: const Duration(seconds: 2),
+                    content: Text(msg),
+                    duration: const Duration(seconds: 3),
                     backgroundColor: success ? Colors.green : Colors.orange,
                   ),
                 );
