@@ -50,11 +50,16 @@ class CrmSyncService {
     }
     urlsToTest.addAll(_candidateUrls);
 
+    // 如果是 Web 环境（浏览器中运行），强制过滤掉非 HTTPS 端点，防止浏览器 Mixed Content 安全拦截
+    if (kIsWeb) {
+      urlsToTest.removeWhere((u) => !u.startsWith('https://'));
+    }
+
     for (final url in urlsToTest) {
       try {
         final res = await http
             .get(Uri.parse('$url/api/health'))
-            .timeout(const Duration(milliseconds: 2500));
+            .timeout(const Duration(milliseconds: 3000));
         if (res.statusCode == 200) {
           _activeBaseUrl = url;
           debugPrint('🟢 [CrmSync] 成功连通数据同步服务器: $_activeBaseUrl');

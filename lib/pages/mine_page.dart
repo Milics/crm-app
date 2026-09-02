@@ -502,7 +502,11 @@ class MinePage extends StatelessWidget {
 
   void _showCloudSyncDialog(BuildContext context, AppProvider provider) {
     final syncService = CrmSyncService();
-    final urlCtrl = TextEditingController(text: syncService.customCloudUrl ?? '');
+    final urlCtrl = TextEditingController(
+      text: (syncService.customCloudUrl != null && syncService.customCloudUrl!.isNotEmpty)
+          ? syncService.customCloudUrl!
+          : 'https://crm-app-ojs3.onrender.com',
+    );
     bool isTesting = false;
 
     showDialog(
@@ -595,6 +599,21 @@ class MinePage extends StatelessWidget {
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
                 child: const Text('关闭'),
+              ),
+              TextButton.icon(
+                icon: const Icon(Icons.sync, size: 16),
+                label: const Text('全量对齐'),
+                onPressed: () async {
+                  final ok = await provider.forceSyncAll();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(ok ? '✅ 已将手机本地与云端所有线索完全对齐同步！' : '⚠️ 对齐已执行完毕'),
+                        backgroundColor: ok ? Colors.green : Colors.blue,
+                      ),
+                    );
+                  }
+                },
               ),
               ElevatedButton(
                 onPressed: isTesting

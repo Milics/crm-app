@@ -413,24 +413,24 @@ class AppProvider extends ChangeNotifier {
     unawaited(syncUsersFromCloud());
     unawaited(syncMaterialsFromCloud());
 
-    // 2. 优先尝试智能同步引擎同步线索
+    // 2. 优先尝试智能同步引擎同步线索（全量双向对齐）
     try {
       final remoteClues = await _crmSyncService.fetchAllClues();
-      if (remoteClues != null && remoteClues.isNotEmpty) {
-        final map = {for (var c in _clues) c.id: c};
-        for (var rc in remoteClues) {
-          map[rc.id] = rc;
+      if (remoteClues != null) {
+        final remoteMap = {for (var rc in remoteClues) rc.id: rc};
+        // 发现本地独有线索（如刚在 iPhone 离线创建的数据），自动上报云端！
+        final localOnly =
+            _clues.where((c) => !remoteMap.containsKey(c.id)).toList();
+        if (localOnly.isNotEmpty) {
+          unawaited(_crmSyncService.saveClues(localOnly));
+          for (var c in localOnly) {
+            remoteMap[c.id] = c;
+          }
         }
         _clues.clear();
-        _clues.addAll(map.values);
+        _clues.addAll(remoteMap.values);
         _clues.sort((a, b) => b.createTime.compareTo(a.createTime));
         await _saveCluesLocalOnly();
-        _isCloudConnected = true;
-        _syncStatus = '实时同步中';
-        notifyListeners();
-        return;
-      } else if (remoteClues != null && remoteClues.isEmpty && _clues.isNotEmpty) {
-        await _crmSyncService.saveClues(_clues);
         _isCloudConnected = true;
         _syncStatus = '实时同步中';
         notifyListeners();
@@ -548,9 +548,25 @@ class AppProvider extends ChangeNotifier {
   Future<void> _saveClues({Clue? changedClue}) async {
     await _saveCluesLocalOnly();
     if (changedClue != null) {
-      _crmSyncService.saveClues([changedClue]);
+      try {
+        await _crmSyncService.saveClues([changedClue]);
+      } catch (e) {
+        debugPrint('⚠️ [CrmSync] 保存单个线索到云端异常: $e');
+      }
       _tencentService.saveClue(changedClue);
       _firestoreService.saveClue(changedClue);
+    }
+  }
+
+  /// 手动强制触发全量双向同步（一键将本地未上报数据推上云端，并拉回最新数据）
+  Future<bool> forceSyncAll() async {
+    try {
+      final success = await refreshClues();
+      await syncUsersFromCloud();
+      await syncMaterialsFromCloud();
+      return success;
+    } catch (_) {
+      return false;
     }
   }
 
