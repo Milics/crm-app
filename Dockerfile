@@ -1,19 +1,15 @@
 FROM dart:stable AS build
 
 WORKDIR /app
-COPY pubspec.* ./
-RUN dart pub get
-
-COPY . .
+COPY scripts/sync_server.dart scripts/sync_server.dart
 RUN dart compile exe scripts/sync_server.dart -o bin/sync_server
 
-FROM scratch
-COPY --from=build /runtime/ /
-COPY --from=build /app/bin/sync_server /app/bin/sync_server
-COPY --from=build /app/data /app/data
-
+FROM dart:stable-slim
 WORKDIR /app
+COPY --from=build /app/bin/sync_server /app/sync_server
+COPY data /app/data
+
 EXPOSE 8888
 ENV PORT=8888
 
-CMD ["/app/bin/sync_server"]
+CMD ["/app/sync_server"]
