@@ -473,7 +473,36 @@ class AppProvider extends ChangeNotifier {
     unawaited(syncUsersFromCloud());
     unawaited(syncMaterialsFromCloud());
 
-    // 1. 优先尝试从云端 Firestore 强制拉取最新权威数据
+    // 1. 优先尝试 7x24 小时云端同步中枢（全球公网直连）
+    try {
+      final remoteClues = await _crmSyncService.fetchAllClues();
+      if (remoteClues != null) {
+        _isCloudConnected = true;
+        _syncStatus = '实时同步中';
+
+        final remoteMap = {for (var rc in remoteClues) rc.id: rc};
+        final localOnly =
+            _clues.where((c) => !remoteMap.containsKey(c.id)).toList();
+        if (localOnly.isNotEmpty) {
+          debugPrint('☁️ [CrmSync] 发现本地有 ${localOnly.length} 条未上报线索，正在自动双向上报...');
+          await _crmSyncService.saveClues(localOnly);
+          for (var c in localOnly) {
+            remoteMap[c.id] = c;
+          }
+        }
+
+        _clues.clear();
+        _clues.addAll(remoteMap.values);
+        _clues.sort((a, b) => b.createTime.compareTo(a.createTime));
+        await _saveCluesLocalOnly();
+        notifyListeners();
+        return true;
+      }
+    } catch (e) {
+      debugPrint('⚠️ [CrmSync] 下拉刷新异常: $e');
+    }
+
+    // 2. 备选尝试云端 Firestore
     try {
       final fbClues = await _firestoreService.fetchCluesFromServer();
       if (fbClues != null && fbClues.isNotEmpty) {
@@ -481,8 +510,6 @@ class AppProvider extends ChangeNotifier {
         _syncStatus = '云端实时同步中';
 
         final remoteMap = {for (var rc in fbClues) rc.id: rc};
-
-        // 检查本地是否有未上云的线索，自动双向上报补齐
         final localOnly =
             _clues.where((c) => !remoteMap.containsKey(c.id)).toList();
         if (localOnly.isNotEmpty) {
@@ -502,34 +529,6 @@ class AppProvider extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('⚠️ [Firestore Sync] 下拉刷新异常: $e');
-    }
-
-    // 2. 尝试本地智能局域网同步引擎
-    try {
-      final remoteClues = await _crmSyncService.fetchAllClues();
-      if (remoteClues != null) {
-        _isCloudConnected = true;
-        _syncStatus = '实时同步中';
-
-        final remoteMap = {for (var rc in remoteClues) rc.id: rc};
-        final localOnly =
-            _clues.where((c) => !remoteMap.containsKey(c.id)).toList();
-        if (localOnly.isNotEmpty) {
-          await _crmSyncService.saveClues(localOnly);
-          for (var c in localOnly) {
-            remoteMap[c.id] = c;
-          }
-        }
-
-        _clues.clear();
-        _clues.addAll(remoteMap.values);
-        _clues.sort((a, b) => b.createTime.compareTo(a.createTime));
-        await _saveCluesLocalOnly();
-        notifyListeners();
-        return true;
-      }
-    } catch (e) {
-      debugPrint('⚠️ [CrmSync] 下拉刷新异常: $e');
     }
 
     _syncStatus = '离线模式';

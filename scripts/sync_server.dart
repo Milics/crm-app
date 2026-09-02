@@ -51,9 +51,11 @@ void main() async {
   }
 
   await for (HttpRequest req in server) {
-    req.response.headers.add('Access-Control-Allow-Origin', '*');
-    req.response.headers.add('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-    req.response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    req.response.headers.set('Access-Control-Allow-Origin', '*');
+    req.response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    req.response.headers.set('Access-Control-Allow-Headers', '*');
+    req.response.headers.set('Access-Control-Expose-Headers', '*');
+    req.response.headers.set('Access-Control-Max-Age', '86400');
 
     if (req.method == 'OPTIONS') {
       req.response.statusCode = HttpStatus.noContent;
