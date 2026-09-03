@@ -236,6 +236,7 @@ class ChatRecord {
   final String id;
   final String clueId;
   final String imagePath;
+  final String? imageData; // Base64 格式的图片数据（跨设备全端同步显示）
   String ocrText;
   final DateTime createTime;
 
@@ -243,6 +244,7 @@ class ChatRecord {
     required this.id,
     required this.clueId,
     required this.imagePath,
+    this.imageData,
     this.ocrText = '',
     required this.createTime,
   });
@@ -251,6 +253,7 @@ class ChatRecord {
         'id': id,
         'clueId': clueId,
         'imagePath': imagePath,
+        'imageData': imageData,
         'ocrText': ocrText,
         'createTime': createTime.toIso8601String(),
       };
@@ -259,6 +262,7 @@ class ChatRecord {
         id: json['id'],
         clueId: json['clueId'],
         imagePath: json['imagePath'] ?? '',
+        imageData: json['imageData'],
         ocrText: json['ocrText'] ?? '',
         createTime: _safeParseDatetime(json['createTime']) ?? DateTime.now(),
       );

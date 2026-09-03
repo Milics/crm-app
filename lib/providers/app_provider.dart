@@ -1212,6 +1212,16 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
+  // 批量追加聊天截图并触发云端与本地双向同步
+  Future<void> addChatRecords(String clueId, List<ChatRecord> records) async {
+    final clue = getClueById(clueId);
+    if (clue != null) {
+      clue.chatRecords.addAll(records);
+      notifyListeners();
+      await _saveClues(changedClue: clue);
+    }
+  }
+
   // 转为报名
   void enrollClue(String clueId, String classType, String remark) {
     final clue = getClueById(clueId);

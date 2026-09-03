@@ -84,6 +84,8 @@ class ImageMaterial {
   final String category;
   final String title;
   final String desc;
+  final String? imageData; // Base64 格式的图片数据（可全端同步显示）
+  final String? imageUrl; // 图片URL或本地路径
   final String ownerName;
   final bool isPublic;
   final String reviewStatus;
@@ -95,6 +97,8 @@ class ImageMaterial {
     required this.category,
     required this.title,
     required this.desc,
+    this.imageData,
+    this.imageUrl,
     this.ownerName = '超级管理员',
     this.isPublic = true,
     this.reviewStatus = MaterialReviewStatus.approved,
@@ -106,6 +110,8 @@ class ImageMaterial {
     String? category,
     String? title,
     String? desc,
+    String? imageData,
+    String? imageUrl,
     String? ownerName,
     bool? isPublic,
     String? reviewStatus,
@@ -116,6 +122,8 @@ class ImageMaterial {
         category: category ?? this.category,
         title: title ?? this.title,
         desc: desc ?? this.desc,
+        imageData: imageData ?? this.imageData,
+        imageUrl: imageUrl ?? this.imageUrl,
         ownerName: ownerName ?? this.ownerName,
         isPublic: isPublic ?? this.isPublic,
         reviewStatus: reviewStatus ?? this.reviewStatus,
@@ -128,6 +136,8 @@ class ImageMaterial {
         'category': category,
         'title': title,
         'desc': desc,
+        'imageData': imageData,
+        'imageUrl': imageUrl,
         'ownerName': ownerName,
         'isPublic': isPublic,
         'reviewStatus': reviewStatus,
@@ -140,6 +150,8 @@ class ImageMaterial {
         category: json['category'] ?? '',
         title: json['title'] ?? '',
         desc: json['desc'] ?? '',
+        imageData: json['imageData'],
+        imageUrl: json['imageUrl'],
         ownerName: json['ownerName'] ?? '超级管理员',
         isPublic: json['isPublic'] ?? true,
         reviewStatus: json['reviewStatus'] ?? MaterialReviewStatus.approved,

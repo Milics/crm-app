@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../models/material_item.dart';
@@ -39,6 +41,10 @@ class _AddEditMaterialPageState extends State<AddEditMaterialPage> {
   late bool _saveToPublic;
   bool _applyForReview = false;
 
+  // 图片物料专属：真实 Base64 图片数据
+  String? _imageBase64;
+  bool _isPickingImage = false;
+
   @override
   void initState() {
     super.initState();
@@ -58,6 +64,7 @@ class _AddEditMaterialPageState extends State<AddEditMaterialPage> {
       _categoryCtrl = TextEditingController(text: m?.category ?? '');
       _titleCtrl = TextEditingController(text: m?.title ?? '');
       _contentCtrl = TextEditingController(text: m?.desc ?? '');
+      _imageBase64 = m?.imageData;
       _existingCategories = provider.publicImageCategories;
       _saveToPublic = m?.isPublic ?? (isSuper && widget.defaultToPublic);
       _applyForReview = m?.reviewStatus == MaterialReviewStatus.pending;
@@ -70,6 +77,35 @@ class _AddEditMaterialPageState extends State<AddEditMaterialPage> {
     _titleCtrl.dispose();
     _contentCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      setState(() => _isPickingImage = true);
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 75,
+      );
+      if (picked != null) {
+        final bytes = await picked.readAsBytes();
+        setState(() {
+          _imageBase64 = base64Encode(bytes);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('选择图片失败: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isPickingImage = false);
+      }
+    }
   }
 
   void _save() {
@@ -111,12 +147,23 @@ class _AddEditMaterialPageState extends State<AddEditMaterialPage> {
         ));
       }
     } else {
+      if (_imageBase64 == null || _imageBase64!.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('⚠️ 请先点击上传一张宣传海报或图片！'),
+            backgroundColor: Colors.deepOrange,
+          ),
+        );
+        return;
+      }
+
       if (_isEdit) {
         provider.updateImageMaterial(
           widget.imageMaterial!.copyWith(
             category: category,
             title: title,
             desc: content,
+            imageData: _imageBase64,
             isPublic: isPublic,
             reviewStatus: reviewStatus,
           ),
@@ -127,6 +174,7 @@ class _AddEditMaterialPageState extends State<AddEditMaterialPage> {
           category: category,
           title: title,
           desc: content,
+          imageData: _imageBase64,
           ownerName: provider.currentUser,
           isPublic: isPublic,
           reviewStatus: reviewStatus,
@@ -160,16 +208,9 @@ class _AddEditMaterialPageState extends State<AddEditMaterialPage> {
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         title: Text(pageTitle),
-        actions: [
-          TextButton(
-            onPressed: _save,
-            child: const Text('保存',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold)),
-          ),
-        ],
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
+        elevation: 0,
       ),
       body: Form(
         key: _formKey,
@@ -178,20 +219,33 @@ class _AddEditMaterialPageState extends State<AddEditMaterialPage> {
           children: [
             // 归属池与审核选项
             Container(
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              padding: const EdgeInsets.all(14),
               child: isSuper
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('保存位置',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 13)),
-                        const SizedBox(height: 8),
+                        Row(
+                          children: const [
+                            Icon(Icons.admin_panel_settings,
+                                size: 16, color: Color(0xFF1976D2)),
+                            SizedBox(width: 6),
+                            Text('保存目标物料池（管理员特权）',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 13)),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
                         Row(
                           children: [
                             Expanded(
@@ -333,9 +387,19 @@ class _AddEditMaterialPageState extends State<AddEditMaterialPage> {
 
             const SizedBox(height: 16),
 
+            // 图片物料专属：宣传海报 / 招生简章选择区
+            if (!_isText) ...[
+              _buildSection(
+                label: '宣传海报 / 简章图片',
+                required: true,
+                child: _buildImagePickerArea(primaryColor),
+              ),
+              const SizedBox(height: 16),
+            ],
+
             // 内容 / 说明
             _buildSection(
-              label: _isText ? '话术内容' : '图片说明',
+              label: _isText ? '话术内容' : '图片推荐配文与说明',
               required: true,
               child: TextFormField(
                 controller: _contentCtrl,
@@ -343,7 +407,7 @@ class _AddEditMaterialPageState extends State<AddEditMaterialPage> {
                 decoration: _inputDecoration(
                   hint: _isText
                       ? '输入完整的话术文字内容，支持换行与表情 emoji'
-                      : '简要说明此图片的适用场景与推荐配文',
+                      : '简要说明此图片的适用场景与推荐配文，方便老师发朋友圈或微信沟通',
                   color: primaryColor,
                 ),
                 validator: (v) =>
@@ -369,6 +433,154 @@ class _AddEditMaterialPageState extends State<AddEditMaterialPage> {
                         TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 图片物料专属海报选择预览组件
+  Widget _buildImagePickerArea(Color color) {
+    if (_isPickingImage) {
+      return Container(
+        height: 160,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.grey[300]!),
+        ),
+        child: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(strokeWidth: 2.5),
+            SizedBox(height: 12),
+            Text('正在压缩处理图片...', style: TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+        ),
+      );
+    }
+
+    if (_imageBase64 != null && _imageBase64!.isNotEmpty) {
+      return Column(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              height: 200,
+              width: double.infinity,
+              color: Colors.black12,
+              child: Image.memory(
+                base64Decode(_imageBase64!),
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Center(
+                  child: Text('图片格式解析失败', style: TextStyle(color: Colors.red)),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () => setState(() => _imageBase64 = null),
+                icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
+                label: const Text('删除图片', style: TextStyle(color: Colors.red, fontSize: 12)),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.redAccent),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                ),
+              ),
+              const SizedBox(width: 10),
+              ElevatedButton.icon(
+                onPressed: () => _showImageSourceDialog(),
+                icon: const Icon(Icons.change_circle_outlined, size: 16),
+                label: const Text('重新选择', style: TextStyle(fontSize: 12)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: color,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    return InkWell(
+      onTap: () => _showImageSourceDialog(),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        height: 150,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: color.withValues(alpha: 0.4),
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add_photo_alternate_outlined, size: 42, color: color),
+            const SizedBox(height: 8),
+            Text(
+              '点击上传招生海报 / 课程简章图片',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              '支持拍照或手机相册，自动高保真压缩并多端秒级同步',
+              style: TextStyle(fontSize: 11, color: Colors.grey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showImageSourceDialog() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                '选择海报或图片来源',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined, color: Color(0xFF1976D2)),
+              title: const Text('从手机相册选取'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickImage(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined, color: Color(0xFF00897B)),
+              title: const Text('拍照'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickImage(ImageSource.camera);
+              },
+            ),
+            const SizedBox(height: 8),
           ],
         ),
       ),

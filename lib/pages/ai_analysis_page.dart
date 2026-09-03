@@ -3,8 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/clue.dart';
 import '../providers/app_provider.dart';
+import '../services/ai_service.dart';
 
-/// AI智能分析独立页（含意向评分预测、画像诊断、核心顾虑、策略话题与专属话术）
+/// AI 智能分析页面（支持 DeepSeek / 智谱大模型实时诊断 + 专业启发式规则双引擎）
 class AiAnalysisPage extends StatefulWidget {
   final Clue clue;
   const AiAnalysisPage({super.key, required this.clue});
@@ -16,6 +17,9 @@ class AiAnalysisPage extends StatefulWidget {
 class _AiAnalysisPageState extends State<AiAnalysisPage> {
   bool _loading = true;
   bool _saved = false;
+  bool _usingLlm = false;
+  String? _llmOutput;
+  String? _errorMessage;
   _AnalysisResult? _result;
 
   @override
@@ -28,11 +32,36 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
     setState(() {
       _loading = true;
       _saved = false;
+      _errorMessage = null;
     });
-    await Future.delayed(const Duration(milliseconds: 1000));
+
+    final ai = AiService();
+    await ai.init();
+
+    if (ai.isConfigured) {
+      try {
+        final output = await ai.analyzeClue(widget.clue);
+        if (mounted) {
+          setState(() {
+            _loading = false;
+            _usingLlm = true;
+            _llmOutput = output;
+            _result = _generateResult(widget.clue);
+          });
+          return;
+        }
+      } catch (e) {
+        debugPrint('⚠️ 大模型调用失败，降级为规则引擎: $e');
+        _errorMessage = '云端大模型连接遇到问题 ($e)，已自动平滑切换至内置金牌专家规则模式。';
+      }
+    }
+
+    // 启发式规则兜底模式
+    await Future.delayed(const Duration(milliseconds: 600));
     if (!mounted) return;
     setState(() {
       _loading = false;
+      _usingLlm = false;
       _result = _generateResult(widget.clue);
     });
   }
@@ -42,14 +71,12 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
     final subject = clue.subject.isEmpty ? '专升本' : clue.subject;
     final classType = clue.classType.isEmpty ? '集训班' : clue.classType;
 
-    // 收集所有顾虑与特征标签
     final allConcerns = <String>{};
     for (final log in clue.visitLogs) {
       allConcerns.addAll(log.concerns);
     }
     allConcerns.addAll(clue.tags);
 
-    // 计算成交意向预测得分 (0 ~ 100)
     int baseScore = 50;
     if (clue.status == ClueStatus.enrolled) {
       baseScore = 100;
@@ -132,14 +159,18 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
   }
 
   void _saveToTimeline() {
-    if (_result == null || _saved) return;
+    if (_saved) return;
     final provider = context.read<AppProvider>();
+    final summary = _usingLlm && _llmOutput != null
+        ? '【AI大模型深度诊断】已完成深度剖析，包含破冰、案例与逼单方案，详见AI分析页。'
+        : '【AI智能跟进策略】意向预测得分：${_result!.score}分（${_result!.scoreLevel}）。建议跟进重点：${_result!.topics.first}';
+
     final log = VisitLog(
       id: provider.generateId(),
       clueId: widget.clue.id,
       contactMethod: ContactMethod.wechat,
       visitResult: VisitResult.normal,
-      visitContent: '【AI智能跟进策略】意向预测得分：${_result!.score}分（${_result!.scoreLevel}）。建议跟进重点：${_result!.topics.first}',
+      visitContent: summary,
       concerns: widget.clue.tags,
       nextVisitTime: widget.clue.nextVisitTime,
       createTime: DateTime.now(),
@@ -148,8 +179,93 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
     setState(() => _saved = true);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('已成功将 AI 分析纪要沉淀到线索时间轴！'),
+        content: Text('✅ 已成功将 AI 诊断纪要沉淀到学员时间轴！'),
         backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  void _showSettingsDialog() {
+    final ai = AiService();
+    final keyCtrl = TextEditingController(text: ai.apiKey);
+    final urlCtrl = TextEditingController(text: ai.baseUrl);
+    final modelCtrl = TextEditingController(text: ai.model);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.auto_awesome, color: Color(0xFF7B1FA2)),
+            SizedBox(width: 8),
+            Text('AI 大模型设置', style: TextStyle(fontSize: 16)),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '原生支持 DeepSeek / 智谱 / OpenAI 兼容接口，配置后立即升级为真实大模型实时推理诊断：',
+                style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.4),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: keyCtrl,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'API Key (如 sk-...)',
+                  hintText: '输入您的 DeepSeek 或兼容 API Key',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: urlCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'API 接口地址 Base URL',
+                  hintText: 'https://api.deepseek.com/v1',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: modelCtrl,
+                decoration: const InputDecoration(
+                  labelText: '模型名称 Model',
+                  hintText: 'deepseek-chat',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await ai.saveSettings(
+                apiKey: keyCtrl.text,
+                baseUrl: urlCtrl.text,
+                model: modelCtrl.text,
+              );
+              if (ctx.mounted) Navigator.pop(ctx);
+              _analyze();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF7B1FA2),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('保存并重新分析'),
+          ),
+        ],
       ),
     );
   }
@@ -162,6 +278,18 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
         title: const Text('AI 智能分析'),
         backgroundColor: const Color(0xFF7B1FA2),
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: '重新分析',
+            onPressed: _loading ? null : _analyze,
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: '配置大模型 API Key',
+            onPressed: _showSettingsDialog,
+          ),
+        ],
       ),
       body: _loading
           ? Center(
@@ -170,10 +298,15 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
                 children: [
                   const CircularProgressIndicator(color: Color(0xFF7B1FA2)),
                   const SizedBox(height: 20),
-                  const Text('AI 正在深度分析客户画像与沟通历史...',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                  Text(
+                    _usingLlm || AiService().isConfigured
+                        ? '✨ 正在向 DeepSeek 云端大模型发起深度推理分析...'
+                        : 'AI 正在深度分析客户画像与沟通历史...',
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 8),
-                  Text('综合考量回访记录 + 标签画像 + 意向等级',
+                  Text('综合考量回访记录 + 沟通截图 + 标签画像 + 意向等级',
                       style: TextStyle(color: Colors.grey[600], fontSize: 13)),
                 ],
               ),
@@ -185,8 +318,78 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        // 0. AI意向评分卡
-                        _ScoreCard(score: _result!.score, level: _result!.scoreLevel),
+                        // 提示胶囊
+                        if (_errorMessage != null)
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.amber[50],
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.amber[300]!),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.warning_amber_rounded,
+                                    color: Colors.amber, size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _errorMessage!,
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.brown[700]),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else if (!_usingLlm)
+                          GestureDetector(
+                            onTap: _showSettingsDialog,
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF7B1FA2)
+                                    .withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color: const Color(0xFF7B1FA2)
+                                        .withValues(alpha: 0.2)),
+                              ),
+                              child: const Row(
+                                children: [
+                                  Icon(Icons.auto_awesome,
+                                      size: 16, color: Color(0xFF7B1FA2)),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      '当前为内置规则引擎模式。点击此处或右上角 ⚙️ 配置 DeepSeek Key，一键升级为顶级 LLM 实时推理！',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFF7B1FA2),
+                                          fontWeight: FontWeight.w500),
+                                    ),
+                                  ),
+                                  Icon(Icons.chevron_right,
+                                      size: 16, color: Color(0xFF7B1FA2)),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                        // 大模型实时输出区域
+                        if (_usingLlm && _llmOutput != null) ...[
+                          _LlmReportCard(output: _llmOutput!),
+                          const SizedBox(height: 14),
+                        ],
+
+                        // 意向评分卡
+                        _ScoreCard(
+                            score: _result!.score,
+                            level: _result!.scoreLevel),
                         const SizedBox(height: 14),
 
                         // 1. 客户整体画像
@@ -198,81 +401,24 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: _result!.portrait
-                                .map((item) => _CheckItem(text: item))
-                                .toList(),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-
-                        // 2. 核心顾虑汇总
-                        _AnalysisCard(
-                          number: '2',
-                          title: '核心顾虑与痛点洞察',
-                          icon: Icons.psychology_outlined,
-                          color: const Color(0xFF00897B),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: _result!.concerns
-                                .map((item) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 8),
-                                      child: Text(
-                                        item,
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          color: Color(0xFF333333),
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                    ))
-                                .toList(),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-
-                        // 3. 建议回访话题
-                        _AnalysisCard(
-                          number: '3',
-                          title: '建议下一步沟通策略',
-                          icon: Icons.lightbulb_outline,
-                          color: Colors.orange,
-                          trailing: '${_result!.topics.length} 个策略点',
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: _result!.topics
-                                .asMap()
-                                .entries
-                                .map((e) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 8),
+                                .map((p) => Padding(
+                                      padding:
+                                          const EdgeInsets.only(bottom: 6),
                                       child: Row(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          Container(
-                                            width: 20,
-                                            height: 20,
-                                            decoration: BoxDecoration(
-                                              color: Colors.orange.withValues(alpha: 0.15),
-                                              borderRadius: BorderRadius.circular(4),
-                                            ),
-                                            child: Center(
-                                              child: Text(
-                                                '${e.key + 1}',
-                                                style: const TextStyle(
-                                                  fontSize: 11,
-                                                  color: Colors.orange,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
+                                          const Text('• ',
+                                              style: TextStyle(
+                                                  color: Color(0xFF1976D2),
+                                                  fontWeight:
+                                                      FontWeight.bold)),
                                           Expanded(
                                             child: Text(
-                                              e.value,
+                                              p,
                                               style: const TextStyle(
-                                                fontSize: 13,
-                                                color: Color(0xFF333333),
-                                                height: 1.4,
-                                              ),
+                                                  fontSize: 13.5,
+                                                  color: Color(0xFF333333)),
                                             ),
                                           ),
                                         ],
@@ -283,66 +429,89 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
                         ),
                         const SizedBox(height: 14),
 
-                        // 4. 定制化破冰/促成话术
+                        // 2. 核心顾虑分析
                         _AnalysisCard(
-                          number: '4',
-                          title: 'AI 定制攻坚话术',
-                          icon: Icons.record_voice_over_outlined,
-                          color: const Color(0xFF7B1FA2),
-                          trailing: '微信直接发送',
+                          number: '2',
+                          title: '核心抗拒点与心理顾虑',
+                          icon: Icons.psychology_outlined,
+                          color: const Color(0xFFE65100),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF3E5F5),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: const Color(0xFFE1BEE7)),
-                                ),
-                                child: Text(
-                                  _result!.script,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    color: Color(0xFF4A148C),
-                                    height: 1.6,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: ElevatedButton.icon(
-                                  onPressed: () {
-                                    Clipboard.setData(ClipboardData(text: _result!.script));
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('AI话术已复制，可直接粘贴发给学生！'),
-                                        backgroundColor: Color(0xFF7B1FA2),
+                            children: _result!.concerns
+                                .map((c) => Container(
+                                      margin: const EdgeInsets.only(bottom: 8),
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFFF3E0),
+                                        borderRadius:
+                                            BorderRadius.circular(8),
                                       ),
-                                    );
-                                  },
-                                  icon: const Icon(Icons.copy_rounded, size: 14, color: Colors.white),
-                                  label: const Text('一键复制话术', style: TextStyle(fontSize: 12)),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF7B1FA2),
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                  ),
-                                ),
-                              ),
-                            ],
+                                      child: Text(
+                                        c,
+                                        style: const TextStyle(
+                                            fontSize: 13,
+                                            color: Color(0xFF5D4037),
+                                            height: 1.4),
+                                      ),
+                                    ))
+                                .toList(),
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
+
+                        // 3. 专属定制话术
+                        _AnalysisCard(
+                          number: '3',
+                          title: '专属推荐沟通话术',
+                          icon: Icons.chat_outlined,
+                          color: const Color(0xFF2E7D32),
+                          action: ElevatedButton.icon(
+                            onPressed: () {
+                              Clipboard.setData(
+                                  ClipboardData(text: _result!.script));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('已复制推荐话术到剪贴板！'),
+                                  backgroundColor: Color(0xFF2E7D32),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.copy, size: 14),
+                            label: const Text('一键复制'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF2E7D32),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 6),
+                              textStyle: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE8F5E9),
+                              borderRadius: BorderRadius.circular(8),
+                              border:
+                                  Border.all(color: const Color(0xFFC8E6C9)),
+                            ),
+                            child: Text(
+                              _result!.script,
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                color: Color(0xFF1B5E20),
+                                height: 1.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
                       ],
                     ),
                   ),
                 ),
 
-                // 底部操作区
+                // 底部操作栏
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -352,37 +521,38 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
                         color: Colors.black.withValues(alpha: 0.06),
                         blurRadius: 10,
                         offset: const Offset(0, -2),
-                      )
+                      ),
                     ],
                   ),
                   child: Row(
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: _saved ? null : _saveToTimeline,
+                          onPressed: _saveToTimeline,
                           icon: Icon(
-                            _saved ? Icons.check_circle : Icons.bookmark_add_outlined,
-                            size: 18,
-                            color: _saved ? Colors.green : const Color(0xFF7B1FA2),
+                            _saved
+                                ? Icons.check_circle
+                                : Icons.bookmark_add_outlined,
+                            color: _saved
+                                ? Colors.green
+                                : const Color(0xFF7B1FA2),
                           ),
-                          label: Text(_saved ? '已沉淀到时间轴' : '保存分析到时间轴'),
+                          label: Text(
+                            _saved ? '已存入时间轴' : '沉淀到档案时间轴',
+                            style: TextStyle(
+                              color: _saved
+                                  ? Colors.green
+                                  : const Color(0xFF7B1FA2),
+                            ),
+                          ),
                           style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            foregroundColor: const Color(0xFF7B1FA2),
-                            side: const BorderSide(color: Color(0xFF7B1FA2)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _analyze,
-                          icon: const Icon(Icons.refresh, size: 18),
-                          label: const Text('重新分析'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF7B1FA2),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 12),
+                            side: BorderSide(
+                              color: _saved
+                                  ? Colors.green
+                                  : const Color(0xFF7B1FA2),
+                            ),
                           ),
                         ),
                       ),
@@ -395,33 +565,101 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
   }
 }
 
-class _AnalysisResult {
-  final int score;
-  final String scoreLevel;
-  final List<String> portrait;
-  final List<String> concerns;
-  final List<String> topics;
-  final String script;
+/// 大模型生成的 Markdown 富文本报告卡片
+class _LlmReportCard extends StatelessWidget {
+  final String output;
+  const _LlmReportCard({required this.output});
 
-  _AnalysisResult({
-    required this.score,
-    required this.scoreLevel,
-    required this.portrait,
-    required this.concerns,
-    required this.topics,
-    required this.script,
-  });
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+            color: const Color(0xFF7B1FA2).withValues(alpha: 0.3), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF7B1FA2).withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF7B1FA2),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.psychology, size: 15, color: Colors.white),
+                    SizedBox(width: 4),
+                    Text(
+                      'DeepSeek 实时深度诊断',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: output));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('已复制完整大模型诊断与逼单方案！'),
+                      backgroundColor: Color(0xFF7B1FA2),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.copy_all, size: 14),
+                label: const Text('复制方案', style: TextStyle(fontSize: 12)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7B1FA2),
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SelectableText(
+            output,
+            style: const TextStyle(
+              fontSize: 13.5,
+              color: Color(0xFF263238),
+              height: 1.6,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ScoreCard extends StatelessWidget {
   final int score;
   final String level;
-
   const _ScoreCard({required this.score, required this.level});
 
   @override
   Widget build(BuildContext context) {
-    Color scoreColor = score >= 80
+    final color = score >= 80
         ? const Color(0xFF2E7D32)
         : score >= 60
             ? const Color(0xFFE65100)
@@ -442,58 +680,70 @@ class _ScoreCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: scoreColor.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                '$score',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: scoreColor,
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                width: 68,
+                height: 68,
+                child: CircularProgressIndicator(
+                  value: score / 100,
+                  backgroundColor: Colors.grey[200],
+                  valueColor: AlwaysStoppedAnimation<Color>(color),
+                  strokeWidth: 7,
                 ),
               ),
-            ),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '$score',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+                  ),
+                  const Text('意向分',
+                      style: TextStyle(fontSize: 10, color: Colors.grey)),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    const Text(
-                      'AI 成交意向预测分',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: scoreColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        level,
-                        style: TextStyle(fontSize: 11, color: scoreColor, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: score / 100.0,
-                    backgroundColor: Colors.grey[200],
-                    valueColor: AlwaysStoppedAnimation<Color>(scoreColor),
-                    minHeight: 6,
+                const Text(
+                  '综合成交意向指数',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2C3E50),
                   ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    level,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: color,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  '基于跟进频次、沟通意愿、抗拒阻力等全景因子计算',
+                  style: TextStyle(fontSize: 11, color: Colors.grey),
                 ),
               ],
             ),
@@ -509,21 +759,22 @@ class _AnalysisCard extends StatelessWidget {
   final String title;
   final IconData icon;
   final Color color;
-  final String? trailing;
   final Widget child;
+  final Widget? action;
 
   const _AnalysisCard({
     required this.number,
     required this.title,
     required this.icon,
     required this.color,
-    this.trailing,
     required this.child,
+    this.action,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -541,29 +792,41 @@ class _AnalysisCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(
-                '$number. ',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: color),
-              ),
-              Text(
-                title,
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: color),
-              ),
-              const Spacer(),
-              if (trailing != null)
-                Text(trailing!, style: TextStyle(color: Colors.grey[500], fontSize: 12)),
-              const SizedBox(width: 6),
               Container(
-                padding: const EdgeInsets.all(6),
+                width: 22,
+                height: 22,
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  color: color,
+                  shape: BoxShape.circle,
                 ),
-                child: Icon(icon, color: color, size: 18),
+                child: Center(
+                  child: Text(
+                    number,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
               ),
+              const SizedBox(width: 8),
+              Icon(icon, size: 18, color: color),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2C3E50),
+                  ),
+                ),
+              ),
+              if (action != null) action!,
             ],
           ),
-          const SizedBox(height: 12),
+          const Divider(height: 20),
           child,
         ],
       ),
@@ -571,24 +834,20 @@ class _AnalysisCard extends StatelessWidget {
   }
 }
 
-class _CheckItem extends StatelessWidget {
-  final String text;
-  const _CheckItem({required this.text});
+class _AnalysisResult {
+  final int score;
+  final String scoreLevel;
+  final List<String> portrait;
+  final List<String> concerns;
+  final List<String> topics;
+  final String script;
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.check_circle_outline, size: 16, color: Color(0xFF1976D2)),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(text, style: const TextStyle(fontSize: 13, color: Color(0xFF333333))),
-          ),
-        ],
-      ),
-    );
-  }
+  _AnalysisResult({
+    required this.score,
+    required this.scoreLevel,
+    required this.portrait,
+    required this.concerns,
+    required this.topics,
+    required this.script,
+  });
 }

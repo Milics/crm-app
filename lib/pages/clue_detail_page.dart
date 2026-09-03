@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -62,6 +63,12 @@ class ClueDetailPage extends StatelessWidget {
                   _ActionButtons(clue: clue),
 
                   const SizedBox(height: 12),
+
+                  // 沟通截图档案区域 (真实微信聊天记录)
+                  if (clue.chatRecords.isNotEmpty) ...[
+                    _ChatRecordsSection(clue: clue),
+                    const SizedBox(height: 12),
+                  ],
 
                   // 时间轴区域
                   _TimelineSection(clue: clue),
@@ -808,6 +815,236 @@ class _TimelineItem extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 微信沟通截图档案卡片组件
+class _ChatRecordsSection extends StatelessWidget {
+  final Clue clue;
+  const _ChatRecordsSection({required this.clue});
+
+  void _showFullImage(BuildContext context, ChatRecord record) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 12, 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.chat_bubble_outline,
+                        color: Color(0xFF00897B), size: 18),
+                    const SizedBox(width: 6),
+                    Text(
+                      '聊天记录 (${DateFormat('yyyy.MM.dd HH:mm').format(record.createTime)})',
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+              ),
+              Flexible(
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 400),
+                  color: Colors.black12,
+                  child: record.imageData != null && record.imageData!.isNotEmpty
+                      ? InteractiveViewer(
+                          child: Image.memory(
+                            base64Decode(record.imageData!),
+                            fit: BoxFit.contain,
+                          ),
+                        )
+                      : const Center(child: Text('无图片数据')),
+                ),
+              ),
+              if (record.ocrText.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F8E9),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFDCEDC8)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('提炼要点 / 沟通备注：',
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF33691E))),
+                        const SizedBox(height: 4),
+                        Text(record.ocrText,
+                            style: const TextStyle(
+                                fontSize: 13, color: Color(0xFF1B5E20))),
+                      ],
+                    ),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF00897B),
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('关 闭'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.photo_library_outlined,
+                  color: Color(0xFF00897B), size: 18),
+              const SizedBox(width: 6),
+              const Text(
+                '沟通截图档案',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2C3E50),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '(${clue.chatRecords.length}张)',
+                style: const TextStyle(color: Colors.grey, fontSize: 12.5),
+              ),
+              const Spacer(),
+              InkWell(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => UploadChatPage(clueId: clue.id),
+                  ),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.add, size: 15, color: Color(0xFF00897B)),
+                    Text(
+                      '加截图',
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          color: Color(0xFF00897B),
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 130,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: clue.chatRecords.length,
+              itemBuilder: (context, idx) {
+                final rec = clue.chatRecords[idx];
+                final hasImage =
+                    rec.imageData != null && rec.imageData!.isNotEmpty;
+
+                return GestureDetector(
+                  onTap: () => _showFullImage(context, rec),
+                  child: Container(
+                    width: 110,
+                    margin: const EdgeInsets.only(right: 10),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.grey[200]!),
+                      color: Colors.grey[50],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(9)),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: hasImage
+                                  ? Image.memory(
+                                      base64Decode(rec.imageData!),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : Center(
+                                      child: Icon(Icons.image,
+                                          color: Colors.grey[400]),
+                                    ),
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(5),
+                          child: Text(
+                            rec.ocrText.isNotEmpty ? rec.ocrText : '点击放大查看',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: rec.ocrText.isNotEmpty
+                                  ? const Color(0xFF2E7D32)
+                                  : Colors.grey[600],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],
