@@ -65,6 +65,8 @@ class Clue {
   List<String> tags;
   String remark;
   String ownerName; // 归属老师姓名
+  String? aiAnalysisReport; // 最新保存的 AI 大模型深度分析报告
+  DateTime? aiAnalysisTime; // 最新分析生成时间
 
   Clue({
     required this.id,
@@ -85,6 +87,8 @@ class Clue {
     List<String>? tags,
     this.remark = '',
     this.ownerName = '',
+    this.aiAnalysisReport,
+    this.aiAnalysisTime,
   })  : visitLogs = visitLogs ?? [],
         chatRecords = chatRecords ?? [],
         tags = tags ?? [];
@@ -111,6 +115,8 @@ class Clue {
         'tags': tags,
         'remark': remark,
         'ownerName': ownerName,
+        'aiAnalysisReport': aiAnalysisReport,
+        'aiAnalysisTime': aiAnalysisTime?.toIso8601String(),
       };
 
   factory Clue.fromJson(Map<String, dynamic> json) => Clue(
@@ -147,6 +153,8 @@ class Clue {
             [],
         remark: json['remark'] ?? '',
         ownerName: json['ownerName'] ?? '',
+        aiAnalysisReport: json['aiAnalysisReport'],
+        aiAnalysisTime: _safeParseDatetime(json['aiAnalysisTime']),
       );
 
   String get statusText {

@@ -1234,6 +1234,17 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
+  // 保存最新的 AI 大模型分析报告，并自动推送到云端同步
+  Future<void> saveAiAnalysisReport(String clueId, String report) async {
+    final clue = getClueById(clueId);
+    if (clue != null) {
+      clue.aiAnalysisReport = report;
+      clue.aiAnalysisTime = DateTime.now();
+      notifyListeners();
+      await _saveClues(changedClue: clue);
+    }
+  }
+
   // 转为报名
   void enrollClue(String clueId, String classType, String remark) {
     final clue = getClueById(clueId);

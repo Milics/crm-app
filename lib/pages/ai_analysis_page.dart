@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../models/clue.dart';
 import '../providers/app_provider.dart';
 import '../services/ai_service.dart';
@@ -25,7 +26,16 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
   @override
   void initState() {
     super.initState();
-    _analyze();
+    // 优先秒开展示已保存的历史 AI 报告，省时省 Token；若没有才自动首次分析
+    if (widget.clue.aiAnalysisReport != null &&
+        widget.clue.aiAnalysisReport!.isNotEmpty) {
+      _loading = false;
+      _usingLlm = true;
+      _llmOutput = widget.clue.aiAnalysisReport;
+      _result = _generateResult(widget.clue);
+    } else {
+      _analyze();
+    }
   }
 
   Future<void> _analyze() async {
@@ -48,6 +58,8 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
             _llmOutput = output;
             _result = _generateResult(widget.clue);
           });
+          // 自动持久化沉淀到线索档案并同步到云端
+          context.read<AppProvider>().saveAiAnalysisReport(widget.clue.id, output);
           return;
         }
       } catch (e) {
@@ -386,6 +398,34 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
 
                         // 大模型实时输出区域
                         if (_usingLlm && _llmOutput != null) ...[
+                          if (widget.clue.aiAnalysisTime != null &&
+                              _llmOutput == widget.clue.aiAnalysisReport)
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE8F5E9),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color: const Color(0xFFC8E6C9)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.history,
+                                      size: 16, color: Color(0xFF2E7D32)),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      '已秒开加载历史诊断 (${DateFormat("yyyy.MM.dd HH:mm").format(widget.clue.aiAnalysisTime!)}) · 若学员有新回访进展可点右上角 🔄 重新分析',
+                                      style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFF1B5E20)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           _LlmReportCard(output: _llmOutput!),
                           const SizedBox(height: 14),
                         ],
