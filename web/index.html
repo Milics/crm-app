@@ -1,19 +1,6 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
@@ -21,7 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="专升本招生CRM - 招生顾问专用">
 
-  <!-- iOS meta tags & icons -->
+  <!-- iOS PWA 体验优化 -->
   <meta name="theme-color" content="#1976D2">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -40,22 +27,175 @@
       padding: 0;
       width: 100%;
       height: 100%;
-      background-color: #1976D2;
+      background-color: #F4F6F9;
       overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    /* 现代感加载与启动屏 */
+    #loading-splash {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #1565C0 0%, #1976D2 50%, #1E88E5 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 999999;
+      transition: opacity 0.4s ease-out;
+    }
+
+    .splash-card {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 20px;
+      padding: 32px 28px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+      max-width: 280px;
+      width: 80%;
+    }
+
+    .splash-logo {
+      width: 64px;
+      height: 64px;
+      background: #FFFFFF;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+      margin-bottom: 16px;
+    }
+
+    .splash-logo svg {
+      width: 36px;
+      height: 36px;
+      fill: #1976D2;
+    }
+
+    .splash-title {
+      color: #FFFFFF;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .splash-subtitle {
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 12px;
+      margin-bottom: 22px;
+      text-align: center;
+    }
+
+    /* 平滑环形微光进度条 */
+    .spinner {
+      width: 28px;
+      height: 28px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #FFFFFF;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* 超时自愈提示按钮（5秒未完成自动唤出） */
+    #retry-box {
+      display: none;
+      margin-top: 16px;
+      text-align: center;
+    }
+
+    .retry-btn {
+      background: #FFFFFF;
+      color: #1565C0;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     }
   </style>
 </head>
 <body>
+  <!-- 启动屏与防蓝屏加载指示器 -->
+  <div id="loading-splash">
+    <div class="splash-card">
+      <div class="splash-logo">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/>
+        </svg>
+      </div>
+      <div class="splash-title">专升本招生 CRM</div>
+      <div class="splash-subtitle" id="status-text">正在启动系统与云端中枢...</div>
+      <div class="spinner" id="splash-spinner"></div>
+      <div id="retry-box">
+        <button class="retry-btn" onclick="forceCleanAndReload()">⚡️ 清除缓存并重进</button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    // 强制自动更新 Service Worker，确保 iOS PWA 和 Safari 随时加载最新云端同步逻辑
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        for(let registration of registrations) {
-          registration.update();
-        }
-      });
+    // 超时自愈安全网：若 5 秒内未渲染，自动显示重试按钮并允许一键清缓存重载
+    var splashTimer = setTimeout(function() {
+      var retryBox = document.getElementById('retry-box');
+      var statusText = document.getElementById('status-text');
+      if (retryBox) retryBox.style.display = 'block';
+      if (statusText) statusText.innerText = 'iPhone 网络缓冲中，若停留过久请点击下方重试';
+    }, 5000);
+
+    function hideSplash() {
+      clearTimeout(splashTimer);
+      var splash = document.getElementById('loading-splash');
+      if (splash) {
+        splash.style.opacity = '0';
+        setTimeout(function() {
+          if (splash.parentNode) splash.parentNode.removeChild(splash);
+        }, 400);
+      }
     }
+
+    function forceCleanAndReload() {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for(let reg of registrations) { reg.unregister(); }
+        });
+      }
+      if ('caches' in window) {
+        caches.keys().then(function(keys) {
+          keys.forEach(function(key) { caches.delete(key); });
+        });
+      }
+      window.location.reload(true);
+    }
+
+    // 监听 Flutter 首次完成渲染事件
+    window.addEventListener('flutter-first-frame', function() {
+      hideSplash();
+    });
+
+    // 定时轮询兜底（检查 flutter view 是否已经挂载并开始绘制）
+    var checkInterval = setInterval(function() {
+      if (document.querySelector('flutter-view') || document.querySelector('flt-glass-pane') || document.querySelector('canvas')) {
+        clearInterval(checkInterval);
+        hideSplash();
+      }
+    }, 300);
   </script>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
