@@ -20,7 +20,8 @@ class TencentCloudBaseService {
   static const String baseUrl =
       'https://$envId.$region.tcb-api.tencentcloudapi.com';
 
-  bool get isAvailable => true;
+  // 在 Web 环境下浏览器会触发 CORS 拦截，主同步走 Render 云中枢；移动端仍可正常备用
+  bool get isAvailable => !kIsWeb;
 
   Map<String, String> get _headers => {
         'Authorization': 'Bearer $accessKey',
