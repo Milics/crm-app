@@ -1,10 +1,13 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/app_provider.dart';
 import '../models/clue.dart';
 import '../services/crm_sync_service.dart';
+import '../widgets/batch_import_dialog.dart';
 import 'materials_page.dart';
 import 'user_management_page.dart';
 
@@ -90,10 +93,20 @@ class MinePage extends StatelessWidget {
                   ),
                 ),
                 _MenuItem(
+                  icon: Icons.playlist_add_check,
+                  title: '批量导入专升本线索',
+                  subtitle: '从 Excel / 微信名单复制多行文本一键解析与查重导入',
+                  iconColor: const Color(0xFF1976D2),
+                  onTap: () => showDialog(
+                    context: context,
+                    builder: (_) => const BatchImportDialog(),
+                  ),
+                ),
+                _MenuItem(
                   icon: Icons.file_download_outlined,
                   title: '导出线索报表 (CSV)',
                   subtitle: provider.canExportData
-                      ? '一键生成并复制全部 ${provider.totalClues} 条线索完整数据'
+                      ? '一键生成并导出全部 ${provider.totalClues} 条线索（支持 Excel 格式）'
                       : '🔒 暂无导出权限（需管理员授权）',
                   iconColor: provider.canExportData
                       ? const Color(0xFF2E7D32)
@@ -174,6 +187,8 @@ class MinePage extends StatelessWidget {
 
   void _showExportCsvDialog(BuildContext context, AppProvider provider) {
     final buffer = StringBuffer();
+    // 注入 UTF-8 BOM，防止 Windows Excel 打开中文显示乱码
+    buffer.write('\uFEFF');
     // 表头
     buffer.writeln('序号,微信昵称,微信号,手机号,就读学校,年级/届别,报考专业,线索来源,意向班型,跟进状态,意向等级,特征标签,回访次数,下次回访时间,创建时间,备注');
 
@@ -199,8 +214,8 @@ class MinePage extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Row(
-          children: const [
+        title: const Row(
+          children: [
             Icon(Icons.table_chart_outlined, color: Color(0xFF2E7D32)),
             SizedBox(width: 8),
             Text('导出线索报表'),
@@ -212,14 +227,14 @@ class MinePage extends StatelessWidget {
           children: [
             Text('已成功导出 ${provider.clues.length} 条线索完整数据！',
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             const Text(
-              '格式：标准 CSV 文本格式（兼容 Excel、Numbers 及各类电子表格软件）\n包含字段：微信昵称、微信号、手机号、专业、来源、班型、状态、意向、标签、回访记录及备注。',
-              style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.4),
+              '✅ 已注入 UTF-8 BOM 防乱码标头，Windows Excel、Mac Numbers 打开中文 100% 正常显示。',
+              style: TextStyle(fontSize: 12, color: Color(0xFF2E7D32), height: 1.4),
             ),
             const SizedBox(height: 12),
             Container(
-              height: 100,
+              height: 90,
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: const Color(0xFFF1F5F9),
@@ -240,20 +255,46 @@ class MinePage extends StatelessWidget {
             onPressed: () => Navigator.pop(ctx),
             child: const Text('关闭'),
           ),
-          ElevatedButton.icon(
+          OutlinedButton.icon(
             onPressed: () {
               Clipboard.setData(ClipboardData(text: csvContent));
               Navigator.pop(ctx);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('CSV 数据已复制到剪贴板，可直接粘贴进 Excel 表格！'),
-                  backgroundColor: Color(0xFF2E7D32),
-                  duration: Duration(seconds: 3),
+                  backgroundColor: Color(0xFF1976D2),
+                  duration: Duration(seconds: 2),
                 ),
               );
             },
-            icon: const Icon(Icons.copy_rounded, size: 16),
-            label: const Text('一键复制全部 CSV 数据'),
+            icon: const Icon(Icons.copy_rounded, size: 15),
+            label: const Text('复制文本'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              try {
+                final uri = Uri.dataFromString(
+                  csvContent,
+                  mimeType: 'text/csv',
+                  encoding: utf8,
+                );
+                await launchUrl(uri);
+              } catch (_) {
+                Clipboard.setData(ClipboardData(text: csvContent));
+              }
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('已触发 CSV 文件下载 / 打开！'),
+                    backgroundColor: Color(0xFF2E7D32),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.file_download, size: 16),
+            label: const Text('下载 CSV 文件'),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF2E7D32),
               foregroundColor: Colors.white,

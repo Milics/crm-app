@@ -11,6 +11,7 @@ import 'ai_analysis_page.dart';
 import 'enroll_page.dart';
 import 'edit_clue_page.dart';
 import 'materials_page.dart';
+import '../services/launcher_service.dart';
 
 /// 线索详情页（包含信息区、推荐话术、4按钮操作区及时间轴）
 class ClueDetailPage extends StatelessWidget {
@@ -170,6 +171,11 @@ class _HeaderCard extends StatelessWidget {
                     child: _InfoChip(
                       label: '微信号',
                       value: clue.wxId.isEmpty ? '未填写' : clue.wxId,
+                      actionIcon: Icons.open_in_new,
+                      customTap: clue.wxId.isNotEmpty
+                          ? () => LauncherService.copyAndOpenWechat(
+                              context, clue.wxId)
+                          : null,
                     ),
                   ),
                   Container(width: 1, height: 32, color: Colors.white24),
@@ -179,6 +185,10 @@ class _HeaderCard extends StatelessWidget {
                       child: _InfoChip(
                         label: '手机号',
                         value: clue.phone.isEmpty ? '未填写' : clue.phone,
+                        actionIcon: Icons.phone_in_talk,
+                        customTap: clue.phone.isNotEmpty
+                            ? () => _showPhoneActionSheet(context, clue.phone)
+                            : null,
                       ),
                     ),
                   ),
@@ -245,18 +255,12 @@ class _HeaderCard extends StatelessWidget {
                             horizontal: 9, vertical: 4),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.35),
-                          ),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          '#$t',
+                          t,
                           style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                          ),
+                              color: Colors.white, fontSize: 11.5),
                         ),
                       );
                     }).toList(),
@@ -269,65 +273,133 @@ class _HeaderCard extends StatelessWidget {
       ),
     );
   }
+
+  void _showPhoneActionSheet(BuildContext context, String phone) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                '联系学员: $phone',
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+            ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: Color(0xFFE8F5E9),
+                child: Icon(Icons.phone, color: Color(0xFF2E7D32)),
+              ),
+              title: const Text('立即拨打电话',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: const Text('调用系统拨号盘直拨'),
+              onTap: () {
+                Navigator.pop(ctx);
+                LauncherService.makePhoneCall(context, phone);
+              },
+            ),
+            ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: Color(0xFFE3F2FD),
+                child: Icon(Icons.copy, color: Color(0xFF1976D2)),
+              ),
+              title: const Text('仅复制手机号'),
+              onTap: () {
+                Navigator.pop(ctx);
+                Clipboard.setData(ClipboardData(text: phone));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('已复制手机号: $phone')),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _InfoChip extends StatelessWidget {
   final String label;
   final String value;
   final bool enableCopy;
+  final VoidCallback? customTap;
+  final IconData? actionIcon;
 
   const _InfoChip({
     required this.label,
     required this.value,
     this.enableCopy = true,
+    this.customTap,
+    this.actionIcon,
   });
 
   @override
   Widget build(BuildContext context) {
-    final canCopy = enableCopy && value.isNotEmpty && value != '未填写';
+    final canClick = customTap != null ||
+        (enableCopy && value.isNotEmpty && value != '未填写');
 
     return InkWell(
-      onTap: canCopy
+      onTap: canClick
           ? () {
-              Clipboard.setData(ClipboardData(text: value));
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('已复制$label: $value'),
-                  duration: const Duration(seconds: 2),
-                ),
-              );
+              if (customTap != null) {
+                customTap!();
+              } else {
+                Clipboard.setData(ClipboardData(text: value));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('已复制$label: $value'),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
             }
           : null,
-      borderRadius: BorderRadius.circular(4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(color: Colors.white70, fontSize: 12.5),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Flexible(
-                child: Text(
-                  value,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w600,
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(color: Colors.white70, fontSize: 12.5),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    value,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
-              if (canCopy) ...[
-                const SizedBox(width: 4),
-                const Icon(Icons.copy_rounded, size: 14, color: Colors.white70),
+                if (canClick) ...[
+                  const SizedBox(width: 4),
+                  Icon(
+                    actionIcon ?? Icons.copy_rounded,
+                    size: 14,
+                    color: Colors.white70,
+                  ),
+                ],
               ],
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }

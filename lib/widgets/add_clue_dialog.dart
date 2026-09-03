@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../models/clue.dart';
+import 'batch_import_dialog.dart';
 
 /// 新建线索弹窗
 class AddClueDialog extends StatefulWidget {
@@ -138,6 +139,21 @@ class _AddClueDialogState extends State<AddClueDialog> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
+                TextButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    showDialog(
+                      context: context,
+                      builder: (_) => const BatchImportDialog(),
+                    );
+                  },
+                  icon: const Icon(Icons.playlist_add_check, size: 15),
+                  label: const Text('批量导入', style: TextStyle(fontSize: 12.5)),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF1976D2),
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                  ),
+                ),
                 IconButton(
                   icon: const Icon(Icons.close),
                   onPressed: () => Navigator.pop(context),

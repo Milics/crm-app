@@ -1138,6 +1138,18 @@ class AppProvider extends ChangeNotifier {
     _saveClues(changedClue: clue);
   }
 
+  // 批量新增线索（支持 Excel/CSV 批量导入并全端同步）
+  Future<void> batchAddClues(List<Clue> newClues) async {
+    for (final clue in newClues) {
+      if (clue.ownerName.isEmpty && currentUser.isNotEmpty) {
+        clue.ownerName = currentUser;
+      }
+    }
+    _clues.insertAll(0, newClues);
+    notifyListeners();
+    await _saveClues();
+  }
+
   // 根据ID获取线索
   Clue? getClueById(String id) {
     try {
