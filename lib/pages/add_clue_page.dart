@@ -1,13 +1,17 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../models/clue.dart';
+import '../services/ocr_service.dart';
+import '../utils/clue_text_parser.dart';
 
 /// 新建线索独立页面（手动录入 / 截图导入 Tab）
 class AddCluePage extends StatefulWidget {
-  const AddCluePage({super.key});
+  final int initialTabIndex;
+  const AddCluePage({super.key, this.initialTabIndex = 0});
 
   @override
   State<AddCluePage> createState() => _AddCluePageState();
@@ -20,7 +24,11 @@ class _AddCluePageState extends State<AddCluePage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: widget.initialTabIndex.clamp(0, 1),
+    );
   }
 
   @override
@@ -505,15 +513,17 @@ class _OcrForm extends StatefulWidget {
 class _OcrFormState extends State<_OcrForm> {
   Uint8List? _imageBytes;
   String? _imageName;
+  String? _rawParsedText;
   bool _recognizing = false;
   bool _hasParsed = false;
 
+  final _quickTextCtrl = TextEditingController();
   final _wxNickCtrl = TextEditingController();
   final _wxIdCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _schoolCtrl = TextEditingController();
   final _gradeCtrl = TextEditingController();
-  String _subject = '经管';
+  String _subject = '高等数学';
   String _source = '微信';
   String _classType = '全程集训班';
   IntentLevel _intentLevel = IntentLevel.high;
@@ -556,6 +566,7 @@ class _OcrFormState extends State<_OcrForm> {
 
   @override
   void dispose() {
+    _quickTextCtrl.dispose();
     _wxNickCtrl.dispose();
     _wxIdCtrl.dispose();
     _phoneCtrl.dispose();
@@ -583,59 +594,94 @@ class _OcrFormState extends State<_OcrForm> {
       }
     } catch (e) {
       if (!mounted) return;
-      // 如果是新安装插件未冷重启导致的 MissingPluginException，进行友好降级引导
-      _loadDemoScreenshot();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('已为你载入微信名片截图示例（新装插件请在终端按 q 退出后重新执行 flutter run 即可激活真实相册）'),
-          backgroundColor: Color(0xFF1976D2),
-          duration: Duration(seconds: 4),
+        SnackBar(
+          content: Text('选择图片失败: $e'),
+          backgroundColor: Colors.red,
         ),
       );
     }
   }
 
-  void _loadDemoScreenshot() {
-    setState(() {
-      _imageBytes = Uint8List(0); // 标记已选
-      _imageName = 'wx_contact_screenshot_2026.png';
-      _hasParsed = false;
-    });
-    _startOcr();
+  /// 真实调用 OCR 引擎与专升本规范智能语义提取
+  Future<void> _startOcr() async {
+    if (_imageBytes == null || _imageBytes!.isEmpty) return;
+
+    setState(() => _recognizing = true);
+    try {
+      final parsed = await OcrService().recognizeImage(_imageBytes!);
+      if (!mounted) return;
+
+      setState(() {
+        _recognizing = false;
+        _hasParsed = true;
+        _rawParsedText = parsed.rawText;
+        _applyParsedResult(parsed);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(parsed.name.isNotEmpty || parsed.school.isNotEmpty
+              ? '🎉 识别成功！已自动提取：${[
+                  if (parsed.name.isNotEmpty) parsed.name,
+                  if (parsed.school.isNotEmpty) parsed.school,
+                  if (parsed.grade.isNotEmpty) parsed.grade,
+                  if (parsed.subject.isNotEmpty) parsed.subject,
+                ].join(" · ")}'
+              : '图片已上传，请核对并完善以下字段'),
+          backgroundColor: const Color(0xFF2E7D32),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _recognizing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('智能识图遇到问题: $e，可直接在下方手工核对'), backgroundColor: Colors.orange),
+      );
+    }
   }
 
-  Future<void> _startOcr() async {
-    setState(() => _recognizing = true);
-    await Future.delayed(const Duration(milliseconds: 1400));
-    if (!mounted) return;
-
-    // 智能提取规则（演示智能解析微信名片/聊天截图）
+  /// 快捷通过一行微信备注规范直接填表（如：李文文-河南经贸-24级-视传）
+  void _parseFromText(String text) {
+    if (text.trim().isEmpty) return;
+    final parsed = ClueTextParser.parse(text);
     setState(() {
-      _recognizing = false;
       _hasParsed = true;
-      _wxNickCtrl.text = '小林同学 (24考升本)';
-      _wxIdCtrl.text = 'lin_study_2025';
-      _phoneCtrl.text = '13938291823';
-      _schoolCtrl.text = '河南经贸职业学院';
-      _gradeCtrl.text = '24级';
-      _subject = '经管';
-      _source = '微信';
-      _classType = '全程集训班';
-      _intentLevel = IntentLevel.high;
+      _applyParsedResult(parsed);
     });
-
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('🎉 截图识别成功！已自动提取学生微信名片与意向信息'),
-        backgroundColor: Color(0xFF2E7D32),
+      SnackBar(
+        content: Text('⚡️ 已成功解析备注规范：${[
+          if (parsed.name.isNotEmpty) parsed.name,
+          if (parsed.school.isNotEmpty) parsed.school,
+          if (parsed.grade.isNotEmpty) parsed.grade,
+          if (parsed.subject.isNotEmpty) parsed.subject,
+        ].join(" · ")}'),
+        backgroundColor: const Color(0xFF2E7D32),
       ),
     );
+  }
+
+  void _applyParsedResult(ClueParsedResult parsed) {
+    if (parsed.name.isNotEmpty) _wxNickCtrl.text = parsed.name;
+    if (parsed.wxId.isNotEmpty) _wxIdCtrl.text = parsed.wxId;
+    if (parsed.phone.isNotEmpty) _phoneCtrl.text = parsed.phone;
+    if (parsed.school.isNotEmpty) _schoolCtrl.text = parsed.school;
+    if (parsed.grade.isNotEmpty) _gradeCtrl.text = parsed.grade;
+    if (parsed.subject.isNotEmpty) {
+      if (_subjects.contains(parsed.subject)) {
+        _subject = parsed.subject;
+      } else {
+        _subjects.insert(0, parsed.subject);
+        _subject = parsed.subject;
+      }
+    }
   }
 
   void _save() {
     if (_wxNickCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('微信昵称不能为空'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('微信昵称/姓名不能为空'), backgroundColor: Colors.red),
       );
       return;
     }
@@ -652,8 +698,25 @@ class _OcrFormState extends State<_OcrForm> {
     }
 
     final provider = context.read<AppProvider>();
+    final clueId = provider.generateId();
+
+    // 如果上传了截图，直接沉淀为学员档案的第一张建档聊天/名片截图！
+    final chatRecords = <ChatRecord>[];
+    if (_imageBytes != null && _imageBytes!.isNotEmpty) {
+      chatRecords.add(
+        ChatRecord(
+          id: provider.generateId(),
+          recordDate: DateTime.now(),
+          imageBase64: base64Encode(_imageBytes!),
+          ocrText: '【截图导入建档凭证】\n${_rawParsedText ?? ""}',
+          summary: '微信截图建档凭证',
+          extractedTags: _selectedTags,
+        ),
+      );
+    }
+
     final clue = Clue(
-      id: provider.generateId(),
+      id: clueId,
       wxNick: _wxNickCtrl.text.trim(),
       wxId: _wxIdCtrl.text.trim(),
       phone: _phoneCtrl.text.trim(),
@@ -665,12 +728,13 @@ class _OcrFormState extends State<_OcrForm> {
       intentLevel: _intentLevel,
       nextVisitTime: nextVisitDateTime,
       tags: _selectedTags,
+      chatRecords: chatRecords,
       createTime: DateTime.now(),
     );
     provider.addClue(clue);
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('线索已成功创建并归档！'), backgroundColor: Colors.green),
+      const SnackBar(content: Text('🎉 线索已成功创建并同步上云！'), backgroundColor: Colors.green),
     );
   }
 
@@ -773,6 +837,68 @@ class _OcrFormState extends State<_OcrForm> {
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8)),
                         ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            // 专升本招生命名规范快速粘贴识别卡片
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.amber.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.bolt, size: 18, color: Colors.amber.shade900),
+                      const SizedBox(width: 6),
+                      Text(
+                        '或直接粘贴好友规范备注一键秒填',
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.amber.shade900),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _quickTextCtrl,
+                          decoration: InputDecoration(
+                            hintText: '例：李文文-河南经贸-24级-视传',
+                            hintStyle: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 10),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () => _parseFromText(_quickTextCtrl.text),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber.shade800,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: const Text('智能解析', style: TextStyle(fontSize: 12)),
                       ),
                     ],
                   ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../models/clue.dart';
+import '../pages/add_clue_page.dart';
 import 'batch_import_dialog.dart';
 
 /// 新建线索弹窗
@@ -142,6 +143,23 @@ class _AddClueDialogState extends State<AddClueDialog> {
                 TextButton.icon(
                   onPressed: () {
                     Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AddCluePage(initialTabIndex: 1),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.crop_original, size: 15),
+                  label: const Text('截图导入', style: TextStyle(fontSize: 12.5)),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF1976D2),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
                     showDialog(
                       context: context,
                       builder: (_) => const BatchImportDialog(),
@@ -151,7 +169,7 @@ class _AddClueDialogState extends State<AddClueDialog> {
                   label: const Text('批量导入', style: TextStyle(fontSize: 12.5)),
                   style: TextButton.styleFrom(
                     foregroundColor: const Color(0xFF1976D2),
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
                   ),
                 ),
                 IconButton(

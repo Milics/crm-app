@@ -458,6 +458,60 @@ void main() async {
       continue;
     }
 
+    // ==================== 智能 OCR 图片文字提取端点 ====================
+    if (path == '/api/ocr/recognize' && req.method == 'POST') {
+      try {
+        final bodyStr = await utf8.decodeStream(req);
+        final body = jsonDecode(bodyStr) as Map<String, dynamic>;
+        final base64Image = body['base64Image']?.toString() ?? '';
+
+        if (base64Image.isEmpty) {
+          req.response
+            ..headers.contentType = ContentType.json
+            ..statusCode = HttpStatus.badRequest
+            ..write(jsonEncode({'success': false, 'error': 'base64Image 不能为空'}));
+          await req.response.close();
+          continue;
+        }
+
+        // 调用通用高精度 OCR 接口进行文字提取
+        final client = HttpClient();
+        client.connectionTimeout = const Duration(seconds: 25);
+        final ocrUrl = Uri.parse('https://api.ocr.space/parse/image');
+        final extReq = await client.postUrl(ocrUrl);
+        extReq.headers.set('apikey', 'K87899142388957');
+        extReq.headers.set('Content-Type', 'application/x-www-form-urlencoded');
+
+        final postData = 'language=chs&isOverlayRequired=false&base64Image=${Uri.encodeQueryComponent("data:image/jpeg;base64,$base64Image")}';
+        extReq.write(postData);
+        final extResp = await extReq.close();
+        final respText = await utf8.decodeStream(extResp);
+        final respJson = jsonDecode(respText);
+
+        if (respJson['ParsedResults'] != null &&
+            (respJson['ParsedResults'] as List).isNotEmpty) {
+          final parsedText = respJson['ParsedResults'][0]['ParsedText']?.toString() ?? '';
+          req.response
+            ..headers.contentType = ContentType.json
+            ..statusCode = HttpStatus.ok
+            ..write(jsonEncode({'success': true, 'rawText': parsedText}));
+        } else {
+          final err = respJson['ErrorMessage']?.toString() ?? '未能从截图中识别出文字';
+          req.response
+            ..headers.contentType = ContentType.json
+            ..statusCode = HttpStatus.ok
+            ..write(jsonEncode({'success': false, 'error': err, 'rawText': ''}));
+        }
+      } catch (e) {
+        req.response
+          ..headers.contentType = ContentType.json
+          ..statusCode = HttpStatus.internalServerError
+          ..write(jsonEncode({'success': false, 'error': e.toString()}));
+      }
+      await req.response.close();
+      continue;
+    }
+
     req.response
       ..statusCode = HttpStatus.notFound
       ..write('Not Found');
