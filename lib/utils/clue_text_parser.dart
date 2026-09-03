@@ -224,6 +224,36 @@ class ClueTextParser {
       }
     }
 
+    // 5. 针对微信个人名片页特定布局兜底抓取（首个非系统关键字的大字行）
+    if (name.isEmpty) {
+      for (final rawLine in lines) {
+        final line = rawLine.trim();
+        if (line.isEmpty) continue;
+        // 排除微信名片系统关键词
+        if (line.contains('微信号') ||
+            line.contains('地区') ||
+            line.contains('发消息') ||
+            line.contains('音视频') ||
+            line.contains('朋友权限') ||
+            line.contains('朋友圈') ||
+            line.contains('标签') ||
+            line.contains('来源') ||
+            line.contains('描述') ||
+            line.contains('设置备注') ||
+            line.contains('更多信息') ||
+            line.contains('通讯录') ||
+            line.contains('微信') ||
+            line.startsWith('http') ||
+            RegExp(r'^\d+[\s:]*\d+').hasMatch(line)) {
+          continue;
+        }
+        if (line.length >= 2 && line.length <= 15) {
+          name = line;
+          break;
+        }
+      }
+    }
+
     return ClueParsedResult(
       name: name,
       phone: phone,

@@ -990,6 +990,99 @@ class _OcrFormState extends State<_OcrForm> {
                       ],
                     ),
                   ],
+                  if (_hasParsed && !_recognizing && _rawParsedText != null && _rawParsedText!.trim().isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F7FF),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFB3D7FF)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: const [
+                              Icon(Icons.text_snippet_outlined, size: 15, color: Color(0xFF1565C0)),
+                              SizedBox(width: 6),
+                              Text('识别到的名片/截图文字：',
+                                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF1565C0))),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _rawParsedText!.replaceAll(RegExp(r'\r?\n'), '  '),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 11, color: Colors.blueGrey[800]),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            // 专升本招生命名规范快速粘贴识别卡片
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.amber.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.bolt, size: 18, color: Colors.amber.shade900),
+                      const SizedBox(width: 6),
+                      Text(
+                        '或直接粘贴好友规范备注一键秒填',
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.amber.shade900),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _quickTextCtrl,
+                          decoration: InputDecoration(
+                            hintText: '例：李文文-河南经贸-24级-视传',
+                            hintStyle: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 10),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () => _parseFromText(_quickTextCtrl.text),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber.shade800,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: const Text('智能解析', style: TextStyle(fontSize: 12)),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
