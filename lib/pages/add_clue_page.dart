@@ -706,11 +706,11 @@ class _OcrFormState extends State<_OcrForm> {
       chatRecords.add(
         ChatRecord(
           id: provider.generateId(),
-          recordDate: DateTime.now(),
-          imageBase64: base64Encode(_imageBytes!),
+          clueId: clueId,
+          imagePath: _imageName ?? 'wx_screenshot.png',
+          imageData: base64Encode(_imageBytes!),
           ocrText: '【截图导入建档凭证】\n${_rawParsedText ?? ""}',
-          summary: '微信截图建档凭证',
-          extractedTags: _selectedTags,
+          createTime: DateTime.now(),
         ),
       );
     }
