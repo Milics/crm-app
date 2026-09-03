@@ -326,6 +326,138 @@ void main() async {
       }
     }
 
+    // ─────────────────────────────────────
+    // 5. 云端统一 AI 大模型服务 (/api/ai)
+    // ─────────────────────────────────────
+    final aiConfigFile = File('data/crm_ai_config.json');
+
+    Map<String, String> getAiConfig() {
+      final envKey = Platform.environment['DEEPSEEK_API_KEY'];
+      String apiKey = envKey ?? '';
+      String baseUrl = Platform.environment['DEEPSEEK_BASE_URL'] ?? 'https://api.deepseek.com/v1';
+      String model = Platform.environment['DEEPSEEK_MODEL'] ?? 'deepseek-chat';
+
+      if (aiConfigFile.existsSync()) {
+        try {
+          final data = jsonDecode(aiConfigFile.readAsStringSync());
+          if (data is Map) {
+            if (apiKey.isEmpty && data['apiKey'] != null) apiKey = data['apiKey'].toString().trim();
+            if (data['baseUrl'] != null && data['baseUrl'].toString().isNotEmpty) baseUrl = data['baseUrl'].toString().trim();
+            if (data['model'] != null && data['model'].toString().isNotEmpty) model = data['model'].toString().trim();
+          }
+        } catch (_) {}
+      }
+      return {'apiKey': apiKey, 'baseUrl': baseUrl, 'model': model};
+    }
+
+    if (path == '/api/ai/config') {
+      final config = getAiConfig();
+      if (req.method == 'GET') {
+        req.response
+          ..headers.contentType = ContentType.json
+          ..statusCode = HttpStatus.ok
+          ..write(jsonEncode({
+            'configured': config['apiKey']!.isNotEmpty,
+            'model': config['model'],
+            'baseUrl': config['baseUrl'],
+          }));
+        await req.response.close();
+        continue;
+      }
+
+      if (req.method == 'POST') {
+        final bodyStr = await utf8.decodeStream(req);
+        final body = jsonDecode(bodyStr);
+        if (body is Map) {
+          final current = getAiConfig();
+          final newKey = body['apiKey']?.toString().trim() ?? current['apiKey'];
+          final newUrl = body['baseUrl']?.toString().trim() ?? current['baseUrl'];
+          final newModel = body['model']?.toString().trim() ?? current['model'];
+
+          aiConfigFile.writeAsStringSync(jsonEncode({
+            'apiKey': newKey,
+            'baseUrl': newUrl,
+            'model': newModel,
+          }));
+
+          req.response
+            ..headers.contentType = ContentType.json
+            ..statusCode = HttpStatus.ok
+            ..write(jsonEncode({'success': true, 'configured': newKey!.isNotEmpty}));
+          await req.response.close();
+          continue;
+        }
+      }
+    }
+
+    if (path == '/api/ai/analyze' && req.method == 'POST') {
+      final config = getAiConfig();
+      if (config['apiKey']!.isEmpty) {
+        req.response
+          ..headers.contentType = ContentType.json
+          ..statusCode = HttpStatus.badRequest
+          ..write(jsonEncode({
+            'success': false,
+            'error': '云端中枢尚未配置 DeepSeek API Key，请超级管理员在设置中统一录入！'
+          }));
+        await req.response.close();
+        continue;
+      }
+
+      try {
+        final bodyStr = await utf8.decodeStream(req);
+        final body = jsonDecode(bodyStr) as Map<String, dynamic>;
+        final systemPrompt = body['systemPrompt']?.toString() ??
+            '你是一位拥有10年经验的统招专升本招生金牌销售总监。擅长精准挖掘学生内心顾虑，并给出极具杀伤力的实战逼单话术。';
+        final userPrompt = body['userPrompt']?.toString() ?? '';
+
+        final cleanBase = config['baseUrl']!.endsWith('/')
+            ? config['baseUrl']!.substring(0, config['baseUrl']!.length - 1)
+            : config['baseUrl']!;
+        final url = Uri.parse('$cleanBase/chat/completions');
+
+        final client = HttpClient();
+        client.connectionTimeout = const Duration(seconds: 45);
+        final extReq = await client.postUrl(url);
+        extReq.headers.set('Content-Type', 'application/json; charset=utf-8');
+        extReq.headers.set('Authorization', 'Bearer ${config['apiKey']}');
+
+        final payload = jsonEncode({
+          'model': config['model'],
+          'messages': [
+            {'role': 'system', 'content': systemPrompt},
+            {'role': 'user', 'content': userPrompt},
+          ],
+          'temperature': 0.7,
+        });
+        extReq.write(payload);
+        final extResp = await extReq.close();
+        final respText = await utf8.decodeStream(extResp);
+        final respJson = jsonDecode(respText);
+
+        if (extResp.statusCode == 200) {
+          final content = respJson['choices'][0]['message']['content'];
+          req.response
+            ..headers.contentType = ContentType.json
+            ..statusCode = HttpStatus.ok
+            ..write(jsonEncode({'success': true, 'output': content}));
+        } else {
+          final err = respJson['error']?['message'] ?? 'API Error ${extResp.statusCode}';
+          req.response
+            ..headers.contentType = ContentType.json
+            ..statusCode = HttpStatus.badGateway
+            ..write(jsonEncode({'success': false, 'error': err}));
+        }
+      } catch (e) {
+        req.response
+          ..headers.contentType = ContentType.json
+          ..statusCode = HttpStatus.internalServerError
+          ..write(jsonEncode({'success': false, 'error': e.toString()}));
+      }
+      await req.response.close();
+      continue;
+    }
+
     req.response
       ..statusCode = HttpStatus.notFound
       ..write('Not Found');

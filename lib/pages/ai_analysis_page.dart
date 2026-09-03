@@ -207,16 +207,20 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                '原生支持 DeepSeek / 智谱 / OpenAI 兼容接口，配置后立即升级为真实大模型实时推理诊断：',
-                style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.4),
+                '🌟 云端统一托管机制：作为负责人您只需在此配置一次 API Key，系统将自动加密托管至 Render 云中枢，全团队所有顾问手机直接免配畅享大模型实时诊断！',
+                style: TextStyle(
+                    fontSize: 12.5,
+                    color: Color(0xFF7B1FA2),
+                    height: 1.45,
+                    fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 14),
               TextField(
                 controller: keyCtrl,
                 obscureText: true,
                 decoration: const InputDecoration(
-                  labelText: 'API Key (如 sk-...)',
-                  hintText: '输入您的 DeepSeek 或兼容 API Key',
+                  labelText: 'DeepSeek API Key (如 sk-...)',
+                  hintText: '输入您的 DeepSeek API Key',
                   border: OutlineInputBorder(),
                   isDense: true,
                 ),
@@ -366,7 +370,7 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
                                   SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      '当前为内置规则引擎模式。点击此处或右上角 ⚙️ 配置 DeepSeek Key，一键升级为顶级 LLM 实时推理！',
+                                      '当前为内置专家规则模式。超管点击右上角 ⚙️ 输入一次 DeepSeek Key，全团队 5 位顾问直接免配畅享大模型实时诊断！',
                                       style: TextStyle(
                                           fontSize: 12,
                                           color: Color(0xFF7B1FA2),

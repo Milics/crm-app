@@ -29,6 +29,7 @@ class CrmSyncService {
   // 默认直接激活用户专属的 7x24 小时公网同步中枢
   String? _activeBaseUrl = 'https://crm-app-ojs3.onrender.com';
   String? get activeBaseUrl => _activeBaseUrl;
+  String get serverUrl => _activeBaseUrl ?? 'https://crm-app-ojs3.onrender.com';
   bool get isConnected => _activeBaseUrl != null;
 
   String? lastError;
