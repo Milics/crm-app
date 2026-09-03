@@ -26,6 +26,7 @@ class _MainTabPageState extends State<MainTabPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF1976D2),
       body: IndexedStack(
         index: _currentIndex,
         children: _pages,
