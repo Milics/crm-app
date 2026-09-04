@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'clue_list_page.dart';
-import 'todo_visit_page.dart';
+import 'materials_page.dart';
 import 'statistic_page.dart';
 import 'mine_page.dart';
 import 'add_clue_page.dart';
@@ -18,7 +18,7 @@ class _MainTabPageState extends State<MainTabPage> {
 
   final List<Widget> _pages = const [
     ClueListPage(),
-    TodoVisitPage(),
+    MaterialsPage(isTab: true),
     StatisticPage(),
     MinePage(),
   ];
@@ -102,9 +102,9 @@ class _FishStyleBottomBar extends StatelessWidget {
                 ),
                 Expanded(
                   child: _TabItem(
-                    icon: Icons.schedule_outlined,
-                    activeIcon: Icons.schedule_rounded,
-                    label: '待回访',
+                    icon: Icons.photo_library_outlined,
+                    activeIcon: Icons.photo_library_rounded,
+                    label: '物料',
                     index: 1,
                     currentIndex: currentIndex,
                     onTap: onTabChanged,

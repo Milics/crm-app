@@ -40,7 +40,8 @@ IconData _categoryIcon(String category) {
 
 /// 我的物料页面（公共物料库 + 个人私有物料库 + 超管审核流）
 class MaterialsPage extends StatefulWidget {
-  const MaterialsPage({super.key});
+  final bool isTab;
+  const MaterialsPage({super.key, this.isTab = false});
 
   @override
   State<MaterialsPage> createState() => _MaterialsPageState();
@@ -116,7 +117,8 @@ class _MaterialsPageState extends State<MaterialsPage>
         return Scaffold(
           backgroundColor: const Color(0xFFF5F7FA),
           appBar: AppBar(
-            title: const Text('物料与话术库'),
+            automaticallyImplyLeading: !widget.isTab,
+            title: const Text('宣发物料库'),
             actions: [
               PopupMenuButton<AppMaterialType>(
                 icon: const Icon(Icons.add, color: Colors.white),
