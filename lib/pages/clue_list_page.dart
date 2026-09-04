@@ -673,36 +673,28 @@ class _ClueCard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 专升本学情微勋章（方案B：届别 + 报考专业门类）
-              _StudentProfileBadge(clue: clue),
-              const SizedBox(width: 12),
-
-              // 信息区域
+              // 信息区域（左对齐，通透自然）
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 昵称行
+                    // 第一行：昵称 + 状态徽标 + 意向徽标
                     Row(
                       children: [
                         Flexible(
                           child: Text(
                             clue.wxNick,
                             style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Color(0xFF1E293B),
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-
-                    // 标签行：状态 + 意向
-                    Row(
-                      children: [
+                        const SizedBox(width: 8),
                         _StatusBadge(status: clue.status),
                         if (clue.intentLevel != IntentLevel.none) ...[
                           const SizedBox(width: 6),
@@ -710,8 +702,30 @@ class _ClueCard extends StatelessWidget {
                         ],
                       ],
                     ),
+                    const SizedBox(height: 6),
+
+                    // 第二行：专升本学情（届别 · 专业 · 就读高校），克制优雅的浅灰色小字
+                    if (clue.grade.isNotEmpty ||
+                        clue.subject.isNotEmpty ||
+                        clue.school.isNotEmpty) ...[
+                      Text(
+                        [
+                          if (clue.grade.isNotEmpty) clue.grade,
+                          if (clue.subject.isNotEmpty) clue.subject,
+                          if (clue.school.isNotEmpty) clue.school,
+                        ].join(' · '),
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: Color(0xFF64748B),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 5),
+                    ],
+
+                    // 业务标签（灰度背景，不抢视觉重心）
                     if (clue.tags.isNotEmpty) ...[
-                      const SizedBox(height: 4),
                       Wrap(
                         spacing: 4,
                         runSpacing: 4,
@@ -723,43 +737,46 @@ class _ClueCard extends StatelessWidget {
                               color: const Color(0xFFF1F5F9),
                               borderRadius: BorderRadius.circular(4),
                               border: Border.all(
-                                  color: const Color(0xFFCBD5E1), width: 0.5),
+                                  color: const Color(0xFFE2E8F0), width: 0.5),
                             ),
                             child: Text(
                               '#$t',
                               style: const TextStyle(
                                 fontSize: 10,
-                                color: Color(0xFF475569),
+                                color: Color(0xFF64748B),
                               ),
                             ),
                           );
                         }).toList(),
                       ),
+                      const SizedBox(height: 5),
                     ],
-                    const SizedBox(height: 6),
 
                     // 回访时间
                     if (hasNextVisit)
                       Text(
-                        '下次回访时间：${DateFormat('yyyy-MM-dd HH:mm').format(clue.nextVisitTime!)}',
+                        '下次回访：${DateFormat('yyyy-MM-dd HH:mm').format(clue.nextVisitTime!)}',
                         style: TextStyle(
                           fontSize: 12,
+                          fontWeight:
+                              isOverdue ? FontWeight.w600 : FontWeight.normal,
                           color: isOverdue
-                              ? Colors.red
-                              : Colors.grey[600],
+                              ? const Color(0xFFDC2626)
+                              : const Color(0xFF94A3B8),
                         ),
                       )
                     else
-                      Text(
+                      const Text(
                         '未设置回访时间',
                         style: TextStyle(
-                            fontSize: 12, color: Colors.grey[400]),
+                            fontSize: 12, color: Color(0xFFCBD5E1)),
                       ),
                   ],
                 ),
               ),
+              const SizedBox(width: 12),
 
-              // 来源与归属顾问标签
+              // 右侧：来源与归属顾问标签
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -772,15 +789,15 @@ class _ClueCard extends StatelessWidget {
 
                       if (hasOwner) {
                         return Padding(
-                          padding: const EdgeInsets.only(top: 4),
+                          padding: const EdgeInsets.only(top: 6),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 5, vertical: 1.5),
+                                horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: const Color(0xFF1976D2).withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(4),
                               border: Border.all(
-                                  color: const Color(0xFF1976D2).withValues(alpha: 0.25),
+                                  color: const Color(0xFF1976D2).withValues(alpha: 0.2),
                                   width: 0.5),
                             ),
                             child: Text(
@@ -795,15 +812,15 @@ class _ClueCard extends StatelessWidget {
                         );
                       } else if (isManager) {
                         return Padding(
-                          padding: const EdgeInsets.only(top: 4),
+                          padding: const EdgeInsets.only(top: 6),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 5, vertical: 1.5),
+                                horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: const Color(0xFFE65100).withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(4),
                               border: Border.all(
-                                  color: const Color(0xFFE65100).withValues(alpha: 0.3),
+                                  color: const Color(0xFFE65100).withValues(alpha: 0.25),
                                   width: 0.5),
                             ),
                             child: const Text(
@@ -820,130 +837,14 @@ class _ClueCard extends StatelessWidget {
                       return const SizedBox.shrink();
                     },
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 10),
                   const Icon(Icons.chevron_right,
-                      color: Colors.grey, size: 20),
+                      color: Color(0xFFCBD5E1), size: 20),
                 ],
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// 专升本学情微勋章（方案B：届别 + 报考专业门类）
-class _StudentProfileBadge extends StatelessWidget {
-  final Clue clue;
-  const _StudentProfileBadge({required this.clue});
-
-  @override
-  Widget build(BuildContext context) {
-    // 1. 提取届别文案 (如 "24级", "25届")
-    String gradeStr = clue.grade.trim();
-    if (gradeStr.isEmpty) {
-      gradeStr = '升本';
-    } else {
-      if (gradeStr.length > 4) {
-        gradeStr = gradeStr.substring(0, 4);
-      }
-    }
-
-    // 2. 提取专业门类文案 (如 "经管", "理工", "文史", "教育", "艺术", "医学")
-    String subjectStr = clue.subject.trim();
-    if (subjectStr.isEmpty) {
-      subjectStr = '待定';
-    } else if (subjectStr.length > 3) {
-      subjectStr = subjectStr.substring(0, 2);
-    }
-
-    // 3. 根据专业门类匹配专属考情色彩体系
-    Color primaryColor;
-    Color bgColor;
-
-    final s = clue.subject.toLowerCase();
-    if (s.contains('经管') ||
-        s.contains('管') ||
-        s.contains('经') ||
-        s.contains('财') ||
-        s.contains('商') ||
-        s.contains('会')) {
-      primaryColor = const Color(0xFF1565C0); // 经管蓝
-      bgColor = const Color(0xFFE3F2FD);
-    } else if (s.contains('理') ||
-        s.contains('工') ||
-        s.contains('计') ||
-        s.contains('信') ||
-        s.contains('电') ||
-        s.contains('机')) {
-      primaryColor = const Color(0xFF6A1B9A); // 理工紫
-      bgColor = const Color(0xFFF3E5F5);
-    } else if (s.contains('文') ||
-        s.contains('史') ||
-        s.contains('语') ||
-        s.contains('法')) {
-      primaryColor = const Color(0xFFE65100); // 文史暖橙
-      bgColor = const Color(0xFFFFF3E0);
-    } else if (s.contains('教') ||
-        s.contains('师') ||
-        s.contains('幼') ||
-        s.contains('学前')) {
-      primaryColor = const Color(0xFF2E7D32); // 教育翡翠绿
-      bgColor = const Color(0xFFE8F5E9);
-    } else if (s.contains('美') ||
-        s.contains('艺') ||
-        s.contains('设') ||
-        s.contains('音')) {
-      primaryColor = const Color(0xFFC2185B); // 艺术玫红
-      bgColor = const Color(0xFFFCE4EC);
-    } else if (s.contains('医') || s.contains('护') || s.contains('药')) {
-      primaryColor = const Color(0xFF00897B); // 医学青绿
-      bgColor = const Color(0xFFE0F2F1);
-    } else {
-      primaryColor = const Color(0xFF455A64); // 默认石板青灰
-      bgColor = const Color(0xFFECEFF1);
-    }
-
-    return Container(
-      width: 46,
-      height: 48,
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: primaryColor.withValues(alpha: 0.28),
-          width: 0.8,
-        ),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            gradeStr,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: primaryColor.withValues(alpha: 0.82),
-              height: 1.05,
-            ),
-          ),
-          Container(
-            width: 18,
-            height: 0.8,
-            margin: const EdgeInsets.symmetric(vertical: 2),
-            color: primaryColor.withValues(alpha: 0.25),
-          ),
-          Text(
-            subjectStr,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: primaryColor,
-              height: 1.05,
-            ),
-          ),
-        ],
       ),
     );
   }
