@@ -675,7 +675,11 @@ class _ClueCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 信息区域（左对齐，通透自然）
+              // 左侧：专升本学情统一微勋章（统一经典品牌蓝，整齐有序）
+              _StudentProfileBadge(clue: clue),
+              const SizedBox(width: 12),
+
+              // 信息区域
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -704,22 +708,28 @@ class _ClueCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
 
-                    // 第二行：专升本学情（届别 · 专业 · 就读高校），克制优雅的浅灰色小字
-                    if (clue.grade.isNotEmpty ||
-                        clue.subject.isNotEmpty ||
-                        clue.school.isNotEmpty) ...[
-                      Text(
-                        [
-                          if (clue.grade.isNotEmpty) clue.grade,
-                          if (clue.subject.isNotEmpty) clue.subject,
-                          if (clue.school.isNotEmpty) clue.school,
-                        ].join(' · '),
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          color: Color(0xFF64748B),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                    // 第二行：专升本学情补充（院校及专业全称，克制浅灰）
+                    if (clue.school.isNotEmpty || clue.subject.length > 2) ...[
+                      Row(
+                        children: [
+                          const Icon(Icons.school_outlined,
+                              size: 13, color: Color(0xFF94A3B8)),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              [
+                                if (clue.school.isNotEmpty) clue.school,
+                                if (clue.subject.length > 2) clue.subject,
+                              ].join(' · '),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF64748B),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 5),
                     ],
@@ -845,6 +855,80 @@ class _ClueCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// 专升本学情统一微勋章（方案：统一高质感经典商务蓝，整齐通透避免多色杂乱）
+class _StudentProfileBadge extends StatelessWidget {
+  final Clue clue;
+  const _StudentProfileBadge({required this.clue});
+
+  @override
+  Widget build(BuildContext context) {
+    // 1. 提取届别文案 (如 "24级", "25届")
+    String gradeStr = clue.grade.trim();
+    if (gradeStr.isEmpty) {
+      gradeStr = '升本';
+    } else if (gradeStr.length > 4) {
+      gradeStr = gradeStr.substring(0, 4);
+    }
+
+    // 2. 提取专业门类文案 (如 "经管", "艺术", "理工", "文史")
+    String subjectStr = clue.subject.trim();
+    if (subjectStr.isEmpty) {
+      subjectStr = '全科';
+    } else if (subjectStr.length > 3) {
+      subjectStr = subjectStr.substring(0, 2);
+    }
+
+    // 3. 统一采用克制雅致的品牌商务蓝体系，整齐通透
+    const bgColor = Color(0xFFEFF6FF); // 柔和极淡纯净蓝底
+    const borderColor = Color(0xFFDBEAFE); // 浅蓝精致微边框
+    const gradeColor = Color(0xFF3B82F6); // 届别中蓝
+    const dividerColor = Color(0xFFBFDBFE); // 极细分割线
+    const subjectColor = Color(0xFF1D4ED8); // 专业门类深邃纯蓝
+
+    return Container(
+      width: 48,
+      height: 50,
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: borderColor,
+          width: 0.8,
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            gradeStr,
+            style: const TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: gradeColor,
+              height: 1.1,
+            ),
+          ),
+          Container(
+            width: 20,
+            height: 0.8,
+            margin: const EdgeInsets.symmetric(vertical: 2.5),
+            color: dividerColor,
+          ),
+          Text(
+            subjectStr,
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.bold,
+              color: subjectColor,
+              height: 1.1,
+            ),
+          ),
+        ],
       ),
     );
   }
