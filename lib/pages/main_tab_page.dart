@@ -124,7 +124,7 @@ class _FishStyleBottomBar extends StatelessWidget {
                 // 右侧两个 Tab
                 Expanded(
                   child: _TabItem(
-                    icon: Icons.bar_chart_outlined,
+                    icon: Icons.bar_chart_rounded,
                     activeIcon: Icons.bar_chart_rounded,
                     label: '统计',
                     index: 2,
