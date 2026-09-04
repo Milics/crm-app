@@ -242,6 +242,35 @@ class _HeaderCard extends StatelessWidget {
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
+              // 第四行：线索来源 + 归属顾问
+              Row(
+                children: [
+                  Expanded(
+                    child: _InfoChip(
+                      label: '线索来源',
+                      value: clue.source.isEmpty ? '未填写' : clue.source,
+                      enableCopy: false,
+                    ),
+                  ),
+                  Container(width: 1, height: 32, color: Colors.white24),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 12),
+                      child: _InfoChip(
+                        label: '归属顾问',
+                        value: clue.ownerName.isEmpty ? '待分配' : clue.ownerName,
+                        actionIcon: context.read<AppProvider>().canViewAllClues
+                            ? Icons.swap_horiz
+                            : null,
+                        customTap: context.read<AppProvider>().canViewAllClues
+                            ? () => _showReassignDialog(context, clue)
+                            : null,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
               if (clue.tags.isNotEmpty) ...[
                 const SizedBox(height: 14),
                 Align(
@@ -268,6 +297,58 @@ class _HeaderCard extends StatelessWidget {
                 ),
               ],
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showReassignDialog(BuildContext context, Clue clue) {
+    final provider = context.read<AppProvider>();
+    final advisors = provider.users.where((u) => u.isActive).toList();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('指派/转派归属顾问'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: advisors.length,
+            itemBuilder: (c, idx) {
+              final user = advisors[idx];
+              final isCurrent = clue.ownerName == user.name;
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: isCurrent ? Colors.blue : Colors.grey[200],
+                  child: Text(user.name.isNotEmpty ? user.name[0] : '?',
+                      style: TextStyle(
+                          color: isCurrent ? Colors.white : Colors.black87)),
+                ),
+                title: Text(user.name,
+                    style: TextStyle(
+                        fontWeight:
+                            isCurrent ? FontWeight.bold : FontWeight.normal)),
+                subtitle: Text('${user.role.label} · ${user.phone}'),
+                trailing: isCurrent
+                    ? const Icon(Icons.check, color: Colors.blue)
+                    : null,
+                onTap: () {
+                  provider.reassignClueOwner(clue.id, user.name);
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('已将该线索指派给「${user.name}」老师')),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
           ),
         ],
       ),
@@ -737,7 +818,8 @@ class _TimelineSection extends StatelessWidget {
           _TimelineItem(
             date: DateFormat('yyyy.MM.dd').format(clue.createTime),
             title: '线索创建',
-            subtitle: '来源：${clue.source.isEmpty ? "未知" : clue.source}',
+            subtitle:
+                '来源：${clue.source.isEmpty ? "未知" : clue.source} · 归属顾问：${clue.ownerName.isEmpty ? "待分配" : clue.ownerName}',
             color: const Color(0xFF1976D2),
             dotFilled: true,
             isLast: logs.isEmpty,

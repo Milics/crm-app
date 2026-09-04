@@ -776,25 +776,62 @@ class _ClueCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   _SourceTag(source: clue.source),
-                  if (clue.ownerName.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 5, vertical: 1.5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1976D2).withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        '👤 ${clue.ownerName}',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: Color(0xFF1976D2),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
+                  Builder(
+                    builder: (context) {
+                      final provider = context.watch<AppProvider>();
+                      final isManager = provider.canViewAllClues;
+                      final hasOwner = clue.ownerName.trim().isNotEmpty;
+
+                      if (hasOwner) {
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1976D2).withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                  color: const Color(0xFF1976D2).withValues(alpha: 0.25),
+                                  width: 0.5),
+                            ),
+                            child: Text(
+                              '👤 ${clue.ownerName}',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Color(0xFF1976D2),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        );
+                      } else if (isManager) {
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE65100).withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                  color: const Color(0xFFE65100).withValues(alpha: 0.3),
+                                  width: 0.5),
+                            ),
+                            child: const Text(
+                              '👤 待分配',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Color(0xFFE65100),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
                   const SizedBox(height: 6),
                   const Icon(Icons.chevron_right,
                       color: Colors.grey, size: 20),
@@ -1351,21 +1388,22 @@ class _TodayTaskCard extends StatelessWidget {
                                   ],
                                 ],
                               ),
-                              if (clue.subject.isNotEmpty ||
-                                  clue.classType.isNotEmpty) ...[
-                                const SizedBox(height: 3),
-                                Text(
-                                  [clue.subject, clue.classType]
-                                      .where((s) => s.isNotEmpty)
-                                      .join(' · '),
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.white
-                                        .withValues(alpha: 0.7),
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
+                              const SizedBox(height: 3),
+                              Text(
+                                [
+                                  clue.ownerName.isNotEmpty
+                                      ? '👤 ${clue.ownerName}'
+                                      : '👤 待分配',
+                                  if (clue.subject.isNotEmpty) clue.subject,
+                                  if (clue.classType.isNotEmpty)
+                                    clue.classType,
+                                ].join(' · '),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.white.withValues(alpha: 0.75),
                                 ),
-                              ],
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ],
                           ),
                         ),

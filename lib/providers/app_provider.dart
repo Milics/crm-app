@@ -136,6 +136,21 @@ class AppProvider extends ChangeNotifier {
       initMockData();
     }
 
+    // 确保所有线索都有明确归属人（修复历史老数据或空归属人线索，超级管理员开箱即见）
+    bool needResave = false;
+    final defaultAdvisors = ['李广东', '郭培杨', '王主管', '张老师'];
+    int advisorIdx = 0;
+    for (final c in _clues) {
+      if (c.ownerName.trim().isEmpty) {
+        c.ownerName = defaultAdvisors[advisorIdx % defaultAdvisors.length];
+        advisorIdx++;
+        needResave = true;
+      }
+    }
+    if (needResave) {
+      _saveClues();
+    }
+
     _isLoaded = true;
     notifyListeners();
 
@@ -1204,6 +1219,16 @@ class AppProvider extends ChangeNotifier {
       clue.remark = remark;
       if (tags != null) clue.tags = tags;
       if (nextVisitTime != null) clue.nextVisitTime = nextVisitTime;
+      notifyListeners();
+      _saveClues(changedClue: clue);
+    }
+  }
+
+  // 指派/转派线索归属顾问（支持超管一键分配与全网同步）
+  void reassignClueOwner(String clueId, String newOwnerName) {
+    final clue = getClueById(clueId);
+    if (clue != null) {
+      clue.ownerName = newOwnerName;
       notifyListeners();
       _saveClues(changedClue: clue);
     }
