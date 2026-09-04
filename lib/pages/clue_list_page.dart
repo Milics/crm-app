@@ -175,17 +175,12 @@ class _ClueListPageState extends State<ClueListPage>
           final isTodoTab = _tabController.index == 1;
           final keyword = provider.searchKeyword.trim();
 
-          // 待回访多阶梯任务分组（今日、明日、后天、即将回访、已逾期）
+          // 待回访多阶梯任务分组（今日、明日、后天、即将回访）
           final now = DateTime.now();
           final todayStart = DateTime(now.year, now.month, now.day);
           final tomorrowStart = todayStart.add(const Duration(days: 1));
           final dayAfterStart = todayStart.add(const Duration(days: 2));
           final futureStart = todayStart.add(const Duration(days: 3));
-
-          final overdueClues = isTodoTab
-              ? (clues.where((c) => c.nextVisitTime != null && c.nextVisitTime!.isBefore(todayStart)).toList()
-                ..sort((a, b) => a.nextVisitTime!.compareTo(b.nextVisitTime!)))
-              : <Clue>[];
 
           final todayClues = isTodoTab
               ? (clues.where((c) => c.nextVisitTime != null && !c.nextVisitTime!.isBefore(todayStart) && c.nextVisitTime!.isBefore(tomorrowStart)).toList()
@@ -348,25 +343,6 @@ class _ClueListPageState extends State<ClueListPage>
                                     ),
                                   ),
                                 ),
-                                if (overdueClues.isNotEmpty) ...[
-                                  _TodoSectionHeader(
-                                    title: '已逾期任务',
-                                    count: overdueClues.length,
-                                    color: const Color(0xFFD32F2F),
-                                  ),
-                                  ...overdueClues.map(
-                                    (c) => _ClueCard(
-                                      clue: c,
-                                      onTap: () => Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              ClueDetailPage(clueId: c.id),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
                                 if (todayClues.isNotEmpty) ...[
                                   _TodoSectionHeader(
                                     title: '今日回访任务',
@@ -1368,22 +1344,35 @@ class _TodayTaskCard extends StatelessWidget {
                           margin:
                               const EdgeInsets.symmetric(horizontal: 10),
                         ),
-                        // 昵称 + 标签
+                        // 昵称 + 状态/意向标签 + 学科班型
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                clue.wxNick,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                                overflow: TextOverflow.ellipsis,
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      clue.wxNick,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  _TodayStatusBadge(status: clue.status),
+                                  if (clue.intentLevel != IntentLevel.none) ...[
+                                    const SizedBox(width: 4),
+                                    _TodayIntentBadge(level: clue.intentLevel),
+                                  ],
+                                ],
                               ),
                               if (clue.subject.isNotEmpty ||
-                                  clue.classType.isNotEmpty)
+                                  clue.classType.isNotEmpty) ...[
+                                const SizedBox(height: 3),
                                 Text(
                                   [clue.subject, clue.classType]
                                       .where((s) => s.isNotEmpty)
@@ -1393,7 +1382,9 @@ class _TodayTaskCard extends StatelessWidget {
                                     color: Colors.white
                                         .withValues(alpha: 0.7),
                                   ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
+                              ],
                             ],
                           ),
                         ),
@@ -1421,6 +1412,106 @@ class _TodayTaskCard extends StatelessWidget {
                 );
               }),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 今日回访条目专属状态徽标（针对深色渐变卡片高对比优化）
+class _TodayStatusBadge extends StatelessWidget {
+  final ClueStatus status;
+  const _TodayStatusBadge({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    Color bg;
+    Color fg;
+    switch (status) {
+      case ClueStatus.following:
+        bg = const Color(0xFF38BDF8).withValues(alpha: 0.25);
+        fg = const Color(0xFFBAE6FD);
+        break;
+      case ClueStatus.contacted:
+        bg = const Color(0xFFFB923C).withValues(alpha: 0.25);
+        fg = const Color(0xFFFED7AA);
+        break;
+      case ClueStatus.invited:
+        bg = const Color(0xFF4ADE80).withValues(alpha: 0.25);
+        fg = const Color(0xFFBBF7D0);
+        break;
+      case ClueStatus.attended:
+        bg = const Color(0xFF2DD4BF).withValues(alpha: 0.25);
+        fg = const Color(0xFF99F6E4);
+        break;
+      case ClueStatus.enrolled:
+        bg = const Color(0xFFC084FC).withValues(alpha: 0.25);
+        fg = const Color(0xFFE9D5FF);
+        break;
+      case ClueStatus.paused:
+        bg = Colors.white.withValues(alpha: 0.15);
+        fg = Colors.white60;
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: fg.withValues(alpha: 0.35), width: 0.5),
+      ),
+      child: Text(
+        status.label,
+        style: TextStyle(
+          fontSize: 10,
+          color: fg,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+/// 今日回访条目专属意向徽标（针对深色渐变卡片高对比优化）
+class _TodayIntentBadge extends StatelessWidget {
+  final IntentLevel level;
+  const _TodayIntentBadge({required this.level});
+
+  @override
+  Widget build(BuildContext context) {
+    Color bg;
+    Color fg;
+    switch (level) {
+      case IntentLevel.high:
+        bg = const Color(0xFFEF5350).withValues(alpha: 0.32);
+        fg = const Color(0xFFFFCDD2);
+        break;
+      case IntentLevel.medium:
+        bg = const Color(0xFFFFA726).withValues(alpha: 0.32);
+        fg = const Color(0xFFFFE0B2);
+        break;
+      case IntentLevel.low:
+        bg = Colors.white.withValues(alpha: 0.15);
+        fg = Colors.white70;
+        break;
+      case IntentLevel.none:
+        return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: fg.withValues(alpha: 0.35), width: 0.5),
+      ),
+      child: Text(
+        level.label,
+        style: TextStyle(
+          fontSize: 10,
+          color: fg,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );

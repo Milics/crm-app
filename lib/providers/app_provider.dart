@@ -983,9 +983,12 @@ class AppProvider extends ChangeNotifier {
         result = result.where((c) => c.status != ClueStatus.enrolled).toList();
         break;
       case 1:
+        final todayStart = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
         result = result
             .where((c) =>
-                c.status != ClueStatus.enrolled && c.nextVisitTime != null)
+                c.status != ClueStatus.enrolled &&
+                c.nextVisitTime != null &&
+                !c.nextVisitTime!.isBefore(todayStart))
             .toList();
         break;
       case 2:
@@ -1070,10 +1073,13 @@ class AppProvider extends ChangeNotifier {
           });
         break;
 
-      case 1: // 待回访（严格按下次回访时间从最近到未来升序排序）
+      case 1: // 待回访（严格排除已逾期，仅保留今天及未来的回访，按时间升序）
+        final todayStart = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
         result = result
             .where((c) =>
-                c.status != ClueStatus.enrolled && c.nextVisitTime != null)
+                c.status != ClueStatus.enrolled &&
+                c.nextVisitTime != null &&
+                !c.nextVisitTime!.isBefore(todayStart))
             .toList()
           ..sort((a, b) => a.nextVisitTime!.compareTo(b.nextVisitTime!));
         break;

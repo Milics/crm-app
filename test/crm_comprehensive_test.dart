@@ -146,7 +146,7 @@ void main() {
       expect(safeClue.wxNick, '');
       expect(safeClue.status, ClueStatus.following); // 平滑回退到默认
       expect(safeClue.intentLevel, IntentLevel.none);
-      expect(safeClue.createTime != null, true);
+      expect(safeClue.createTime.isBefore(DateTime.now().add(const Duration(minutes: 1))), true);
     });
   });
 
@@ -244,6 +244,55 @@ void main() {
       final restored = ImageMaterial.fromJson(json);
       expect(restored.title, item.title);
       expect(restored.desc, item.desc);
+    });
+  });
+
+  group('【QA 专项测试 6】待回访Tab过滤（严格排除逾期）与今日回访属性测试', () {
+    test('6.1 待回访过滤规则严格排除已逾期线索，只保留今天及未来', () {
+      final now = DateTime.now();
+      final todayStart = DateTime(now.year, now.month, now.day);
+      final overdueClue = Clue(
+        id: 'c_overdue',
+        wxNick: '逾期学员',
+        status: ClueStatus.following,
+        intentLevel: IntentLevel.high,
+        createTime: now.subtract(const Duration(days: 5)),
+        nextVisitTime: todayStart.subtract(const Duration(hours: 2)), // 昨天或更早
+      );
+      final todayClue = Clue(
+        id: 'c_today',
+        wxNick: '今日学员',
+        status: ClueStatus.invited,
+        intentLevel: IntentLevel.high,
+        createTime: now,
+        nextVisitTime: todayStart.add(const Duration(hours: 14)), // 今天 14:00
+      );
+      final futureClue = Clue(
+        id: 'c_future',
+        wxNick: '未来学员',
+        status: ClueStatus.attended,
+        intentLevel: IntentLevel.medium,
+        createTime: now,
+        nextVisitTime: todayStart.add(const Duration(days: 2, hours: 10)), // 后天 10:00
+      );
+
+      final list = [overdueClue, todayClue, futureClue];
+      // 待回访过滤规则：!c.nextVisitTime!.isBefore(todayStart)
+      final todoFiltered = list.where((c) =>
+          c.status != ClueStatus.enrolled &&
+          c.nextVisitTime != null &&
+          !c.nextVisitTime!.isBefore(todayStart)).toList();
+
+      expect(todoFiltered.length, 2);
+      expect(todoFiltered.any((c) => c.id == 'c_overdue'), false);
+      expect(todoFiltered.any((c) => c.id == 'c_today'), true);
+      expect(todoFiltered.any((c) => c.id == 'c_future'), true);
+
+      // 验证状态与意向文案
+      expect(todayClue.statusText, '已邀约');
+      expect(todayClue.intentText, '高意向');
+      expect(futureClue.statusText, '已试听');
+      expect(futureClue.intentText, '中意向');
     });
   });
 }
