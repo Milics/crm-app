@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:crm_app/models/clue.dart';
 import 'package:crm_app/models/material_item.dart';
 import 'package:crm_app/utils/clue_text_parser.dart';
+import 'package:crm_app/data/default_materials.dart';
 
 void main() {
   group('【QA 专项测试 1】专升本规范智能语义解析器 (ClueTextParser) 极限与边界测试', () {
@@ -293,6 +294,36 @@ void main() {
       expect(todayClue.intentText, '高意向');
       expect(futureClue.statusText, '已试听');
       expect(futureClue.intentText, '中意向');
+    });
+  });
+
+  group('【QA 专项测试 7】专升本 8 大实战金牌话术库与物料分类规范校验', () {
+    test('7.1 验证 8 大实战标签体系完整性与分类覆盖', () {
+      final categories = DefaultMaterials.categories;
+      expect(categories.length, 8);
+      expect(categories, contains('初次接触'));
+      expect(categories, contains('政策与院校规划'));
+      expect(categories, contains('痛点消解与异议处理'));
+      expect(categories, contains('课程体系与班型'));
+      expect(categories, contains('邀约试听与到校体验'));
+      expect(categories, contains('深度跟进与日常保温'));
+      expect(categories, contains('促单截单与限时特惠'));
+      expect(categories, contains('逆袭案例与口碑背书'));
+    });
+
+    test('7.2 验证话术总量为 80 条，且每个标签恰好包含 10 条高价值实战话术', () {
+      final materials = DefaultMaterials.getDefaultTextMaterials();
+      expect(materials.length, 80);
+
+      for (final cat in DefaultMaterials.categories) {
+        final catMaterials = materials.where((m) => m.category == cat).toList();
+        expect(catMaterials.length, 10, reason: '分类【$cat】应该包含恰好 10 条话术');
+        for (final m in catMaterials) {
+          expect(m.title.isNotEmpty, true);
+          expect(m.content.trim().length, greaterThan(15), reason: '话术【${m.title}】内容应详实充实');
+          expect(m.isPublic, true);
+        }
+      }
     });
   });
 }

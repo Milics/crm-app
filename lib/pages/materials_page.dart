@@ -1576,7 +1576,7 @@ class _ImageMaterialCard extends StatelessWidget {
                           ? Image.memory(
                               base64Decode(item.imageData!),
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Center(
+                              errorBuilder: (context, error, stackTrace) => Center(
                                 child: Icon(Icons.broken_image_outlined,
                                     size: 32, color: color),
                               ),

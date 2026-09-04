@@ -346,7 +346,7 @@ class MinePage extends StatelessWidget {
                 width: 24,
                 height: 24,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const Icon(Icons.school, size: 24, color: Color(0xFF1976D2)),
+                errorBuilder: (context, error, stackTrace) => const Icon(Icons.school, size: 24, color: Color(0xFF1976D2)),
               ),
             ),
             const SizedBox(width: 8),
@@ -371,7 +371,7 @@ class MinePage extends StatelessWidget {
                 child: Image.asset(
                   'assets/images/logo.png',
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Icon(Icons.school, size: 40, color: Color(0xFF1976D2)),
+                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.school, size: 40, color: Color(0xFF1976D2)),
                 ),
               ),
             ),
