@@ -312,11 +312,6 @@ class _MaterialsPageState extends State<MaterialsPage>
                 )
               else ...[
                 IconButton(
-                  icon: const Icon(Icons.auto_awesome_rounded, color: Colors.amberAccent),
-                  tooltip: 'AI 话术智囊',
-                  onPressed: () => _openAiAssistant(),
-                ),
-                IconButton(
                   icon: const Icon(Icons.search, color: Colors.white),
                   tooltip: '搜索话术',
                   onPressed: () => setState(() => _showSearch = true),
@@ -354,133 +349,76 @@ class _MaterialsPageState extends State<MaterialsPage>
               ],
             ],
           ),
-          body: Column(
+          body: Stack(
             children: [
-              // 顶部物料池切换导航（公共池 / 个人专属池 / 待审核）
-              Container(
-                color: Colors.white,
-                padding:
-                    const EdgeInsets.fromLTRB(10, 8, 10, 6),
-                child: Row(
-                  children: [
-                    _ScopeTabButton(
-                      label: '🌍 公共物料库',
-                      count: _tabController.index == 0
-                          ? provider.publicTextMaterials.length
-                          : provider.publicImageMaterials.length,
-                      isSelected: _currentScope == _MaterialScope.public,
-                      selectedColor: const Color(0xFF1976D2),
-                      onTap: () =>
-                          setState(() => _currentScope = _MaterialScope.public),
-                    ),
-                    const SizedBox(width: 6),
-                    _ScopeTabButton(
-                      label: '🔒 我的专属池',
-                      count: _tabController.index == 0
-                          ? provider.myPrivateTextMaterials.length
-                          : provider.myPrivateImageMaterials.length,
-                      isSelected: _currentScope == _MaterialScope.private,
-                      selectedColor: const Color(0xFF00897B),
-                      onTap: () => setState(
-                          () => _currentScope = _MaterialScope.private),
-                    ),
-                    if (isSuper) ...[
-                      const SizedBox(width: 6),
-                      _ScopeTabButton(
-                        label: '📋 待审核',
-                        count: pendingCount,
-                        badgeColor: Colors.red,
-                        isSelected: _currentScope == _MaterialScope.pending,
-                        selectedColor: const Color(0xFFE65100),
-                        onTap: () => setState(
-                            () => _currentScope = _MaterialScope.pending),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              // AI 话术智囊随身助教快捷入口横幅
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                child: InkWell(
-                  onTap: () => _openAiAssistant(),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFEFF6FF), Color(0xFFFAF5FF)],
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFDBEAFE)),
-                    ),
+              Column(
+                children: [
+                  // 顶部物料池切换导航（公共池 / 个人专属池 / 待审核）
+                  Container(
+                    color: Colors.white,
+                    padding:
+                        const EdgeInsets.fromLTRB(10, 8, 10, 6),
                     child: Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(5),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF2563EB), Color(0xFF7C3AED)],
-                            ),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.auto_awesome, color: Colors.white, size: 14),
+                        _ScopeTabButton(
+                          label: '🌍 公共物料库',
+                          count: _tabController.index == 0
+                              ? provider.publicTextMaterials.length
+                              : provider.publicImageMaterials.length,
+                          isSelected: _currentScope == _MaterialScope.public,
+                          selectedColor: const Color(0xFF1976D2),
+                          onTap: () =>
+                              setState(() => _currentScope = _MaterialScope.public),
                         ),
-                        const SizedBox(width: 8),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    'AI 话术智囊 · 随身答疑助教',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF1E293B),
-                                    ),
-                                  ),
-                                  SizedBox(width: 6),
-                                  Text(
-                                    'NEW',
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF7C3AED),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Text(
-                                '输入学员提问或卡点，基于现有物料秒级生成高情商回复话术',
-                                style: TextStyle(fontSize: 10, color: Color(0xFF64748B)),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
+                        const SizedBox(width: 6),
+                        _ScopeTabButton(
+                          label: '🔒 我的专属池',
+                          count: _tabController.index == 0
+                              ? provider.myPrivateTextMaterials.length
+                              : provider.myPrivateImageMaterials.length,
+                          isSelected: _currentScope == _MaterialScope.private,
+                          selectedColor: const Color(0xFF00897B),
+                          onTap: () => setState(
+                              () => _currentScope = _MaterialScope.private),
                         ),
-                        const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: Color(0xFF7C3AED)),
+                        if (isSuper) ...[
+                          const SizedBox(width: 6),
+                          _ScopeTabButton(
+                            label: '📋 待审核',
+                            count: pendingCount,
+                            badgeColor: Colors.red,
+                            isSelected: _currentScope == _MaterialScope.pending,
+                            selectedColor: const Color(0xFFE65100),
+                            onTap: () => setState(
+                                () => _currentScope = _MaterialScope.pending),
+                          ),
+                        ],
                       ],
                     ),
                   ),
-                ),
+
+                  // 搜索与横向分类过滤栏（极速定位海量物料）
+                  _buildFilterHeader(context, provider),
+
+                  // 物料内容列表
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildTextTabContent(context, provider),
+                        _buildImageTabContent(context, provider),
+                      ],
+                    ),
+                  ),
+                ],
               ),
 
-              // 搜索与横向分类过滤栏（极速定位海量物料）
-              _buildFilterHeader(context, provider),
-
-              // 物料内容列表
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildTextTabContent(context, provider),
-                    _buildImageTabContent(context, provider),
-                  ],
+              // 右下角悬浮 AI 智能机器人形象挂件
+              Positioned(
+                right: 18,
+                bottom: 22,
+                child: _AiRobotFloatingWidget(
+                  onTap: () => _openAiAssistant(),
                 ),
               ),
             ],
@@ -1084,7 +1022,7 @@ class _TextMaterialsList extends StatelessWidget {
     final activeCategories = filteredByCategory.keys.toList();
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(14, 8, 14, 20),
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 85),
       itemCount: activeCategories.length,
       itemBuilder: (context, i) {
         final cat = activeCategories[i];
@@ -1518,7 +1456,7 @@ class _ImageMaterialsList extends StatelessWidget {
     final activeCategories = filteredByCategory.keys.toList();
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(14, 8, 14, 20),
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 85),
       itemCount: activeCategories.length,
       itemBuilder: (context, i) {
         final cat = activeCategories[i];
@@ -2327,6 +2265,139 @@ class _CopyButtonState extends State<_CopyButton> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+
+/// 右下角悬浮 AI 智能问答机器人形象挂件
+class _AiRobotFloatingWidget extends StatefulWidget {
+  final VoidCallback onTap;
+
+  const _AiRobotFloatingWidget({required this.onTap});
+
+  @override
+  State<_AiRobotFloatingWidget> createState() => _AiRobotFloatingWidgetState();
+}
+
+class _AiRobotFloatingWidgetState extends State<_AiRobotFloatingWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animCtl;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animCtl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 120),
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.90).animate(
+      CurvedAnimation(parent: _animCtl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animCtl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => _animCtl.forward(),
+      onTapUp: (_) {
+        _animCtl.reverse();
+        widget.onTap();
+      },
+      onTapCancel: () => _animCtl.reverse(),
+      child: AnimatedBuilder(
+        animation: _scaleAnimation,
+        builder: (context, child) => Transform.scale(
+          scale: _scaleAnimation.value,
+          child: child,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF1E3A8A).withValues(alpha: 0.35),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              // 主体机器人圆盘（深邃科技蓝渐变 + 纯白立体高光外圈）
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  border: Border.all(color: Colors.white, width: 2.2),
+                ),
+                child: const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.smart_toy_rounded,
+                      color: Colors.white,
+                      size: 27,
+                    ),
+                    SizedBox(height: 1),
+                    Text(
+                      "AI 智囊",
+                      style: TextStyle(
+                        fontSize: 8.5,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        height: 1.0,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // 右上方灵动微光小黄星
+              Positioned(
+                top: -2,
+                right: -2,
+                child: Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFB300),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.4),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFFFB300).withValues(alpha: 0.45),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome,
+                    size: 9.5,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
