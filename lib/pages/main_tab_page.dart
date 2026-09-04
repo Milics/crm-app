@@ -7,14 +7,21 @@ import 'add_clue_page.dart';
 
 /// 主底部导航页（标准闲鱼风格底栏：一体化白色平滑拱形底座 + 醒目微凸暖黄发布按钮）
 class MainTabPage extends StatefulWidget {
-  const MainTabPage({super.key});
+  final int initialIndex;
+  const MainTabPage({super.key, this.initialIndex = 0});
 
   @override
   State<MainTabPage> createState() => _MainTabPageState();
 }
 
 class _MainTabPageState extends State<MainTabPage> {
-  int _currentIndex = 0;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+  }
 
   final List<Widget> _pages = const [
     ClueListPage(),
