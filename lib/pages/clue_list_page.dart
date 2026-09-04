@@ -343,25 +343,6 @@ class _ClueListPageState extends State<ClueListPage>
                                     ),
                                   ),
                                 ),
-                                if (todayClues.isNotEmpty) ...[
-                                  _TodoSectionHeader(
-                                    title: '今日回访任务',
-                                    count: todayClues.length,
-                                    color: const Color(0xFFE65100),
-                                  ),
-                                  ...todayClues.map(
-                                    (c) => _ClueCard(
-                                      clue: c,
-                                      onTap: () => Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              ClueDetailPage(clueId: c.id),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
                                 if (tomorrowClues.isNotEmpty) ...[
                                   _TodoSectionHeader(
                                     title: '明日回访任务',
