@@ -983,12 +983,10 @@ class AppProvider extends ChangeNotifier {
         result = result.where((c) => c.status != ClueStatus.enrolled).toList();
         break;
       case 1:
-        final today = DateTime.now();
-        result = result.where((c) {
-          if (c.status == ClueStatus.enrolled || c.nextVisitTime == null) return false;
-          final t = c.nextVisitTime!;
-          return t.year == today.year && t.month == today.month && t.day == today.day;
-        }).toList();
+        result = result
+            .where((c) =>
+                c.status != ClueStatus.enrolled && c.nextVisitTime != null)
+            .toList();
         break;
       case 2:
         final now = DateTime.now();

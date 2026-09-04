@@ -175,18 +175,37 @@ class _ClueListPageState extends State<ClueListPage>
           final isTodoTab = _tabController.index == 1;
           final keyword = provider.searchKeyword.trim();
 
-          // 今日回访任务（待回访Tab专用，按下次回访时间从近到远升序排列）
-          final today = DateTime.now();
-          final todayClues = isTodoTab
-              ? (clues.where((c) {
-                  final t = c.nextVisitTime;
-                  return t != null &&
-                      t.year == today.year &&
-                      t.month == today.month &&
-                      t.day == today.day;
-                }).toList()
+          // 待回访多阶梯任务分组（今日、明日、后天、即将回访、已逾期）
+          final now = DateTime.now();
+          final todayStart = DateTime(now.year, now.month, now.day);
+          final tomorrowStart = todayStart.add(const Duration(days: 1));
+          final dayAfterStart = todayStart.add(const Duration(days: 2));
+          final futureStart = todayStart.add(const Duration(days: 3));
+
+          final overdueClues = isTodoTab
+              ? (clues.where((c) => c.nextVisitTime != null && c.nextVisitTime!.isBefore(todayStart)).toList()
                 ..sort((a, b) => a.nextVisitTime!.compareTo(b.nextVisitTime!)))
-              : <dynamic>[];
+              : <Clue>[];
+
+          final todayClues = isTodoTab
+              ? (clues.where((c) => c.nextVisitTime != null && !c.nextVisitTime!.isBefore(todayStart) && c.nextVisitTime!.isBefore(tomorrowStart)).toList()
+                ..sort((a, b) => a.nextVisitTime!.compareTo(b.nextVisitTime!)))
+              : <Clue>[];
+
+          final tomorrowClues = isTodoTab
+              ? (clues.where((c) => c.nextVisitTime != null && !c.nextVisitTime!.isBefore(tomorrowStart) && c.nextVisitTime!.isBefore(dayAfterStart)).toList()
+                ..sort((a, b) => a.nextVisitTime!.compareTo(b.nextVisitTime!)))
+              : <Clue>[];
+
+          final dayAfterClues = isTodoTab
+              ? (clues.where((c) => c.nextVisitTime != null && !c.nextVisitTime!.isBefore(dayAfterStart) && c.nextVisitTime!.isBefore(futureStart)).toList()
+                ..sort((a, b) => a.nextVisitTime!.compareTo(b.nextVisitTime!)))
+              : <Clue>[];
+
+          final futureClues = isTodoTab
+              ? (clues.where((c) => c.nextVisitTime != null && !c.nextVisitTime!.isBefore(futureStart)).toList()
+                ..sort((a, b) => a.nextVisitTime!.compareTo(b.nextVisitTime!)))
+              : <Clue>[];
 
           return RefreshIndicator(
             onRefresh: () async {
@@ -315,36 +334,116 @@ class _ClueListPageState extends State<ClueListPage>
                           ],
                         )
                       : (isTodoTab
-                          ? ListView.builder(
+                          ? ListView(
                               physics: const AlwaysScrollableScrollPhysics(),
-                              padding:
-                                  const EdgeInsets.fromLTRB(12, 8, 12, 16),
-                              itemCount: clues.length + 1,
-                              itemBuilder: (context, index) {
-                                if (index == 0) {
-                                  return _TodayTaskCard(
-                                    todayClues: todayClues.cast<Clue>(),
-                                    onTap: (clue) => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            ClueDetailPage(clueId: clue.id),
-                                      ),
-                                    ),
-                                  );
-                                }
-                                final clue = clues[index - 1];
-                                return _ClueCard(
-                                  clue: clue,
-                                  onTap: () => Navigator.push(
+                              padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+                              children: [
+                                _TodayTaskCard(
+                                  todayClues: todayClues,
+                                  onTap: (clue) => Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder: (_) =>
                                           ClueDetailPage(clueId: clue.id),
                                     ),
                                   ),
-                                );
-                              },
+                                ),
+                                if (overdueClues.isNotEmpty) ...[
+                                  _TodoSectionHeader(
+                                    title: '已逾期任务',
+                                    count: overdueClues.length,
+                                    color: const Color(0xFFD32F2F),
+                                  ),
+                                  ...overdueClues.map(
+                                    (c) => _ClueCard(
+                                      clue: c,
+                                      onTap: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              ClueDetailPage(clueId: c.id),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                if (todayClues.isNotEmpty) ...[
+                                  _TodoSectionHeader(
+                                    title: '今日回访任务',
+                                    count: todayClues.length,
+                                    color: const Color(0xFFE65100),
+                                  ),
+                                  ...todayClues.map(
+                                    (c) => _ClueCard(
+                                      clue: c,
+                                      onTap: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              ClueDetailPage(clueId: c.id),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                if (tomorrowClues.isNotEmpty) ...[
+                                  _TodoSectionHeader(
+                                    title: '明日回访任务',
+                                    count: tomorrowClues.length,
+                                    color: const Color(0xFF00897B),
+                                  ),
+                                  ...tomorrowClues.map(
+                                    (c) => _ClueCard(
+                                      clue: c,
+                                      onTap: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              ClueDetailPage(clueId: c.id),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                if (dayAfterClues.isNotEmpty) ...[
+                                  _TodoSectionHeader(
+                                    title: '后天回访任务',
+                                    count: dayAfterClues.length,
+                                    color: const Color(0xFF5E35B1),
+                                  ),
+                                  ...dayAfterClues.map(
+                                    (c) => _ClueCard(
+                                      clue: c,
+                                      onTap: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              ClueDetailPage(clueId: c.id),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                if (futureClues.isNotEmpty) ...[
+                                  _TodoSectionHeader(
+                                    title: '即将回访任务',
+                                    count: futureClues.length,
+                                    color: const Color(0xFF1976D2),
+                                  ),
+                                  ...futureClues.map(
+                                    (c) => _ClueCard(
+                                      clue: c,
+                                      onTap: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              ClueDetailPage(clueId: c.id),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             )
                           : ListView.builder(
                               physics: const AlwaysScrollableScrollPhysics(),
@@ -1323,6 +1422,63 @@ class _TodayTaskCard extends StatelessWidget {
               }),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// 待回访多阶梯任务分组标题栏（带彩色指示条与半透明数量胶囊）
+class _TodoSectionHeader extends StatelessWidget {
+  final String title;
+  final int count;
+  final Color color;
+
+  const _TodoSectionHeader({
+    required this.title,
+    required this.count,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 14, bottom: 6, left: 4),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 16,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: color,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1.5),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
