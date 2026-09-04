@@ -53,6 +53,7 @@ class _MaterialsPageState extends State<MaterialsPage>
   _MaterialScope _currentScope = _MaterialScope.public;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  bool _showSearch = false;
   String? _selectedTextCategory;
   String? _selectedImageCategory;
 
@@ -128,8 +129,116 @@ class _MaterialsPageState extends State<MaterialsPage>
           backgroundColor: const Color(0xFFF5F7FA),
           appBar: AppBar(
             automaticallyImplyLeading: !widget.isTab,
-            title: const Text('宣发物料库'),
+            centerTitle: true,
+            elevation: 0,
+            title: Container(
+              height: 34,
+              padding: const EdgeInsets.all(2.5),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      if (_tabController.index != 0) {
+                        _tabController.animateTo(0);
+                        setState(() {});
+                      }
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _tabController.index == 0
+                            ? Colors.white
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: _tabController.index == 0
+                            ? [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.1),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                )
+                              ]
+                            : null,
+                      ),
+                      child: Text(
+                        '📝 文字话术',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: _tabController.index == 0
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          color: _tabController.index == 0
+                              ? const Color(0xFF1976D2)
+                              : Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      if (_tabController.index != 1) {
+                        _tabController.animateTo(1);
+                        setState(() {});
+                      }
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _tabController.index == 1
+                            ? Colors.white
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: _tabController.index == 1
+                            ? [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.1),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                )
+                              ]
+                            : null,
+                      ),
+                      child: Text(
+                        '🖼️ 宣传图片',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: _tabController.index == 1
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          color: _tabController.index == 1
+                              ? const Color(0xFF1976D2)
+                              : Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             actions: [
+              IconButton(
+                icon: Icon(_showSearch ? Icons.close : Icons.search,
+                    color: Colors.white),
+                tooltip: _showSearch ? '关闭搜索' : '搜索话术',
+                onPressed: () {
+                  setState(() {
+                    _showSearch = !_showSearch;
+                    if (!_showSearch) {
+                      _searchQuery = '';
+                      _searchController.clear();
+                    }
+                  });
+                },
+              ),
               PopupMenuButton<AppMaterialType>(
                 icon: const Icon(Icons.add, color: Colors.white),
                 tooltip: '添加物料',
@@ -161,17 +270,6 @@ class _MaterialsPageState extends State<MaterialsPage>
                 ],
               ),
             ],
-            bottom: TabBar(
-              controller: _tabController,
-              tabs: const [
-                Tab(text: '📝  文字话术'),
-                Tab(text: '🖼️  宣传图片'),
-              ],
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white70,
-              indicatorColor: Colors.white,
-              indicatorWeight: 3,
-            ),
           ),
           body: Column(
             children: [
@@ -179,7 +277,7 @@ class _MaterialsPageState extends State<MaterialsPage>
               Container(
                 color: Colors.white,
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    const EdgeInsets.fromLTRB(10, 8, 10, 6),
                 child: Row(
                   children: [
                     _ScopeTabButton(
@@ -304,49 +402,62 @@ class _MaterialsPageState extends State<MaterialsPage>
 
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+      padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. 搜索框
-          Container(
-            height: 38,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE2E8F0), width: 0.8),
-            ),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (val) => setState(() => _searchQuery = val.trim()),
-              style: const TextStyle(fontSize: 13, color: Color(0xFF1E293B)),
-              decoration: InputDecoration(
-                hintText: isTextTab
-                    ? '搜索话术标题、正文关键词...'
-                    : '搜索宣传图片标题、说明...',
-                hintStyle:
-                    const TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8)),
-                prefixIcon:
-                    const Icon(Icons.search, size: 18, color: Color(0xFF94A3B8)),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? GestureDetector(
-                        onTap: () {
-                          _searchController.clear();
-                          setState(() => _searchQuery = '');
-                        },
-                        child: const Icon(Icons.cancel,
-                            size: 16, color: Color(0xFF94A3B8)),
-                      )
-                    : null,
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 9),
+          // 搜索框（点击顶栏🔍图标时顺滑展开显示，平时隐藏不占用空间）
+          if (_showSearch) ...[
+            Container(
+              height: 36,
+              margin: const EdgeInsets.only(bottom: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE2E8F0), width: 0.8),
+              ),
+              child: TextField(
+                controller: _searchController,
+                autofocus: true,
+                onChanged: (val) => setState(() => _searchQuery = val.trim()),
+                style: const TextStyle(fontSize: 13, color: Color(0xFF1E293B)),
+                decoration: InputDecoration(
+                  hintText: isTextTab
+                      ? '搜索话术标题、正文关键词...'
+                      : '搜索宣传图片标题、说明...',
+                  hintStyle:
+                      const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                  prefixIcon: const Icon(Icons.search,
+                      size: 17, color: Color(0xFF94A3B8)),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? GestureDetector(
+                          onTap: () {
+                            _searchController.clear();
+                            setState(() => _searchQuery = '');
+                          },
+                          child: const Icon(Icons.cancel,
+                              size: 16, color: Color(0xFF94A3B8)),
+                        )
+                      : GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _showSearch = false;
+                              _searchQuery = '';
+                              _searchController.clear();
+                            });
+                          },
+                          child: const Icon(Icons.close,
+                              size: 16, color: Color(0xFF94A3B8)),
+                        ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                ),
               ),
             ),
-          ),
+          ],
 
-          // 2. 分类横向筛选胶囊
+          // 分类横向筛选胶囊栏
           if (categories.isNotEmpty) ...[
-            const SizedBox(height: 8),
             SizedBox(
               height: 32,
               child: ListView(

@@ -17,14 +17,10 @@ class _StatisticPageState extends State<StatisticPage> {
 
   @override
   Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        title: const Text('数据统计'),
-        backgroundColor: const Color(0xFF1976D2),
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
       body: Consumer<AppProvider>(
         builder: (context, provider, _) {
           final totalClues = provider.clues.length;
@@ -43,10 +39,10 @@ class _StatisticPageState extends State<StatisticPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 顶部蓝色Banner
+                // 顶部沉浸式蓝色Banner（自然融入状态栏，去除冗余大标题）
                 Container(
                   color: const Color(0xFF1976D2),
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                  padding: EdgeInsets.fromLTRB(16, topPadding + 14, 16, 20),
                   child: Row(
                     children: [
                       Expanded(
@@ -194,7 +190,7 @@ class _StatisticPageState extends State<StatisticPage> {
       child: Column(
         children: [
           SizedBox(
-            height: 180,
+            height: entries.length > 5 ? 200 : 180,
             child: Row(
               children: [
                 Expanded(
@@ -228,7 +224,8 @@ class _StatisticPageState extends State<StatisticPage> {
                     final e = entry.value;
                     final pct = (e.value / total * 100).toStringAsFixed(0);
                     return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
+                      padding: EdgeInsets.only(
+                          bottom: entries.length > 5 ? 4.5 : 7.0),
                       child: Row(
                         children: [
                           Container(

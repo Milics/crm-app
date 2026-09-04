@@ -19,10 +19,6 @@ class MinePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        title: const Text('个人中心'),
-        elevation: 0,
-      ),
       body: Consumer<AppProvider>(
         builder: (context, provider, _) {
           final isSuper = provider.isSuperAdmin;
@@ -705,6 +701,7 @@ class _ProfileHeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
     final user = provider.currentUserObj;
     final userName = user?.name.isNotEmpty == true
         ? user!.name
@@ -728,7 +725,7 @@ class _ProfileHeaderCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const SizedBox(height: 16),
+          SizedBox(height: topPadding + 16),
           // 头像 & 姓名
           CircleAvatar(
             radius: 36,
