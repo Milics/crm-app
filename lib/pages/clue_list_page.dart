@@ -674,20 +674,8 @@ class _ClueCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              // 头像
-              CircleAvatar(
-                radius: 24,
-                backgroundColor:
-                    const Color(0xFF1976D2).withValues(alpha: 0.12),
-                child: Text(
-                  clue.wxNick.isNotEmpty ? clue.wxNick[0] : '?',
-                  style: const TextStyle(
-                    color: Color(0xFF1976D2),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
-                ),
-              ),
+              // 专升本学情微勋章（方案B：届别 + 报考专业门类）
+              _StudentProfileBadge(clue: clue),
               const SizedBox(width: 12),
 
               // 信息区域
@@ -840,6 +828,122 @@ class _ClueCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// 专升本学情微勋章（方案B：届别 + 报考专业门类）
+class _StudentProfileBadge extends StatelessWidget {
+  final Clue clue;
+  const _StudentProfileBadge({required this.clue});
+
+  @override
+  Widget build(BuildContext context) {
+    // 1. 提取届别文案 (如 "24级", "25届")
+    String gradeStr = clue.grade.trim();
+    if (gradeStr.isEmpty) {
+      gradeStr = '升本';
+    } else {
+      if (gradeStr.length > 4) {
+        gradeStr = gradeStr.substring(0, 4);
+      }
+    }
+
+    // 2. 提取专业门类文案 (如 "经管", "理工", "文史", "教育", "艺术", "医学")
+    String subjectStr = clue.subject.trim();
+    if (subjectStr.isEmpty) {
+      subjectStr = '待定';
+    } else if (subjectStr.length > 3) {
+      subjectStr = subjectStr.substring(0, 2);
+    }
+
+    // 3. 根据专业门类匹配专属考情色彩体系
+    Color primaryColor;
+    Color bgColor;
+
+    final s = clue.subject.toLowerCase();
+    if (s.contains('经管') ||
+        s.contains('管') ||
+        s.contains('经') ||
+        s.contains('财') ||
+        s.contains('商') ||
+        s.contains('会')) {
+      primaryColor = const Color(0xFF1565C0); // 经管蓝
+      bgColor = const Color(0xFFE3F2FD);
+    } else if (s.contains('理') ||
+        s.contains('工') ||
+        s.contains('计') ||
+        s.contains('信') ||
+        s.contains('电') ||
+        s.contains('机')) {
+      primaryColor = const Color(0xFF6A1B9A); // 理工紫
+      bgColor = const Color(0xFFF3E5F5);
+    } else if (s.contains('文') ||
+        s.contains('史') ||
+        s.contains('语') ||
+        s.contains('法')) {
+      primaryColor = const Color(0xFFE65100); // 文史暖橙
+      bgColor = const Color(0xFFFFF3E0);
+    } else if (s.contains('教') ||
+        s.contains('师') ||
+        s.contains('幼') ||
+        s.contains('学前')) {
+      primaryColor = const Color(0xFF2E7D32); // 教育翡翠绿
+      bgColor = const Color(0xFFE8F5E9);
+    } else if (s.contains('美') ||
+        s.contains('艺') ||
+        s.contains('设') ||
+        s.contains('音')) {
+      primaryColor = const Color(0xFFC2185B); // 艺术玫红
+      bgColor = const Color(0xFFFCE4EC);
+    } else if (s.contains('医') || s.contains('护') || s.contains('药')) {
+      primaryColor = const Color(0xFF00897B); // 医学青绿
+      bgColor = const Color(0xFFE0F2F1);
+    } else {
+      primaryColor = const Color(0xFF455A64); // 默认石板青灰
+      bgColor = const Color(0xFFECEFF1);
+    }
+
+    return Container(
+      width: 46,
+      height: 48,
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: primaryColor.withValues(alpha: 0.28),
+          width: 0.8,
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            gradeStr,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: primaryColor.withValues(alpha: 0.82),
+              height: 1.05,
+            ),
+          ),
+          Container(
+            width: 18,
+            height: 0.8,
+            margin: const EdgeInsets.symmetric(vertical: 2),
+            color: primaryColor.withValues(alpha: 0.25),
+          ),
+          Text(
+            subjectStr,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: primaryColor,
+              height: 1.05,
+            ),
+          ),
+        ],
       ),
     );
   }
