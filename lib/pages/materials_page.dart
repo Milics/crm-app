@@ -51,16 +51,26 @@ class _MaterialsPageState extends State<MaterialsPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   _MaterialScope _currentScope = _MaterialScope.public;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  String? _selectedTextCategory;
+  String? _selectedImageCategory;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {});
+      }
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -209,6 +219,9 @@ class _MaterialsPageState extends State<MaterialsPage>
                 ),
               ),
 
+              // 搜索与横向分类过滤栏（极速定位海量物料）
+              _buildFilterHeader(context, provider),
+
               // 物料内容列表
               Expanded(
                 child: TabBarView(
@@ -226,6 +239,233 @@ class _MaterialsPageState extends State<MaterialsPage>
     );
   }
 
+  Widget _buildFilterHeader(BuildContext context, AppProvider provider) {
+    final isTextTab = _tabController.index == 0;
+
+    // 获取当前作用域下的分类列表与条数统计
+    final List<String> categories;
+    final Map<String, int> categoryCounts = {};
+    int totalCount = 0;
+
+    if (isTextTab) {
+      switch (_currentScope) {
+        case _MaterialScope.public:
+          categories = provider.publicTextCategories;
+          for (var cat in categories) {
+            final count =
+                provider.publicTextMaterialsByCategory[cat]?.length ?? 0;
+            categoryCounts[cat] = count;
+            totalCount += count;
+          }
+          break;
+        case _MaterialScope.private:
+          categories = provider.myTextCategories;
+          for (var cat in categories) {
+            final count =
+                provider.myTextMaterialsByCategory[cat]?.length ?? 0;
+            categoryCounts[cat] = count;
+            totalCount += count;
+          }
+          break;
+        case _MaterialScope.pending:
+          categories = [];
+          totalCount = provider.pendingReviewTextMaterials.length;
+          break;
+      }
+    } else {
+      switch (_currentScope) {
+        case _MaterialScope.public:
+          categories = provider.publicImageCategories;
+          for (var cat in categories) {
+            final count =
+                provider.publicImageMaterialsByCategory[cat]?.length ?? 0;
+            categoryCounts[cat] = count;
+            totalCount += count;
+          }
+          break;
+        case _MaterialScope.private:
+          categories = provider.myImageCategories;
+          for (var cat in categories) {
+            final count =
+                provider.myImageMaterialsByCategory[cat]?.length ?? 0;
+            categoryCounts[cat] = count;
+            totalCount += count;
+          }
+          break;
+        case _MaterialScope.pending:
+          categories = [];
+          totalCount = provider.pendingReviewImageMaterials.length;
+          break;
+      }
+    }
+
+    final selectedCat =
+        isTextTab ? _selectedTextCategory : _selectedImageCategory;
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. 搜索框
+          Container(
+            height: 38,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE2E8F0), width: 0.8),
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (val) => setState(() => _searchQuery = val.trim()),
+              style: const TextStyle(fontSize: 13, color: Color(0xFF1E293B)),
+              decoration: InputDecoration(
+                hintText: isTextTab
+                    ? '搜索话术标题、正文关键词...'
+                    : '搜索宣传图片标题、说明...',
+                hintStyle:
+                    const TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8)),
+                prefixIcon:
+                    const Icon(Icons.search, size: 18, color: Color(0xFF94A3B8)),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? GestureDetector(
+                        onTap: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                        child: const Icon(Icons.cancel,
+                            size: 16, color: Color(0xFF94A3B8)),
+                      )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 9),
+              ),
+            ),
+          ),
+
+          // 2. 分类横向筛选胶囊
+          if (categories.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 32,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  // 全部胶囊
+                  _buildCategoryChip(
+                    label: '全部',
+                    count: totalCount,
+                    isSelected: selectedCat == null,
+                    onTap: () {
+                      setState(() {
+                        if (isTextTab) {
+                          _selectedTextCategory = null;
+                        } else {
+                          _selectedImageCategory = null;
+                        }
+                      });
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  ...categories.map((cat) {
+                    final isSel = selectedCat == cat;
+                    final count = categoryCounts[cat] ?? 0;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _buildCategoryChip(
+                        label: cat,
+                        count: count,
+                        isSelected: isSel,
+                        icon: _categoryIcon(cat),
+                        onTap: () {
+                          setState(() {
+                            if (isTextTab) {
+                              _selectedTextCategory = isSel ? null : cat;
+                            } else {
+                              _selectedImageCategory = isSel ? null : cat;
+                            }
+                          });
+                        },
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryChip({
+    required String label,
+    required int count,
+    required bool isSelected,
+    IconData? icon,
+    required VoidCallback onTap,
+  }) {
+    const activeColor = Color(0xFF1976D2);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isSelected ? activeColor : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? activeColor : const Color(0xFFE2E8F0),
+            width: 0.8,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(
+                icon,
+                size: 13,
+                color: isSelected ? Colors.white : const Color(0xFF64748B),
+              ),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                color: isSelected ? Colors.white : const Color(0xFF475569),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 4.5, vertical: 0.5),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? Colors.white.withValues(alpha: 0.25)
+                    : const Color(0xFFE2E8F0),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? Colors.white : const Color(0xFF64748B),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildTextTabContent(BuildContext context, AppProvider provider) {
     switch (_currentScope) {
       case _MaterialScope.public:
@@ -234,6 +474,13 @@ class _MaterialsPageState extends State<MaterialsPage>
         return _TextMaterialsList(
           byCategory: byCat,
           categories: cats,
+          selectedCategory: _selectedTextCategory,
+          searchQuery: _searchQuery,
+          onClearFilter: () => setState(() {
+            _searchQuery = '';
+            _searchController.clear();
+            _selectedTextCategory = null;
+          }),
           isPublicPool: true,
           canManage: provider.isSuperAdmin,
           onAdd: () => _goToAddEdit(
@@ -256,6 +503,13 @@ class _MaterialsPageState extends State<MaterialsPage>
         return _TextMaterialsList(
           byCategory: byCat,
           categories: cats,
+          selectedCategory: _selectedTextCategory,
+          searchQuery: _searchQuery,
+          onClearFilter: () => setState(() {
+            _searchQuery = '';
+            _searchController.clear();
+            _selectedTextCategory = null;
+          }),
           isPublicPool: false,
           canManage: true, // 个人池自己始终可增删改
           onAdd: () => _goToAddEdit(
@@ -315,6 +569,13 @@ class _MaterialsPageState extends State<MaterialsPage>
         return _ImageMaterialsList(
           byCategory: byCat,
           categories: cats,
+          selectedCategory: _selectedImageCategory,
+          searchQuery: _searchQuery,
+          onClearFilter: () => setState(() {
+            _searchQuery = '';
+            _searchController.clear();
+            _selectedImageCategory = null;
+          }),
           isPublicPool: true,
           canManage: provider.isSuperAdmin,
           onAdd: () => _goToAddEdit(
@@ -337,6 +598,13 @@ class _MaterialsPageState extends State<MaterialsPage>
         return _ImageMaterialsList(
           byCategory: byCat,
           categories: cats,
+          selectedCategory: _selectedImageCategory,
+          searchQuery: _searchQuery,
+          onClearFilter: () => setState(() {
+            _searchQuery = '';
+            _searchController.clear();
+            _selectedImageCategory = null;
+          }),
           isPublicPool: false,
           canManage: true,
           onAdd: () => _goToAddEdit(
@@ -479,6 +747,9 @@ class _ScopeTabButton extends StatelessWidget {
 class _TextMaterialsList extends StatelessWidget {
   final Map<String, List<TextMaterial>> byCategory;
   final List<String> categories;
+  final String? selectedCategory;
+  final String searchQuery;
+  final VoidCallback onClearFilter;
   final bool isPublicPool;
   final bool canManage;
   final VoidCallback onAdd;
@@ -489,6 +760,9 @@ class _TextMaterialsList extends StatelessWidget {
   const _TextMaterialsList({
     required this.byCategory,
     required this.categories,
+    required this.selectedCategory,
+    required this.searchQuery,
+    required this.onClearFilter,
     required this.isPublicPool,
     required this.canManage,
     required this.onAdd,
@@ -519,12 +793,88 @@ class _TextMaterialsList extends StatelessWidget {
       );
     }
 
+    // 1. 根据分类胶囊选择限定范围
+    final targetCategories = selectedCategory != null &&
+            categories.contains(selectedCategory)
+        ? [selectedCategory!]
+        : categories;
+
+    // 2. 根据搜索词过滤分类下的 items
+    final Map<String, List<TextMaterial>> filteredByCategory = {};
+    int totalVisibleItems = 0;
+    final q = searchQuery.toLowerCase().trim();
+
+    for (final cat in targetCategories) {
+      final rawItems = byCategory[cat] ?? [];
+      final filtered = q.isEmpty
+          ? rawItems
+          : rawItems.where((it) {
+              final inTitle = it.title.toLowerCase().contains(q);
+              final inContent = it.content.toLowerCase().contains(q);
+              final inOwner = it.ownerName.toLowerCase().contains(q);
+              return inTitle || inContent || inOwner;
+            }).toList();
+
+      if (filtered.isNotEmpty) {
+        filteredByCategory[cat] = filtered;
+        totalVisibleItems += filtered.length;
+      }
+    }
+
+    // 3. 搜索或筛选无结果时展示友好空状态
+    if (totalVisibleItems == 0) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.search_off_rounded,
+                  size: 54, color: Color(0xFF94A3B8)),
+              const SizedBox(height: 12),
+              Text(
+                q.isNotEmpty
+                    ? '未找到包含「$searchQuery」的文字话术'
+                    : '分类「${selectedCategory ?? ''}」下暂无内容',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF64748B),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                '尝试更换搜索关键词，或重置筛选分类',
+                style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('重置筛选'),
+                onPressed: onClearFilter,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF1976D2),
+                  side: const BorderSide(color: Color(0xFF1976D2)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final activeCategories = filteredByCategory.keys.toList();
+
     return ListView.builder(
-      padding: const EdgeInsets.all(14),
-      itemCount: categories.length,
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 20),
+      itemCount: activeCategories.length,
       itemBuilder: (context, i) {
-        final cat = categories[i];
-        final items = byCategory[cat] ?? [];
+        final cat = activeCategories[i];
+        final items = filteredByCategory[cat] ?? [];
         final color = _categoryColor(cat);
 
         return Column(
@@ -790,6 +1140,9 @@ class _TextMaterialCardState extends State<_TextMaterialCard> {
 class _ImageMaterialsList extends StatelessWidget {
   final Map<String, List<ImageMaterial>> byCategory;
   final List<String> categories;
+  final String? selectedCategory;
+  final String searchQuery;
+  final VoidCallback onClearFilter;
   final bool isPublicPool;
   final bool canManage;
   final VoidCallback onAdd;
@@ -800,6 +1153,9 @@ class _ImageMaterialsList extends StatelessWidget {
   const _ImageMaterialsList({
     required this.byCategory,
     required this.categories,
+    required this.selectedCategory,
+    required this.searchQuery,
+    required this.onClearFilter,
     required this.isPublicPool,
     required this.canManage,
     required this.onAdd,
@@ -830,12 +1186,88 @@ class _ImageMaterialsList extends StatelessWidget {
       );
     }
 
+    // 1. 根据分类胶囊选择限定范围
+    final targetCategories = selectedCategory != null &&
+            categories.contains(selectedCategory)
+        ? [selectedCategory!]
+        : categories;
+
+    // 2. 根据搜索词过滤分类下的 items
+    final Map<String, List<ImageMaterial>> filteredByCategory = {};
+    int totalVisibleItems = 0;
+    final q = searchQuery.toLowerCase().trim();
+
+    for (final cat in targetCategories) {
+      final rawItems = byCategory[cat] ?? [];
+      final filtered = q.isEmpty
+          ? rawItems
+          : rawItems.where((it) {
+              final inTitle = it.title.toLowerCase().contains(q);
+              final inDesc = it.desc.toLowerCase().contains(q);
+              final inOwner = it.ownerName.toLowerCase().contains(q);
+              return inTitle || inDesc || inOwner;
+            }).toList();
+
+      if (filtered.isNotEmpty) {
+        filteredByCategory[cat] = filtered;
+        totalVisibleItems += filtered.length;
+      }
+    }
+
+    // 3. 搜索或筛选无结果时展示友好空状态
+    if (totalVisibleItems == 0) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.search_off_rounded,
+                  size: 54, color: Color(0xFF94A3B8)),
+              const SizedBox(height: 12),
+              Text(
+                q.isNotEmpty
+                    ? '未找到包含「$searchQuery」的宣传图片'
+                    : '分类「${selectedCategory ?? ''}」下暂无图片',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF64748B),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                '尝试更换搜索关键词，或重置筛选分类',
+                style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('重置筛选'),
+                onPressed: onClearFilter,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF1976D2),
+                  side: const BorderSide(color: Color(0xFF1976D2)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final activeCategories = filteredByCategory.keys.toList();
+
     return ListView.builder(
-      padding: const EdgeInsets.all(14),
-      itemCount: categories.length,
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 20),
+      itemCount: activeCategories.length,
       itemBuilder: (context, i) {
-        final cat = categories[i];
-        final items = byCategory[cat] ?? [];
+        final cat = activeCategories[i];
+        final items = filteredByCategory[cat] ?? [];
         final color = _categoryColor(cat);
 
         return Column(
