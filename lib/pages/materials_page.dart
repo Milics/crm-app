@@ -124,151 +124,219 @@ class _MaterialsPageState extends State<MaterialsPage>
       builder: (context, provider, _) {
         final isSuper = provider.isSuperAdmin;
         final pendingCount = provider.totalPendingMaterialsCount;
+        final isTextTab = _tabController.index == 0;
 
         return Scaffold(
           backgroundColor: const Color(0xFFF5F7FA),
           appBar: AppBar(
-            automaticallyImplyLeading: !widget.isTab,
-            centerTitle: true,
-            elevation: 0,
-            title: Container(
-              height: 34,
-              padding: const EdgeInsets.all(2.5),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      if (_tabController.index != 0) {
-                        _tabController.animateTo(0);
-                        setState(() {});
-                      }
+            automaticallyImplyLeading: false,
+            titleSpacing: _showSearch ? 10 : 0,
+            leading: _showSearch
+                ? IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new,
+                        color: Colors.white, size: 18),
+                    tooltip: '退出搜索',
+                    onPressed: () {
+                      setState(() {
+                        _showSearch = false;
+                        _searchQuery = '';
+                        _searchController.clear();
+                      });
                     },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _tabController.index == 0
-                            ? Colors.white
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: _tabController.index == 0
-                            ? [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.1),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 1),
-                                )
-                              ]
-                            : null,
-                      ),
-                      child: Text(
-                        '📝 文字话术',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: _tabController.index == 0
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                          color: _tabController.index == 0
-                              ? const Color(0xFF1976D2)
-                              : Colors.white,
+                  )
+                : null,
+            title: _showSearch
+                ? Container(
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
                         ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      autofocus: true,
+                      onChanged: (val) =>
+                          setState(() => _searchQuery = val.trim()),
+                      style: const TextStyle(
+                          fontSize: 13, color: Color(0xFF1E293B)),
+                      decoration: InputDecoration(
+                        hintText: isTextTab
+                            ? '搜索话术标题、正文关键词...'
+                            : '搜索宣传图片标题、说明...',
+                        hintStyle: const TextStyle(
+                            fontSize: 12, color: Color(0xFF94A3B8)),
+                        prefixIcon: const Icon(Icons.search,
+                            size: 17, color: Color(0xFF94A3B8)),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? GestureDetector(
+                                onTap: () {
+                                  _searchController.clear();
+                                  setState(() => _searchQuery = '');
+                                },
+                                child: const Icon(Icons.cancel,
+                                    size: 16, color: Color(0xFF94A3B8)),
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding:
+                            const EdgeInsets.symmetric(vertical: 8),
+                      ),
+                    ),
+                  )
+                : Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              if (_tabController.index != 0) {
+                                _tabController.animateTo(0);
+                                setState(() {});
+                              }
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: _tabController.index == 0
+                                    ? Colors.white
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: _tabController.index == 0
+                                    ? [
+                                        BoxShadow(
+                                          color: Colors.black
+                                              .withValues(alpha: 0.1),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 1),
+                                        )
+                                      ]
+                                    : null,
+                              ),
+                              child: Text(
+                                '📝 文字话术',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: _tabController.index == 0
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                  color: _tabController.index == 0
+                                      ? const Color(0xFF1976D2)
+                                      : Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              if (_tabController.index != 1) {
+                                _tabController.animateTo(1);
+                                setState(() {});
+                              }
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: _tabController.index == 1
+                                    ? Colors.white
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: _tabController.index == 1
+                                    ? [
+                                        BoxShadow(
+                                          color: Colors.black
+                                              .withValues(alpha: 0.1),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 1),
+                                        )
+                                      ]
+                                    : null,
+                              ),
+                              child: Text(
+                                '🖼️ 宣传图片',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: _tabController.index == 1
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                  color: _tabController.index == 1
+                                      ? const Color(0xFF1976D2)
+                                      : Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () {
-                      if (_tabController.index != 1) {
-                        _tabController.animateTo(1);
-                        setState(() {});
-                      }
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _tabController.index == 1
-                            ? Colors.white
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: _tabController.index == 1
-                            ? [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.1),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 1),
-                                )
-                              ]
-                            : null,
-                      ),
-                      child: Text(
-                        '🖼️ 宣传图片',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: _tabController.index == 1
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                          color: _tabController.index == 1
-                              ? const Color(0xFF1976D2)
-                              : Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
             actions: [
-              IconButton(
-                icon: Icon(_showSearch ? Icons.close : Icons.search,
-                    color: Colors.white),
-                tooltip: _showSearch ? '关闭搜索' : '搜索话术',
-                onPressed: () {
-                  setState(() {
-                    _showSearch = !_showSearch;
-                    if (!_showSearch) {
+              if (_showSearch)
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _showSearch = false;
                       _searchQuery = '';
                       _searchController.clear();
-                    }
-                  });
-                },
-              ),
-              PopupMenuButton<AppMaterialType>(
-                icon: const Icon(Icons.add, color: Colors.white),
-                tooltip: '添加物料',
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                onSelected: (type) => _goToAddEdit(
-                  type: type,
-                  defaultToPublic: _currentScope == _MaterialScope.public,
+                    });
+                  },
+                  child: const Text('取消',
+                      style: TextStyle(color: Colors.white, fontSize: 14)),
+                )
+              else ...[
+                IconButton(
+                  icon: const Icon(Icons.search, color: Colors.white),
+                  tooltip: '搜索话术',
+                  onPressed: () => setState(() => _showSearch = true),
                 ),
-                itemBuilder: (_) => const [
-                  PopupMenuItem(
-                    value: AppMaterialType.text,
-                    child: Row(children: [
-                      Icon(Icons.text_fields,
-                          color: Color(0xFF1976D2), size: 18),
-                      SizedBox(width: 10),
-                      Text('添加文字话术'),
-                    ]),
+                PopupMenuButton<AppMaterialType>(
+                  icon: const Icon(Icons.add, color: Colors.white),
+                  tooltip: '添加物料',
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  onSelected: (type) => _goToAddEdit(
+                    type: type,
+                    defaultToPublic: _currentScope == _MaterialScope.public,
                   ),
-                  PopupMenuItem(
-                    value: AppMaterialType.image,
-                    child: Row(children: [
-                      Icon(Icons.image_outlined,
-                          color: Color(0xFF00897B), size: 18),
-                      SizedBox(width: 10),
-                      Text('添加图片物料'),
-                    ]),
-                  ),
-                ],
-              ),
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(
+                      value: AppMaterialType.text,
+                      child: Row(children: [
+                        Icon(Icons.text_fields,
+                            color: Color(0xFF1976D2), size: 18),
+                        SizedBox(width: 10),
+                        Text('添加文字话术'),
+                      ]),
+                    ),
+                    PopupMenuItem(
+                      value: AppMaterialType.image,
+                      child: Row(children: [
+                        Icon(Icons.image_outlined,
+                            color: Color(0xFF00897B), size: 18),
+                        SizedBox(width: 10),
+                        Text('添加图片物料'),
+                      ]),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
           body: Column(
@@ -406,56 +474,6 @@ class _MaterialsPageState extends State<MaterialsPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 搜索框（点击顶栏🔍图标时顺滑展开显示，平时隐藏不占用空间）
-          if (_showSearch) ...[
-            Container(
-              height: 36,
-              margin: const EdgeInsets.only(bottom: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFE2E8F0), width: 0.8),
-              ),
-              child: TextField(
-                controller: _searchController,
-                autofocus: true,
-                onChanged: (val) => setState(() => _searchQuery = val.trim()),
-                style: const TextStyle(fontSize: 13, color: Color(0xFF1E293B)),
-                decoration: InputDecoration(
-                  hintText: isTextTab
-                      ? '搜索话术标题、正文关键词...'
-                      : '搜索宣传图片标题、说明...',
-                  hintStyle:
-                      const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                  prefixIcon: const Icon(Icons.search,
-                      size: 17, color: Color(0xFF94A3B8)),
-                  suffixIcon: _searchQuery.isNotEmpty
-                      ? GestureDetector(
-                          onTap: () {
-                            _searchController.clear();
-                            setState(() => _searchQuery = '');
-                          },
-                          child: const Icon(Icons.cancel,
-                              size: 16, color: Color(0xFF94A3B8)),
-                        )
-                      : GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _showSearch = false;
-                              _searchQuery = '';
-                              _searchController.clear();
-                            });
-                          },
-                          child: const Icon(Icons.close,
-                              size: 16, color: Color(0xFF94A3B8)),
-                        ),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                ),
-              ),
-            ),
-          ],
-
           // 分类横向筛选胶囊栏
           if (categories.isNotEmpty) ...[
             SizedBox(
@@ -1200,40 +1218,81 @@ class _TextMaterialCardState extends State<_TextMaterialCard> {
             ),
           ),
 
-          // ── 私有池专属操作：申请上架到公共池 ──
+          // ── 私有池专属操作：申请上架到公共池（规整轻量底栏，微胶囊按键，浑然一体） ──
           if (!widget.isPublicPool &&
               item.reviewStatus != MaterialReviewStatus.pending &&
               item.reviewStatus != MaterialReviewStatus.approved) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+            Container(
+              margin: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9).withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: item.reviewStatus == MaterialReviewStatus.rejected
+                      ? Colors.red.withValues(alpha: 0.2)
+                      : const Color(0xFFE2E8F0),
+                  width: 0.6,
+                ),
+              ),
               child: Row(
                 children: [
-                  if (item.reviewStatus == MaterialReviewStatus.rejected &&
-                      item.rejectReason.isNotEmpty) ...[
-                    Expanded(
-                      child: Text(
-                        '驳回原因: ${item.rejectReason}',
-                        style:
-                            const TextStyle(fontSize: 11, color: Colors.red),
-                        overflow: TextOverflow.ellipsis,
+                  Icon(
+                    item.reviewStatus == MaterialReviewStatus.rejected
+                        ? Icons.error_outline
+                        : Icons.info_outline,
+                    size: 13,
+                    color: item.reviewStatus == MaterialReviewStatus.rejected
+                        ? Colors.red[700]
+                        : const Color(0xFF64748B),
+                  ),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      item.reviewStatus == MaterialReviewStatus.rejected &&
+                              item.rejectReason.isNotEmpty
+                          ? '驳回原因: ${item.rejectReason}'
+                          : '当前为个人专属话术',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: item.reviewStatus == MaterialReviewStatus.rejected
+                            ? Colors.red[700]
+                            : const Color(0xFF64748B),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  InkWell(
+                    onTap: widget.onSubmitReview,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 9, vertical: 3.5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1976D2).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.cloud_upload_outlined,
+                              size: 12, color: Color(0xFF1976D2)),
+                          SizedBox(width: 3),
+                          Text(
+                            '申请上架公共池',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1976D2),
+                            ),
+                          ),
+                          SizedBox(width: 2),
+                          Icon(Icons.arrow_forward_ios,
+                              size: 8, color: Color(0xFF1976D2)),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 8),
-                  ] else
-                    const Spacer(),
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.cloud_upload_outlined, size: 14),
-                    label: const Text('申请上架公共池',
-                        style: TextStyle(fontSize: 12)),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF1976D2),
-                      side: const BorderSide(color: Color(0xFF1976D2)),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    onPressed: widget.onSubmitReview,
                   ),
                 ],
               ),

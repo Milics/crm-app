@@ -801,9 +801,17 @@ class _ProfileHeaderCard extends StatelessWidget {
               children: [
                 _StatCell(label: '总线索', value: '${provider.totalClues}'),
                 _StatDivider(),
-                _StatCell(label: '待跟进', value: '${provider.todoCount}'),
+                _StatCell(
+                  label: '逾期',
+                  value: '${provider.overdueCount}',
+                  valueColor: provider.overdueCount > 0 ? Colors.red : null,
+                ),
                 _StatDivider(),
-                _StatCell(label: '已邀约', value: '${provider.invitedCount}'),
+                _StatCell(
+                  label: '已试听',
+                  value: '${provider.attendedCount}',
+                  valueColor: Colors.deepOrange,
+                ),
                 _StatDivider(),
                 _StatCell(
                   label: '已报名',

@@ -23,22 +23,22 @@ class _StatisticPageState extends State<StatisticPage> {
       backgroundColor: const Color(0xFFF5F7FA),
       body: Consumer<AppProvider>(
         builder: (context, provider, _) {
-          final totalClues = provider.clues.length;
-          final invitedCount = provider.clues
-              .where((c) => c.intentLevel == IntentLevel.high)
-              .length;
-          final enrolled = provider.clues
-              .where((c) => c.status == ClueStatus.enrolled)
-              .length;
+          final totalClues = provider.totalClues;
+          final attendedCount = provider.attendedCount;
+          final enrolled = provider.enrolledCount;
           final overdueCount = provider.overdueCount;
 
           final sourceStats = provider.sourceStats;
           final subjectStats = provider.subjectStats;
 
-          return SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+          return MediaQuery.removePadding(
+            context: context,
+            removeTop: true,
+            child: SingleChildScrollView(
+              padding: EdgeInsets.zero,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 // 顶部沉浸式蓝色Banner（自然融入状态栏，去除冗余大标题）
                 Container(
                   color: const Color(0xFF1976D2),
@@ -86,10 +86,11 @@ class _StatisticPageState extends State<StatisticPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // 核心指标 2x2
+                      // 核心指标 2x2（顺序：1.新增线索 2.逾期 3.已试听 4.已报名）
                       GridView.count(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
+                        padding: EdgeInsets.zero,
                         crossAxisCount: 2,
                         crossAxisSpacing: 12,
                         mainAxisSpacing: 12,
@@ -103,11 +104,18 @@ class _StatisticPageState extends State<StatisticPage> {
                             subLabel: '总计',
                           ),
                           _MetricCard(
-                            label: '已邀约',
-                            value: '$invitedCount',
-                            icon: Icons.local_fire_department,
+                            label: '逾期',
+                            value: '$overdueCount',
+                            icon: Icons.warning_amber_rounded,
+                            color: overdueCount > 0 ? Colors.red : Colors.grey,
+                            subLabel: '需处理',
+                          ),
+                          _MetricCard(
+                            label: '已试听',
+                            value: '$attendedCount',
+                            icon: Icons.headphones_outlined,
                             color: Colors.deepOrange,
-                            subLabel: '待跟进',
+                            subLabel: '推进中',
                           ),
                           _MetricCard(
                             label: '已报名',
@@ -115,13 +123,6 @@ class _StatisticPageState extends State<StatisticPage> {
                             icon: Icons.school,
                             color: Colors.green,
                             subLabel: '转化',
-                          ),
-                          _MetricCard(
-                            label: '逾期',
-                            value: '$overdueCount',
-                            icon: Icons.warning_amber_rounded,
-                            color: overdueCount > 0 ? Colors.red : Colors.grey,
-                            subLabel: '需处理',
                           ),
                         ],
                       ),
@@ -148,8 +149,9 @@ class _StatisticPageState extends State<StatisticPage> {
                 ),
               ],
             ),
-          );
-        },
+          ),
+        );
+      },
       ),
     );
   }

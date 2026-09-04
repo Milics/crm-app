@@ -1317,6 +1317,8 @@ class AppProvider extends ChangeNotifier {
       accessibleClues.fold(0, (sum, c) => sum + c.visitLogs.length);
   int get invitedCount =>
       accessibleClues.where((c) => c.status == ClueStatus.invited).length;
+  int get attendedCount =>
+      accessibleClues.where((c) => c.status == ClueStatus.attended).length;
   int get enrolledCount =>
       accessibleClues.where((c) => c.status == ClueStatus.enrolled).length;
 
