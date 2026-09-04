@@ -93,9 +93,6 @@ class Clue {
         chatRecords = chatRecords ?? [],
         tags = tags ?? [];
 
-  bool get isInfoComplete =>
-      wxNick.isNotEmpty && wxId.isNotEmpty && subject.isNotEmpty;
-
   Map<String, dynamic> toJson() => {
         'id': id,
         'wxNick': wxNick,

@@ -247,7 +247,12 @@ class ClueTextParser {
             RegExp(r'^\d+[\s:]*\d+').hasMatch(line)) {
           continue;
         }
-        if (line.length >= 2 && line.length <= 15) {
+        // 过滤全标点符号、无有效文字的行
+        final cleanText = line.replaceAll(RegExp(r'[\-_/|——\s\.,;:!@#$%^&*()]+'), '');
+        if (cleanText.isNotEmpty &&
+            RegExp(r'[\u4e00-\u9fa5a-zA-Z]').hasMatch(cleanText) &&
+            line.length >= 2 &&
+            line.length <= 15) {
           name = line;
           break;
         }

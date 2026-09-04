@@ -21,7 +21,7 @@ class _ClueListPageState extends State<ClueListPage>
   final _searchCtrl = TextEditingController();
   bool _isSearching = false;
 
-  final List<String> _tabs = ['全部', '待回访', '已逾期', '信息缺', '已报名'];
+  final List<String> _tabs = ['全部', '待回访', '已逾期', '已试听', '已报名'];
 
   @override
   void initState() {
@@ -242,11 +242,12 @@ class _ClueListPageState extends State<ClueListPage>
                       ],
                     ),
                   ),
-                // 状态与意向快捷筛选胶囊栏（仅展示有实际数据的标签）
+                // 状态与意向快捷筛选胶囊栏（已试听 Tab 下只显示意向度）
                 _StatusAndIntentionFilterBar(
                   baseClues: provider.baseFilteredClues,
                   selectedFilter: provider.selectedFilter,
                   onSelect: (filter) => provider.setSelectedFilter(filter),
+                  isOnlyIntent: provider.clueTabIndex == 3,
                 ),
                 Expanded(
                   child: clues.isEmpty && !isTodoTab
@@ -391,11 +392,13 @@ class _StatusAndIntentionFilterBar extends StatelessWidget {
   final List<Clue> baseClues;
   final String selectedFilter;
   final ValueChanged<String> onSelect;
+  final bool isOnlyIntent;
 
   const _StatusAndIntentionFilterBar({
     required this.baseClues,
     required this.selectedFilter,
     required this.onSelect,
+    this.isOnlyIntent = false,
   });
 
   @override
@@ -421,12 +424,13 @@ class _StatusAndIntentionFilterBar extends StatelessWidget {
         baseClues.where((c) => c.statusText == '无效线索').length;
 
     final hasIntents = highCount > 0 || medCount > 0 || lowCount > 0;
-    final hasStatuses = followingCount > 0 ||
-        contactedCount > 0 ||
-        invitedCount > 0 ||
-        attendedCount > 0 ||
-        enrolledCount > 0 ||
-        pausedCount > 0;
+    final hasStatuses = !isOnlyIntent &&
+        (followingCount > 0 ||
+            contactedCount > 0 ||
+            invitedCount > 0 ||
+            attendedCount > 0 ||
+            enrolledCount > 0 ||
+            pausedCount > 0);
 
     return Container(
       width: double.infinity,
@@ -474,69 +478,71 @@ class _StatusAndIntentionFilterBar extends StatelessWidget {
               ),
             ],
 
-            // 分割线（两边都有数据才显示分割线）
-            if (hasIntents && hasStatuses)
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 8),
-                width: 1,
-                height: 16,
-                color: Colors.grey[300],
-              ),
+            // 分割线与跟进状态胶囊（若为已试听 isOnlyIntent 模式则仅展示意向度）
+            if (!isOnlyIntent) ...[
+              if (hasIntents && hasStatuses)
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  width: 1,
+                  height: 16,
+                  color: Colors.grey[300],
+                ),
 
-            // 跟进状态胶囊（仅显示有数据的标签，已试听排第一）
-            if (attendedCount > 0) ...[
-              const SizedBox(width: 8),
-              _FilterCapsuleChip(
-                label: '🎧 已试听 ($attendedCount)',
-                isSelected: selectedFilter == '已试听',
-                color: const Color(0xFF0097A7),
-                onTap: () => onSelect(selectedFilter == '已试听' ? '' : '已试听'),
-              ),
-            ],
-            if (followingCount > 0) ...[
-              const SizedBox(width: 8),
-              _FilterCapsuleChip(
-                label: '⏳ 待跟进 ($followingCount)',
-                isSelected: selectedFilter == '待跟进',
-                color: const Color(0xFF0288D1),
-                onTap: () => onSelect(selectedFilter == '待跟进' ? '' : '待跟进'),
-              ),
-            ],
-            if (contactedCount > 0) ...[
-              const SizedBox(width: 8),
-              _FilterCapsuleChip(
-                label: '💬 联系中 ($contactedCount)',
-                isSelected: selectedFilter == '联系中',
-                color: const Color(0xFF00897B),
-                onTap: () => onSelect(selectedFilter == '联系中' ? '' : '联系中'),
-              ),
-            ],
-            if (invitedCount > 0) ...[
-              const SizedBox(width: 8),
-              _FilterCapsuleChip(
-                label: '📅 已邀约 ($invitedCount)',
-                isSelected: selectedFilter == '已邀约',
-                color: const Color(0xFF7B1FA2),
-                onTap: () => onSelect(selectedFilter == '已邀约' ? '' : '已邀约'),
-              ),
-            ],
-            if (enrolledCount > 0) ...[
-              const SizedBox(width: 8),
-              _FilterCapsuleChip(
-                label: '🎓 已报名 ($enrolledCount)',
-                isSelected: selectedFilter == '已报名',
-                color: const Color(0xFF2E7D32),
-                onTap: () => onSelect(selectedFilter == '已报名' ? '' : '已报名'),
-              ),
-            ],
-            if (pausedCount > 0) ...[
-              const SizedBox(width: 8),
-              _FilterCapsuleChip(
-                label: '🚫 无效线索 ($pausedCount)',
-                isSelected: selectedFilter == '无效线索',
-                color: const Color(0xFF9E9E9E),
-                onTap: () => onSelect(selectedFilter == '无效线索' ? '' : '无效线索'),
-              ),
+              // 跟进状态胶囊（仅显示有数据的标签，已试听排第一）
+              if (attendedCount > 0) ...[
+                const SizedBox(width: 8),
+                _FilterCapsuleChip(
+                  label: '🎧 已试听 ($attendedCount)',
+                  isSelected: selectedFilter == '已试听',
+                  color: const Color(0xFF0097A7),
+                  onTap: () => onSelect(selectedFilter == '已试听' ? '' : '已试听'),
+                ),
+              ],
+              if (followingCount > 0) ...[
+                const SizedBox(width: 8),
+                _FilterCapsuleChip(
+                  label: '⏳ 待跟进 ($followingCount)',
+                  isSelected: selectedFilter == '待跟进',
+                  color: const Color(0xFF0288D1),
+                  onTap: () => onSelect(selectedFilter == '待跟进' ? '' : '待跟进'),
+                ),
+              ],
+              if (contactedCount > 0) ...[
+                const SizedBox(width: 8),
+                _FilterCapsuleChip(
+                  label: '💬 联系中 ($contactedCount)',
+                  isSelected: selectedFilter == '联系中',
+                  color: const Color(0xFF00897B),
+                  onTap: () => onSelect(selectedFilter == '联系中' ? '' : '联系中'),
+                ),
+              ],
+              if (invitedCount > 0) ...[
+                const SizedBox(width: 8),
+                _FilterCapsuleChip(
+                  label: '📅 已邀约 ($invitedCount)',
+                  isSelected: selectedFilter == '已邀约',
+                  color: const Color(0xFF7B1FA2),
+                  onTap: () => onSelect(selectedFilter == '已邀约' ? '' : '已邀约'),
+                ),
+              ],
+              if (enrolledCount > 0) ...[
+                const SizedBox(width: 8),
+                _FilterCapsuleChip(
+                  label: '🎓 已报名 ($enrolledCount)',
+                  isSelected: selectedFilter == '已报名',
+                  color: const Color(0xFF2E7D32),
+                  onTap: () => onSelect(selectedFilter == '已报名' ? '' : '已报名'),
+                ),
+              ],
+              if (pausedCount > 0) ...[
+                const SizedBox(width: 8),
+                _FilterCapsuleChip(
+                  label: '🚫 无效线索 ($pausedCount)',
+                  isSelected: selectedFilter == '无效线索',
+                  color: const Color(0xFF9E9E9E),
+                  onTap: () => onSelect(selectedFilter == '无效线索' ? '' : '无效线索'),
+                ),
+              ],
             ],
           ],
         ),

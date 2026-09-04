@@ -894,6 +894,7 @@ class AppProvider extends ChangeNotifier {
   // 设置线索Tab
   void setClueTabIndex(int index) {
     _clueTabIndex = index;
+    _selectedFilter = '';
     notifyListeners();
   }
 
@@ -996,8 +997,8 @@ class AppProvider extends ChangeNotifier {
           return c.nextVisitTime!.isBefore(now);
         }).toList();
         break;
-      case 3:
-        result = result.where((c) => c.status != ClueStatus.enrolled && (c.phone.isEmpty || c.school.isEmpty || c.grade.isEmpty)).toList();
+      case 3: // 已试听
+        result = result.where((c) => c.status == ClueStatus.attended).toList();
         break;
       case 4:
         result = result.where((c) => c.status == ClueStatus.enrolled).toList();
@@ -1090,10 +1091,9 @@ class AppProvider extends ChangeNotifier {
           ..sort((a, b) => a.nextVisitTime!.compareTo(b.nextVisitTime!));
         break;
 
-      case 3: // 信息缺
+      case 3: // 已试听
         result = result
-            .where((c) =>
-                c.status != ClueStatus.enrolled && !c.isInfoComplete)
+            .where((c) => c.status == ClueStatus.attended)
             .toList()
           ..sort((a, b) => b.createTime.compareTo(a.createTime));
         break;
