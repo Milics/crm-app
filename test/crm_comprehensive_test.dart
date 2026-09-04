@@ -4,8 +4,14 @@ import 'package:crm_app/models/clue.dart';
 import 'package:crm_app/models/material_item.dart';
 import 'package:crm_app/utils/clue_text_parser.dart';
 import 'package:crm_app/data/default_materials.dart';
+import 'package:crm_app/services/material_rag_service.dart';
+
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  SharedPreferences.setMockInitialValues({});
+
   group('【QA 专项测试 1】专升本规范智能语义解析器 (ClueTextParser) 极限与边界测试', () {
     test('1.1 标准团队规范：李文文-河南经贸-24级-视传', () {
       final text = '李文文-河南经贸-24级-视传\n微信号: wxid_liwenwen\n电话: 13912345678';
@@ -324,6 +330,48 @@ void main() {
           expect(m.isPublic, true);
         }
       }
+    });
+  });
+
+  group('【QA 专项测试 8】物料 RAG 知识检索与智能问答生成校验', () {
+    final pool = DefaultMaterials.getDefaultTextMaterials();
+    final ragService = MaterialRagService();
+
+    test('8.1 英语基础差场景：智能检索必须精准匹配英语/基础差痛点物料', () {
+      final matched = ragService.retrieveRelevantMaterials('学员高考英语才30分，担心学不会怎么办', pool, topK: 3);
+      expect(matched.isNotEmpty, true);
+      // 检查 Top 1 或 Top 2 是否命中痛点消解中关于英语/基础薄弱的话术
+      final topTitles = matched.map((m) => m.title).join(' ');
+      final topCategories = matched.map((m) => m.category).join(' ');
+      expect(topCategories.contains('痛点消解') || topTitles.contains('英语') || topTitles.contains('基础'), true);
+    });
+
+    test('8.2 公办与民办学费场景：智能检索必须匹配政策规划与学费算账物料', () {
+      final matched = ragService.retrieveRelevantMaterials('公办本科和民办本科有什么区别，学费差很多吗', pool, topK: 3);
+      expect(matched.isNotEmpty, true);
+      final topText = matched.map((m) => '${m.title} ${m.category} ${m.content}').join(' ');
+      expect(topText.contains('公办') || topText.contains('民办') || topText.contains('学费'), true);
+    });
+
+    test('8.3 暑期集训营场景：必须精准命中课程体系与班型中的集训营', () {
+      final matched = ragService.retrieveRelevantMaterials('暑假封闭集训营平时作息和住宿管得严不严', pool, topK: 3);
+      expect(matched.isNotEmpty, true);
+      final topTitles = matched.map((m) => m.title).join(' ');
+      expect(topTitles.contains('集训') || topTitles.contains('营') || topTitles.contains('班'), true);
+    });
+
+    test('8.4 问答生成与高可用 Fallback 结构化字段完整性校验', () async {
+      final res = await ragService.generateAnswer(
+        question: '大二学生觉得现在报班太早了，想大三再说怎么破',
+        materialsPool: pool,
+      );
+
+      expect(res.userQuestion, '大二学生觉得现在报班太早了，想大三再说怎么破');
+      expect(res.analysis.isNotEmpty, true);
+      expect(res.recommendedReply.isNotEmpty, true);
+      expect(res.recommendedReply.length, greaterThan(20));
+      expect(res.followUpAction.isNotEmpty, true);
+      expect(res.matchedMaterials.isNotEmpty, true);
     });
   });
 }

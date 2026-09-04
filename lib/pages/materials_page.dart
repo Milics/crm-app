@@ -6,6 +6,7 @@ import '../providers/app_provider.dart';
 import '../models/material_item.dart';
 import '../models/material_type.dart';
 import 'add_edit_material_page.dart';
+import 'material_ai_assistant_page.dart';
 
 /// 物料池范围
 enum _MaterialScope { public, private, pending }
@@ -90,6 +91,15 @@ class _MaterialsPageState extends State<MaterialsPage>
           imageMaterial: imageItem,
           defaultToPublic: defaultToPublic,
         ),
+      ),
+    );
+  }
+
+  void _openAiAssistant([String? question]) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MaterialAiAssistantPage(initialQuestion: question),
       ),
     );
   }
@@ -302,6 +312,11 @@ class _MaterialsPageState extends State<MaterialsPage>
                 )
               else ...[
                 IconButton(
+                  icon: const Icon(Icons.auto_awesome_rounded, color: Colors.amberAccent),
+                  tooltip: 'AI 话术智囊',
+                  onPressed: () => _openAiAssistant(),
+                ),
+                IconButton(
                   icon: const Icon(Icons.search, color: Colors.white),
                   tooltip: '搜索话术',
                   onPressed: () => setState(() => _showSearch = true),
@@ -382,6 +397,76 @@ class _MaterialsPageState extends State<MaterialsPage>
                       ),
                     ],
                   ],
+                ),
+              ),
+              // AI 话术智囊随身助教快捷入口横幅
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                child: InkWell(
+                  onTap: () => _openAiAssistant(),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFEFF6FF), Color(0xFFFAF5FF)],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFDBEAFE)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF2563EB), Color(0xFF7C3AED)],
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.auto_awesome, color: Colors.white, size: 14),
+                        ),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    'AI 话术智囊 · 随身答疑助教',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF1E293B),
+                                    ),
+                                  ),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'NEW',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF7C3AED),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                '输入学员提问或卡点，基于现有物料秒级生成高情商回复话术',
+                                style: TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: Color(0xFF7C3AED)),
+                      ],
+                    ),
+                  ),
                 ),
               ),
 

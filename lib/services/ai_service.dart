@@ -104,16 +104,16 @@ class AiService {
     }
   }
 
-  /// 调用大模型（优先使用云端中枢统一代理，兼具安全性与全员免配）
-  Future<String> analyzeClue(Clue clue) async {
+  /// 执行自定义 Prompt 的大模型调用（支持云端托管代理与本地直连双通道）
+  Future<String> chatWithCustomPrompt({
+    required String systemPrompt,
+    required String userPrompt,
+    double temperature = 0.7,
+  }) async {
     await init();
     if (!isConfigured) {
-      throw Exception('云端中枢与本地均尚未配置 DeepSeek Key，请联系超级管理员在设置中统一录入');
+      throw Exception('未配置大模型 API Key，请联系管理员或在设置中配置');
     }
-
-    final userPrompt = _buildPrompt(clue);
-    const systemPrompt =
-        '你是一位拥有10年经验的统招专升本招生金牌销售总监。擅长精准挖掘学生心理顾虑与阻碍，并给出极具杀伤力的实战促单逼单话术。';
 
     // 1. 优先走云端中枢托管模式（普通顾问手机零配置，直接可用）
     if (_cloudConfigured) {
@@ -160,7 +160,7 @@ class AiService {
           {'role': 'system', 'content': systemPrompt},
           {'role': 'user', 'content': userPrompt},
         ],
-        'temperature': 0.7,
+        'temperature': temperature,
       };
 
       final response = await http
@@ -172,7 +172,7 @@ class AiService {
             },
             body: jsonEncode(body),
           )
-          .timeout(const Duration(seconds: 40));
+          .timeout(const Duration(seconds: 45));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -182,7 +182,19 @@ class AiService {
       }
     }
 
-    throw Exception('无法发起大模型分析');
+    throw Exception('无法发起大模型调用');
+  }
+
+  /// 调用大模型进行学员全维度分析
+  Future<String> analyzeClue(Clue clue) async {
+    final userPrompt = _buildPrompt(clue);
+    const systemPrompt =
+        '你是一位拥有10年经验的统招专升本招生金牌销售总监。擅长精准挖掘学生心理顾虑与阻碍，并给出极具杀伤力的实战促单逼单话术。';
+    return chatWithCustomPrompt(
+      systemPrompt: systemPrompt,
+      userPrompt: userPrompt,
+      temperature: 0.7,
+    );
   }
 
   /// 构造专升本领域实战 Prompt
