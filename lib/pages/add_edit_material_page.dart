@@ -198,8 +198,7 @@ class _AddEditMaterialPageState extends State<AddEditMaterialPage> {
     final provider = context.watch<AppProvider>();
     final isSuper = provider.isSuperAdmin;
 
-    final primaryColor =
-        _isText ? const Color(0xFF1976D2) : const Color(0xFF00897B);
+    const primaryColor = Color(0xFF1976D2);
     final pageTitle = _isEdit
         ? (_isText ? '编辑文字物料' : '编辑图片物料')
         : (_isText ? '添加文字物料' : '添加图片物料');
@@ -605,7 +604,7 @@ class _AddEditMaterialPageState extends State<AddEditMaterialPage> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.camera_alt_outlined, color: Color(0xFF00897B)),
+              leading: const Icon(Icons.camera_alt_outlined, color: Color(0xFF1976D2)),
               title: const Text('拍照'),
               onTap: () {
                 Navigator.pop(ctx);
