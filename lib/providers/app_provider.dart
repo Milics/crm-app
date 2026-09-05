@@ -342,6 +342,14 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 仅供单元测试快速切换登录态
+  @visibleForTesting
+  void setCurrentUserForTesting(AppUser user) {
+    _currentUserObj = user;
+    _currentUser = user.name;
+    notifyListeners();
+  }
+
   /// 添加新账号（仅管理员/超管可调用）
   Future<Map<String, dynamic>> addUser(AppUser newUser) async {
     if (_users.any((u) => u.username == newUser.username)) {
@@ -1496,18 +1504,47 @@ class AppProvider extends ChangeNotifier {
       .where((m) => m.isPublic && m.reviewStatus == MaterialReviewStatus.approved)
       .toList();
 
-  /// 2. 个人私有物料池（当前登录老师创建的专属物料，包含私有、审核中及已通过上架公共池的自有物料）
-  List<TextMaterial> get myPrivateTextMaterials => _textMaterials
-      .where((m) =>
-          (m.ownerName.isNotEmpty && m.ownerName == currentUser) ||
-          (!m.isPublic && m.ownerName.isEmpty))
-      .toList();
+  /// 2. 个人私有物料池（当前登录老师创建的专属物料，包含私有自用、审核中及已通过上架公共池的个人自有物料）
+  List<TextMaterial> get myPrivateTextMaterials => _textMaterials.where((m) {
+        // 1. 严格排除系统官方预置话术（官方公共话术绝不属于任何顾问的专属池）
+        if (m.id.startsWith('tm_cb_') || m.id.startsWith('tm_def_')) {
+          return false;
+        }
 
-  List<ImageMaterial> get myPrivateImageMaterials => _imageMaterials
-      .where((m) =>
-          (m.ownerName.isNotEmpty && m.ownerName == currentUser) ||
-          (!m.isPublic && m.ownerName.isEmpty))
-      .toList();
+        // 2. 归属人检查：必须属于当前登录用户（若 ownerName 为空则只在非公开时归属）
+        final isMyMaterial = m.ownerName.isNotEmpty
+            ? m.ownerName == currentUser
+            : (!m.isPublic);
+        if (!isMyMaterial) return false;
+
+        // 3. 私有自用、待审核、被驳回状态的自建话术，直接属于当前用户的专属池
+        if (!m.isPublic) return true;
+
+        // 4. 审核通过已上架公共池的物料，仅当其源自个人专属池(fromPrivatePool == true)才保留在专属池
+        return m.fromPrivatePool;
+      }).toList();
+
+  List<ImageMaterial> get myPrivateImageMaterials => _imageMaterials.where((m) {
+        // 1. 严格排除系统预置海报
+        const officialIds = {
+          'im1', 'im2', 'im3', 'im4', 'im5', 'im6', 'im7', 'im8'
+        };
+        if (officialIds.contains(m.id)) {
+          return false;
+        }
+
+        // 2. 归属人检查
+        final isMyMaterial = m.ownerName.isNotEmpty
+            ? m.ownerName == currentUser
+            : (!m.isPublic);
+        if (!isMyMaterial) return false;
+
+        // 3. 私有自用、待审核、被驳回状态直接展示
+        if (!m.isPublic) return true;
+
+        // 4. 已上架物料仅保留源自专属池的
+        return m.fromPrivatePool;
+      }).toList();
 
   /// 3. 待审核物料池（提交申请待超管审核的物料）
   List<TextMaterial> get pendingReviewTextMaterials => _textMaterials

@@ -132,6 +132,7 @@ class _AddEditMaterialPageState extends State<AddEditMaterialPage> {
             title: title,
             content: content,
             isPublic: isPublic,
+            fromPrivatePool: widget.textMaterial!.fromPrivatePool || !isPublic,
             reviewStatus: reviewStatus,
           ),
         );
@@ -143,6 +144,7 @@ class _AddEditMaterialPageState extends State<AddEditMaterialPage> {
           content: content,
           ownerName: provider.currentUser,
           isPublic: isPublic,
+          fromPrivatePool: !isPublic,
           reviewStatus: reviewStatus,
         ));
       }
@@ -165,6 +167,7 @@ class _AddEditMaterialPageState extends State<AddEditMaterialPage> {
             desc: content,
             imageData: _imageBase64,
             isPublic: isPublic,
+            fromPrivatePool: widget.imageMaterial!.fromPrivatePool || !isPublic,
             reviewStatus: reviewStatus,
           ),
         );
@@ -177,6 +180,7 @@ class _AddEditMaterialPageState extends State<AddEditMaterialPage> {
           imageData: _imageBase64,
           ownerName: provider.currentUser,
           isPublic: isPublic,
+          fromPrivatePool: !isPublic,
           reviewStatus: reviewStatus,
         ));
       }

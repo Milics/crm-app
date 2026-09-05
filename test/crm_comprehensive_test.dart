@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:crm_app/models/clue.dart';
 import 'package:crm_app/models/material_item.dart';
+import 'package:crm_app/models/app_user.dart';
 import 'package:crm_app/utils/clue_text_parser.dart';
 import 'package:crm_app/data/default_materials.dart';
 import 'package:crm_app/services/material_rag_service.dart';
+import 'package:crm_app/providers/app_provider.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -372,6 +374,142 @@ void main() {
       expect(res.recommendedReply.length, greaterThan(20));
       expect(res.followUpAction.isNotEmpty, true);
       expect(res.matchedMaterials.isNotEmpty, true);
+    });
+  });
+
+  group('【QA 专项测试 9】专属物料库隔离机制与已上架保留逻辑校验', () {
+    test('9.1 模型序列化与老数据向下兼容：官方话术自动标记为非专属池', () {
+      // 官方预置话术 json（模拟老数据无 fromPrivatePool）
+      final officialJson = {
+        'id': 'tm_cb_01',
+        'category': '初次接触',
+        'title': '微信好友通过初次问候',
+        'content': '同学你好...',
+        'ownerName': '超级管理员',
+        'isPublic': true,
+      };
+      final m1 = TextMaterial.fromJson(officialJson);
+      expect(m1.fromPrivatePool, false);
+
+      // 顾问自建私有话术 json（老数据无 fromPrivatePool）
+      final privateJson = {
+        'id': 'tm_1788599999',
+        'category': '个人话术',
+        'title': '我的专属私聊',
+        'content': '自用内容',
+        'ownerName': '李老师',
+        'isPublic': false,
+      };
+      final m2 = TextMaterial.fromJson(privateJson);
+      expect(m2.fromPrivatePool, true);
+    });
+
+    test('9.2 AppProvider 专属池严密隔离：80条官方金牌话术绝不混入超级管理员的专属池', () async {
+      SharedPreferences.setMockInitialValues({});
+      final provider = AppProvider();
+      provider.initMockData();
+      final adminUser = AppUser(
+        id: 'usr_admin',
+        username: 'admin',
+        password: '123',
+        name: '超级管理员',
+        role: UserRole.superAdmin,
+      );
+      provider.setCurrentUserForTesting(adminUser);
+
+      // 超级管理员登录状态
+      expect(provider.currentUser, '超级管理员');
+      expect(provider.isSuperAdmin, true);
+
+      // 公共文字物料库总数应该大于等于 80
+      expect(provider.publicTextMaterials.length, greaterThanOrEqualTo(80));
+
+      // 超级管理员专属池中，绝不能包含任何 tm_cb_ 官方话术！
+      final privateOfficialMatches = provider.myPrivateTextMaterials
+          .where((m) => m.id.startsWith('tm_cb_'))
+          .toList();
+      expect(privateOfficialMatches.isEmpty, true,
+          reason: '官方话术绝对不可出现在专属物料库');
+
+      // 超级管理员专属池中，绝不能包含 im1~im8 官方海报！
+      final privateOfficialImages = provider.myPrivateImageMaterials
+          .where((m) => m.id.startsWith('im') && int.tryParse(m.id.substring(2)) != null)
+          .toList();
+      expect(privateOfficialImages.isEmpty, true,
+          reason: '官方海报绝对不可出现在专属图片库');
+    });
+
+    test('9.3 专属物料审核通过上架全链路：审核通过后公共池可见，专属池保留且标记已上架', () async {
+      SharedPreferences.setMockInitialValues({});
+      final provider = AppProvider();
+      provider.initMockData();
+
+      final adminUser = AppUser(
+        id: 'usr_admin',
+        username: 'admin',
+        password: '123',
+        name: '超级管理员',
+        role: UserRole.superAdmin,
+      );
+      final liTeacher = AppUser(
+        id: 'usr_li',
+        username: 'lilaoshi',
+        password: '123',
+        name: '李老师',
+        role: UserRole.advisor,
+      );
+
+      // 1. 李老师登录并创建一条专属话术
+      provider.setCurrentUserForTesting(liTeacher);
+      final myMat = TextMaterial(
+        id: 'tm_custom_001',
+        category: '促单截单',
+        title: '李老师独家绝密促单话术',
+        content: '限时直减500元',
+        ownerName: '李老师',
+        isPublic: false,
+        fromPrivatePool: true,
+        reviewStatus: MaterialReviewStatus.pending,
+      );
+      provider.addTextMaterial(myMat);
+
+      // 验证在李老师专属池中可见，但在公共池不可见
+      expect(provider.myPrivateTextMaterials.any((m) => m.id == 'tm_custom_001'), true);
+      expect(provider.publicTextMaterials.any((m) => m.id == 'tm_custom_001'), false);
+
+      // 2. 超级管理员审核通过
+      provider.setCurrentUserForTesting(adminUser);
+      provider.approveMaterial('tm_custom_001', true);
+
+      // 公共池现在全员可见
+      expect(provider.publicTextMaterials.any((m) => m.id == 'tm_custom_001'), true);
+
+      // 3. 切回李老师，验证专属物料库中依然保留该物料，且 reviewStatus 为 approved
+      provider.setCurrentUserForTesting(liTeacher);
+      final inMyPool = provider.myPrivateTextMaterials.firstWhere((m) => m.id == 'tm_custom_001');
+      expect(inMyPool.isPublic, true);
+      expect(inMyPool.fromPrivatePool, true);
+      expect(inMyPool.reviewStatus, MaterialReviewStatus.approved);
+
+      // 4. 超级管理员直接创建的公共物料，绝不会混进李老师专属池
+      provider.setCurrentUserForTesting(adminUser);
+      final adminPublicMat = TextMaterial(
+        id: 'tm_admin_pub_001',
+        category: '政策与院校规划',
+        title: '总部统一发布公办政策',
+        content: '2026年最新批复',
+        ownerName: '超级管理员',
+        isPublic: true,
+        fromPrivatePool: false,
+        reviewStatus: MaterialReviewStatus.approved,
+      );
+      provider.addTextMaterial(adminPublicMat);
+
+      // 切回超级管理员专属池，不应该包含该公共话术
+      expect(provider.myPrivateTextMaterials.any((m) => m.id == 'tm_admin_pub_001'), false);
+      // 切回李老师专属池，更不应该包含
+      provider.setCurrentUserForTesting(liTeacher);
+      expect(provider.myPrivateTextMaterials.any((m) => m.id == 'tm_admin_pub_001'), false);
     });
   });
 }
