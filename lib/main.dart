@@ -40,6 +40,14 @@ class CrmApp extends StatelessWidget {
           brightness: Brightness.light,
         ),
         useMaterial3: true,
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: {
+            TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
+          },
+        ),
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFF1976D2),
           foregroundColor: Colors.white,

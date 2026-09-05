@@ -44,6 +44,8 @@
       user-select: none;
       -webkit-touch-callout: none;
       overscroll-behavior: none;
+      overscroll-behavior-x: none;
+      overscroll-behavior-y: none;
       -webkit-overflow-scrolling: touch;
       font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
     }
@@ -275,6 +277,10 @@
           splash.style.pointerEvents = 'none';
           setTimeout(function() {
             if (splash.parentNode) splash.parentNode.removeChild(splash);
+            // 🛡️ 启动完成后，将底层 HTML 背景动态置为浅灰色 #F8FAFC
+            // 彻底防止后续任何页面切换或手势回退时露出初始深蓝大色块
+            document.body.style.backgroundColor = '#F8FAFC';
+            document.documentElement.style.backgroundColor = '#F8FAFC';
           }, 350);
         }, 120);
       }
@@ -296,6 +302,55 @@
         hideSplash();
       }
     }, 50);
+
+    // ══════════════════════════════════════════════════════════════
+    // 🛡️ iOS Safari PWA 边缘右滑返回手势保护（核心治愈方案）
+    // 彻底阻止 iPhone 添加到主屏幕后左滑返回触发浏览器系统级后退导致的重载蓝屏
+    // ══════════════════════════════════════════════════════════════
+    var _edgeStartX = 0;
+    var _edgeStartY = 0;
+    var _isLeftEdgeTouch = false;
+
+    window.addEventListener('touchstart', function(e) {
+      if (e.touches && e.touches.length === 1) {
+        var x = e.touches[0].clientX;
+        // 检测是否从左边缘 32px 区域发起触摸
+        if (x <= 32) {
+          _isLeftEdgeTouch = true;
+          _edgeStartX = x;
+          _edgeStartY = e.touches[0].clientY;
+          return;
+        }
+      }
+      _isLeftEdgeTouch = false;
+    }, { passive: true });
+
+    window.addEventListener('touchmove', function(e) {
+      if (_isLeftEdgeTouch && e.touches && e.touches.length === 1) {
+        var currentX = e.touches[0].clientX;
+        var currentY = e.touches[0].clientY;
+        var diffX = currentX - _edgeStartX;
+        var diffY = Math.abs(currentY - _edgeStartY);
+
+        // 如果用户手指往右滑（返回意图明显）
+        if (diffX > 8 && diffX > diffY) {
+          // 关键：拦截 iOS WebKit 系统级跨页面后退手势，防止 PWA 页面被浏览器刷新清空
+          if (e.cancelable) {
+            e.preventDefault();
+          }
+        }
+      }
+    }, { passive: false });
+
+    // 历史栈安全垫片：保证 Standalone 模式下始终存在历史栈，防止意外触发后退导致黑/白/蓝屏
+    try {
+      if (window.history && window.history.pushState) {
+        window.history.pushState({ pwaGuard: true }, '', window.location.href);
+        window.addEventListener('popstate', function(e) {
+          window.history.pushState({ pwaGuard: true }, '', window.location.href);
+        });
+      }
+    } catch(e) {}
   </script>
 
   <script src="flutter_bootstrap.js" async></script>
