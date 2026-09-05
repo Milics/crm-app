@@ -67,6 +67,9 @@ class _MaterialsPageState extends State<MaterialsPage>
         setState(() {});
       }
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AppProvider>().syncMaterialsFromCloud();
+    });
   }
 
   @override
@@ -402,12 +405,26 @@ class _MaterialsPageState extends State<MaterialsPage>
 
                   // 物料内容列表
                   Expanded(
-                    child: TabBarView(
-                      controller: _tabController,
-                      children: [
-                        _buildTextTabContent(context, provider),
-                        _buildImageTabContent(context, provider),
-                      ],
+                    child: RefreshIndicator(
+                      onRefresh: () async {
+                        final ok = await provider.syncMaterialsFromCloud();
+                        if (context.mounted && ok) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('✨ 物料库已与云端实时同步对齐'),
+                              duration: Duration(seconds: 2),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      },
+                      child: TabBarView(
+                        controller: _tabController,
+                        children: [
+                          _buildTextTabContent(context, provider),
+                          _buildImageTabContent(context, provider),
+                        ],
+                      ),
                     ),
                   ),
                 ],

@@ -471,27 +471,75 @@ class AppProvider extends ChangeNotifier {
     _firestoreService.initialize();
   }
 
-  /// 从云端同步文字与图片物料
-  Future<void> syncMaterialsFromCloud() async {
+  /// 从云端同步文字与图片物料（全量双向对齐）
+  Future<bool> syncMaterialsFromCloud() async {
+    bool hasChanges = false;
     try {
+      // 1. 同步文字话术物料
       final remoteText = await _crmSyncService.fetchTextMaterials();
       if (remoteText != null && remoteText.isNotEmpty) {
         final map = {for (var m in _textMaterials) m.id: m};
+        bool textChanged = false;
         for (var rm in remoteText) {
-          map[rm.id] = rm;
+          if (!map.containsKey(rm.id) || map[rm.id]!.content != rm.content) {
+            map[rm.id] = rm;
+            textChanged = true;
+          }
         }
-        _textMaterials.clear();
-        _textMaterials.addAll(map.values);
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('crm_text_materials',
-            jsonEncode(_textMaterials.map((m) => m.toJson()).toList()));
-        notifyListeners();
+        if (textChanged) {
+          _textMaterials.clear();
+          _textMaterials.addAll(map.values);
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('crm_text_materials',
+              jsonEncode(_textMaterials.map((m) => m.toJson()).toList()));
+          hasChanges = true;
+        }
       } else if (remoteText != null &&
           remoteText.isEmpty &&
           _textMaterials.isNotEmpty) {
-        await _crmSyncService.saveTextMaterials(_textMaterials);
+        unawaited(_crmSyncService.saveTextMaterials(_textMaterials));
       }
-    } catch (_) {}
+
+      // 2. 同步宣传图片物料（🌟 核心：双向拉取与合并对齐）
+      final remoteImages = await _crmSyncService.fetchImageMaterials();
+      if (remoteImages != null && remoteImages.isNotEmpty) {
+        final imgMap = {for (var m in _imageMaterials) m.id: m};
+        bool imgChanged = false;
+        for (var rim in remoteImages) {
+          if (!imgMap.containsKey(rim.id) || imgMap[rim.id]!.imageData != rim.imageData) {
+            imgMap[rim.id] = rim;
+            imgChanged = true;
+          }
+        }
+        // 若本地存在未上报到云端的图片物料，自动双向上报
+        final localOnly = _imageMaterials.where((m) => !remoteImages.any((rm) => rm.id == m.id)).toList();
+        if (localOnly.isNotEmpty) {
+          unawaited(_crmSyncService.saveImageMaterials(_imageMaterials));
+        }
+
+        if (imgChanged) {
+          _imageMaterials.clear();
+          _imageMaterials.addAll(imgMap.values);
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('crm_image_materials',
+              jsonEncode(_imageMaterials.map((m) => m.toJson()).toList()));
+          hasChanges = true;
+        }
+      } else if (remoteImages != null &&
+          remoteImages.isEmpty &&
+          _imageMaterials.isNotEmpty) {
+        // 云端为空但本地有数据，自动双向上报
+        unawaited(_crmSyncService.saveImageMaterials(_imageMaterials));
+      }
+
+      if (hasChanges) {
+        notifyListeners();
+      }
+      return true;
+    } catch (e) {
+      debugPrint('⚠️ [CrmSync] 同步物料库异常: $e');
+      return false;
+    }
   }
 
   /// 下拉刷新：强制从云端服务器拉取最新数据，并双向补齐未同步的本地线索
@@ -1650,6 +1698,7 @@ class AppProvider extends ChangeNotifier {
     _textMaterials.removeWhere((m) => m.id == id);
     notifyListeners();
     _saveMaterials();
+    unawaited(_crmSyncService.deleteTextMaterial(id));
     if (_isCloudConnected) {
       _firestoreService.deleteTextMaterial(id);
     }
@@ -1674,6 +1723,7 @@ class AppProvider extends ChangeNotifier {
     _imageMaterials.removeWhere((m) => m.id == id);
     notifyListeners();
     _saveMaterials();
+    unawaited(_crmSyncService.deleteImageMaterial(id));
   }
 
 

@@ -250,19 +250,35 @@ class _AddEditMaterialPageState extends State<AddEditMaterialPage> {
                           children: [
                             Expanded(
                               child: ChoiceChip(
-                                label: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text('🌍 全局公共池 (全员同步)',
-                                        style: TextStyle(fontSize: 12)),
-                                  ],
+                                showCheckmark: false,
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                label: const Center(
+                                  child: Text(
+                                    '🌍 全局公共池 (全员同步)',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                                 selected: _saveToPublic,
                                 selectedColor: const Color(0xFF1976D2),
-                                labelStyle: TextStyle(
+                                backgroundColor: Colors.grey.shade100,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  side: BorderSide(
                                     color: _saveToPublic
-                                        ? Colors.white
-                                        : Colors.black87),
+                                        ? const Color(0xFF1976D2)
+                                        : Colors.grey.shade300,
+                                  ),
+                                ),
+                                labelStyle: TextStyle(
+                                  color: _saveToPublic
+                                      ? Colors.white
+                                      : Colors.black87,
+                                ),
                                 onSelected: (v) =>
                                     setState(() => _saveToPublic = true),
                               ),
@@ -270,19 +286,35 @@ class _AddEditMaterialPageState extends State<AddEditMaterialPage> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: ChoiceChip(
-                                label: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text('🔒 我的专属池 (私有)',
-                                        style: TextStyle(fontSize: 12)),
-                                  ],
+                                showCheckmark: false,
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                label: const Center(
+                                  child: Text(
+                                    '🔒 我的专属池 (私有)',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                                 selected: !_saveToPublic,
                                 selectedColor: const Color(0xFFE65100),
-                                labelStyle: TextStyle(
+                                backgroundColor: Colors.grey.shade100,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  side: BorderSide(
                                     color: !_saveToPublic
-                                        ? Colors.white
-                                        : Colors.black87),
+                                        ? const Color(0xFFE65100)
+                                        : Colors.grey.shade300,
+                                  ),
+                                ),
+                                labelStyle: TextStyle(
+                                  color: !_saveToPublic
+                                      ? Colors.white
+                                      : Colors.black87,
+                                ),
                                 onSelected: (v) =>
                                     setState(() => _saveToPublic = false),
                               ),

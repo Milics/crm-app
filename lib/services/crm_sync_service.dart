@@ -243,7 +243,22 @@ class CrmSyncService {
             headers: {'Content-Type': 'application/json; charset=utf-8'},
             body: jsonEncode(payload),
           )
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 15));
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> deleteTextMaterial(String id) async {
+    if (_activeBaseUrl == null) {
+      final found = await detectServer();
+      if (!found) return false;
+    }
+    try {
+      final res = await http
+          .delete(Uri.parse('$_activeBaseUrl/api/materials/text/$id'))
+          .timeout(const Duration(seconds: 10));
       return res.statusCode == 200;
     } catch (_) {
       return false;
@@ -258,7 +273,7 @@ class CrmSyncService {
     try {
       final res = await http
           .get(Uri.parse('$_activeBaseUrl/api/materials/image'))
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 25));
       if (res.statusCode == 200) {
         final list = jsonDecode(res.body) as List<dynamic>;
         return list.map((e) => ImageMaterial.fromJson(e)).toList();
@@ -280,7 +295,22 @@ class CrmSyncService {
             headers: {'Content-Type': 'application/json; charset=utf-8'},
             body: jsonEncode(payload),
           )
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 30));
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> deleteImageMaterial(String id) async {
+    if (_activeBaseUrl == null) {
+      final found = await detectServer();
+      if (!found) return false;
+    }
+    try {
+      final res = await http
+          .delete(Uri.parse('$_activeBaseUrl/api/materials/image/$id'))
+          .timeout(const Duration(seconds: 15));
       return res.statusCode == 200;
     } catch (_) {
       return false;
