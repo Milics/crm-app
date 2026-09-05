@@ -1496,17 +1496,17 @@ class AppProvider extends ChangeNotifier {
       .where((m) => m.isPublic && m.reviewStatus == MaterialReviewStatus.approved)
       .toList();
 
-  /// 2. 个人私有物料池（当前登录老师创建的私有物料）
+  /// 2. 个人私有物料池（当前登录老师创建的专属物料，包含私有、审核中及已通过上架公共池的自有物料）
   List<TextMaterial> get myPrivateTextMaterials => _textMaterials
       .where((m) =>
-          !m.isPublic &&
-          (m.ownerName.isEmpty || m.ownerName == currentUser))
+          (m.ownerName.isNotEmpty && m.ownerName == currentUser) ||
+          (!m.isPublic && m.ownerName.isEmpty))
       .toList();
 
   List<ImageMaterial> get myPrivateImageMaterials => _imageMaterials
       .where((m) =>
-          !m.isPublic &&
-          (m.ownerName.isEmpty || m.ownerName == currentUser))
+          (m.ownerName.isNotEmpty && m.ownerName == currentUser) ||
+          (!m.isPublic && m.ownerName.isEmpty))
       .toList();
 
   /// 3. 待审核物料池（提交申请待超管审核的物料）

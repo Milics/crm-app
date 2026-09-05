@@ -1260,80 +1260,135 @@ class _TextMaterialCardState extends State<_TextMaterialCard> {
 
           // ── 私有池专属操作：申请上架到公共池（规整轻量底栏，微胶囊按键，浑然一体） ──
           if (!widget.isPublicPool &&
-              item.reviewStatus != MaterialReviewStatus.pending &&
-              item.reviewStatus != MaterialReviewStatus.approved) ...[
+              item.reviewStatus != MaterialReviewStatus.pending) ...[
             Container(
               margin: const EdgeInsets.fromLTRB(14, 0, 14, 10),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
               decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9).withValues(alpha: 0.6),
+                color: item.reviewStatus == MaterialReviewStatus.approved
+                    ? const Color(0xFFE8F5E9).withValues(alpha: 0.6)
+                    : const Color(0xFFF1F5F9).withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: item.reviewStatus == MaterialReviewStatus.rejected
-                      ? Colors.red.withValues(alpha: 0.2)
-                      : const Color(0xFFE2E8F0),
+                  color: item.reviewStatus == MaterialReviewStatus.approved
+                      ? const Color(0xFF81C784).withValues(alpha: 0.4)
+                      : (item.reviewStatus == MaterialReviewStatus.rejected
+                          ? Colors.red.withValues(alpha: 0.2)
+                          : const Color(0xFFE2E8F0)),
                   width: 0.6,
                 ),
               ),
               child: Row(
                 children: [
                   Icon(
-                    item.reviewStatus == MaterialReviewStatus.rejected
-                        ? Icons.error_outline
-                        : Icons.info_outline,
+                    item.reviewStatus == MaterialReviewStatus.approved
+                        ? Icons.check_circle_outline
+                        : (item.reviewStatus == MaterialReviewStatus.rejected
+                            ? Icons.error_outline
+                            : Icons.info_outline),
                     size: 13,
-                    color: item.reviewStatus == MaterialReviewStatus.rejected
-                        ? Colors.red[700]
-                        : const Color(0xFF64748B),
+                    color: item.reviewStatus == MaterialReviewStatus.approved
+                        ? const Color(0xFF2E7D32)
+                        : (item.reviewStatus == MaterialReviewStatus.rejected
+                            ? Colors.red[700]
+                            : const Color(0xFF64748B)),
                   ),
                   const SizedBox(width: 5),
                   Expanded(
                     child: Text(
-                      item.reviewStatus == MaterialReviewStatus.rejected &&
-                              item.rejectReason.isNotEmpty
-                          ? '驳回原因: ${item.rejectReason}'
-                          : '当前为个人专属话术',
+                      item.reviewStatus == MaterialReviewStatus.approved
+                          ? '此专属话术已同步至公共物料库'
+                          : (item.reviewStatus == MaterialReviewStatus.rejected &&
+                                  item.rejectReason.isNotEmpty
+                              ? '驳回原因: ${item.rejectReason}'
+                              : '当前为个人专属话术'),
                       style: TextStyle(
                         fontSize: 11,
-                        color: item.reviewStatus == MaterialReviewStatus.rejected
-                            ? Colors.red[700]
-                            : const Color(0xFF64748B),
+                        color: item.reviewStatus == MaterialReviewStatus.approved
+                            ? const Color(0xFF2E7D32)
+                            : (item.reviewStatus == MaterialReviewStatus.rejected
+                                ? Colors.red[700]
+                                : const Color(0xFF64748B)),
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   const SizedBox(width: 8),
-                  InkWell(
-                    onTap: widget.onSubmitReview,
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 9, vertical: 3.5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1976D2).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.cloud_upload_outlined,
-                              size: 12, color: Color(0xFF1976D2)),
-                          SizedBox(width: 3),
-                          Text(
-                            '申请上架公共池',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF1976D2),
-                            ),
+                  if (item.reviewStatus == MaterialReviewStatus.approved)
+                    InkWell(
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('✅ 该物料已通过审核，已正式上架至全员公共物料库共享使用！'),
+                            duration: Duration(seconds: 2),
+                            behavior: SnackBarBehavior.floating,
                           ),
-                          SizedBox(width: 2),
-                          Icon(Icons.arrow_forward_ios,
-                              size: 8, color: Color(0xFF1976D2)),
-                        ],
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 9, vertical: 3.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2E7D32).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFF2E7D32).withValues(alpha: 0.3),
+                            width: 0.8,
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.cloud_done_outlined,
+                                size: 12, color: Color(0xFF2E7D32)),
+                            SizedBox(width: 3),
+                            Text(
+                              '已上架公共物料池',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF2E7D32),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else
+                    InkWell(
+                      onTap: widget.onSubmitReview,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 9, vertical: 3.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1976D2).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.cloud_upload_outlined,
+                                size: 12, color: Color(0xFF1976D2)),
+                            const SizedBox(width: 3),
+                            Text(
+                              item.reviewStatus == MaterialReviewStatus.rejected
+                                  ? '重新申请上架'
+                                  : '申请上架公共池',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF1976D2),
+                              ),
+                            ),
+                            const SizedBox(width: 2),
+                            const Icon(Icons.arrow_forward_ios,
+                                size: 8, color: Color(0xFF1976D2)),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -1869,7 +1924,7 @@ class _ImageMaterialCard extends StatelessWidget {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
                                     content: Text('已复制推荐配文，可直接粘贴发给学生或朋友圈！'),
-                                    backgroundColor: Color(0xFF00897B),
+                                    backgroundColor: Color(0xFF1976D2),
                                     duration: Duration(seconds: 2),
                                   ),
                                 );
