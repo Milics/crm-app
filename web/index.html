@@ -277,10 +277,6 @@
           splash.style.pointerEvents = 'none';
           setTimeout(function() {
             if (splash.parentNode) splash.parentNode.removeChild(splash);
-            // 🛡️ 启动完成后，将底层 HTML 背景动态置为浅灰色 #F8FAFC
-            // 彻底防止后续任何页面切换或手势回退时露出初始深蓝大色块
-            document.body.style.backgroundColor = '#F8FAFC';
-            document.documentElement.style.backgroundColor = '#F8FAFC';
           }, 350);
         }, 120);
       }
