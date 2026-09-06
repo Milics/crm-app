@@ -105,7 +105,7 @@ class _ManualFormState extends State<_ManualForm> {
     '体育专业综合',
   ];
   final List<String> _sources = ['抖音', '小红书', '地推', '电话打入', '转介绍', '老带新', '其他'];
-  final List<String> _classTypes = ['全程集训班', '寒假集训班', '周末走读班', '单科提分班'];
+  final List<String> _classTypes = ['全程协议班', '全程非协议班', '网课班', '冲刺班'];
   final List<String> _presetTags = [
     '跨专业',
     '价格敏感',
@@ -525,8 +525,8 @@ class _OcrFormState extends State<_OcrForm> {
   final _gradeCtrl = TextEditingController();
   String _subject = '高等数学';
   String _source = '微信';
-  String _classType = '全程集训班';
-  IntentLevel _intentLevel = IntentLevel.high;
+  String _classType = '全程协议班';
+  final IntentLevel _intentLevel = IntentLevel.high;
   final List<String> _selectedTags = ['跨专业', '价格敏感'];
 
   // 下次回访时间设置
@@ -550,7 +550,7 @@ class _OcrFormState extends State<_OcrForm> {
     '体育专业综合',
   ];
   final List<String> _sources = ['微信', '抖音', '小红书', '地推', '电话打入', '转介绍', '老带新'];
-  final List<String> _classTypes = ['全程集训班', '寒假集训班', '周末走读班', '单科提分班'];
+  final List<String> _classTypes = ['全程协议班', '全程非协议班', '网课班', '冲刺班'];
   final List<String> _presetTags = [
     '跨专业',
     '价格敏感',
@@ -1213,7 +1213,7 @@ class _OcrFormState extends State<_OcrForm> {
                     items: _classTypes
                         .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                         .toList(),
-                    onChanged: (v) => setState(() => _classType = v ?? '全程集训班'),
+                    onChanged: (v) => setState(() => _classType = v ?? '全程协议班'),
                   ),
                   const SizedBox(height: 16),
                   const Text('AI 提炼特征标签',

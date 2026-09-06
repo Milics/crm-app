@@ -18,16 +18,40 @@ class _EnrollPageState extends State<EnrollPage> {
   final _remarkCtrl = TextEditingController();
   bool _loading = false;
 
-  final List<_ClassType> _classTypes = const [
-    _ClassType(name: '全程集训班', icon: Icons.school, desc: '线下集中授课，全科系统培训'),
-    _ClassType(name: '寒暑假集训班', icon: Icons.wb_sunny_outlined, desc: '假期密集备考，效率提升'),
-    _ClassType(name: '周末走读班', icon: Icons.calendar_today, desc: '周末上课，不耽误工作学习'),
-    _ClassType(name: '单科提分班', icon: Icons.star_outline, desc: '针对薄弱科目专项突破'),
-  ];
+  late final List<_ClassType> _classTypes;
 
   @override
   void initState() {
     super.initState();
+    _classTypes = [
+      const _ClassType(
+          name: '全程协议班',
+          icon: Icons.verified_user_rounded,
+          desc: '线下全科系统培训，协议保障通关'),
+      const _ClassType(
+          name: '全程非协议班',
+          icon: Icons.school_rounded,
+          desc: '线下全科系统面授，高师带学'),
+      const _ClassType(
+          name: '网课班',
+          icon: Icons.laptop_mac_rounded,
+          desc: '线上网课随心学，时间灵活自由'),
+      const _ClassType(
+          name: '冲刺班',
+          icon: Icons.bolt_rounded,
+          desc: '考前高频考点点睛与全真模考冲刺'),
+    ];
+
+    // 如果历史线索已有其他班型（例如全程集训班），自动追加并回显，保证历史数据不丢失
+    if (widget.clue.classType.isNotEmpty &&
+        !_classTypes.any((ct) => ct.name == widget.clue.classType)) {
+      _classTypes.add(_ClassType(
+        name: widget.clue.classType,
+        icon: Icons.bookmark_added_outlined,
+        desc: '历史登记班型',
+      ));
+    }
+
     // 自动回显已有报班类型
     final foundIndex =
         _classTypes.indexWhere((ct) => ct.name == widget.clue.classType);
