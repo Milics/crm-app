@@ -55,6 +55,206 @@ class _ClueListPageState extends State<ClueListPage>
     context.read<AppProvider>().setSearchKeyword('');
   }
 
+  /// 弹出综合筛选面板（支持届别/年级单选切换与记忆，管理员可选顾问归属）
+  void _showFilterBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Consumer<AppProvider>(
+          builder: (context, p, _) {
+            final grades = p.allGrades;
+            final canViewAll = p.canViewAllClues;
+            final otherAdvisors = p.allAdvisorNames
+                .where((name) => name != p.currentUser && name.isNotEmpty)
+                .toList();
+
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              padding: EdgeInsets.fromLTRB(
+                20,
+                16,
+                20,
+                MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 顶部拖拽把手指示条
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    // 弹窗标题与快捷重置
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.tune_rounded, size: 20, color: Color(0xFF1E293B)),
+                            SizedBox(width: 8),
+                            Text(
+                              '综合筛选',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1E293B),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (p.hasActiveFilter)
+                          TextButton.icon(
+                            style: TextButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                            ),
+                            icon: const Icon(Icons.refresh, size: 16, color: Color(0xFFE11D48)),
+                            label: const Text('重置筛选', style: TextStyle(color: Color(0xFFE11D48), fontSize: 13)),
+                            onPressed: () {
+                              p.resetFilters();
+                            },
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    // 1. 届别/年级
+                    const Text(
+                      '届别 / 毕业年级',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF475569),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildFilterChip(
+                          label: '全部届别',
+                          isSelected: p.gradeFilter == 'all',
+                          onTap: () => p.setGradeFilter('all'),
+                        ),
+                        ...grades.map((grade) {
+                          return _buildFilterChip(
+                            label: grade,
+                            isSelected: p.gradeFilter == grade,
+                            onTap: () => p.setGradeFilter(grade),
+                          );
+                        }),
+                      ],
+                    ),
+                    // 2. 顾问权限筛选（仅管理员/超管可见）
+                    if (canViewAll) ...[
+                      const SizedBox(height: 20),
+                      const Text(
+                        '线索归属顾问（管理权限）',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF475569),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _buildFilterChip(
+                            label: '👥 全部学员',
+                            isSelected: p.ownerFilter == 'all',
+                            onTap: () => p.setOwnerFilter('all'),
+                          ),
+                          _buildFilterChip(
+                            label: '💼 我的私有',
+                            isSelected: p.ownerFilter == 'mine',
+                            onTap: () => p.setOwnerFilter('mine'),
+                          ),
+                          ...otherAdvisors.map((advisor) {
+                            return _buildFilterChip(
+                              label: '👤 $advisor',
+                              isSelected: p.ownerFilter == advisor,
+                              onTap: () => p.setOwnerFilter(advisor),
+                            );
+                          }),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+                    // 确定关闭按钮
+                    SizedBox(
+                      width: double.infinity,
+                      height: 44,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).primaryColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          elevation: 0,
+                        ),
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('完成', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildFilterChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFEFF6FF) : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF3B82F6) : Colors.transparent,
+            width: 1.2,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            color: isSelected ? const Color(0xFF1D4ED8) : const Color(0xFF334155),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -98,12 +298,15 @@ class _ClueListPageState extends State<ClueListPage>
                     String title = '我的线索';
                     if (p.canViewAllClues) {
                       if (p.ownerFilter == 'all') {
-                        title = '全员线索 (管理模式)';
+                        title = '全员线索';
                       } else if (p.ownerFilter == 'mine') {
                         title = '我的线索';
                       } else {
                         title = '${p.ownerFilter}的线索';
                       }
+                    }
+                    if (p.gradeFilter != 'all' && p.gradeFilter.isNotEmpty) {
+                      title += ' · ${p.gradeFilter}';
                     }
                     return Text(title);
                   },
@@ -117,36 +320,14 @@ class _ClueListPageState extends State<ClueListPage>
           else ...[
             Consumer<AppProvider>(
               builder: (context, p, _) {
-                if (!p.canViewAllClues) return const SizedBox.shrink();
-                // 排除当前登录人自身，避免与“我的私有线索”重复
-                final otherAdvisors = p.allAdvisorNames
-                    .where((name) => name != p.currentUser && name.isNotEmpty)
-                    .toList();
-
-                return PopupMenuButton<String>(
-                  icon: const Icon(Icons.filter_list_alt, color: Colors.white),
-                  tooltip: '按顾问筛选线索',
-                  onSelected: (val) => p.setOwnerFilter(val),
-                  itemBuilder: (ctx) => [
-                    CheckedPopupMenuItem(
-                      value: 'all',
-                      checked: p.ownerFilter == 'all',
-                      child: const Text('👥 全体学员线索'),
-                    ),
-                    CheckedPopupMenuItem(
-                      value: 'mine',
-                      checked: p.ownerFilter == 'mine',
-                      child: const Text('💼 我的私有线索'),
-                    ),
-                    if (otherAdvisors.isNotEmpty) const PopupMenuDivider(),
-                    ...otherAdvisors.map(
-                      (name) => CheckedPopupMenuItem(
-                        value: name,
-                        checked: p.ownerFilter == name,
-                        child: Text('👤 $name'),
-                      ),
-                    ),
-                  ],
+                return IconButton(
+                  icon: Badge(
+                    isLabelVisible: p.hasActiveFilter,
+                    smallSize: 8,
+                    child: const Icon(Icons.filter_list_alt, color: Colors.white),
+                  ),
+                  tooltip: '综合筛选（届别/归属）',
+                  onPressed: () => _showFilterBottomSheet(context),
                 );
               },
             ),
@@ -322,13 +503,15 @@ class _ClueListPageState extends State<ClueListPage>
                                         color: Colors.grey, fontSize: 12),
                                   ),
                                   if (keyword.isNotEmpty ||
-                                      provider.selectedFilter.isNotEmpty) ...[
+                                      provider.selectedFilter.isNotEmpty ||
+                                      provider.hasActiveFilter) ...[
                                     const SizedBox(height: 16),
                                     OutlinedButton(
                                       onPressed: () {
                                         _searchCtrl.clear();
                                         provider.setSearchKeyword('');
                                         provider.setSelectedFilter('');
+                                        provider.resetFilters();
                                         setState(() {});
                                       },
                                       child: const Text('清除所有筛选条件'),

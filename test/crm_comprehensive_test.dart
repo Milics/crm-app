@@ -707,4 +707,57 @@ void main() {
       expect(updated.remark, '已补齐尾款并确认食宿安排');
     });
   });
+
+  group('【QA 专项测试 12】届别/年级筛选与偏好持久化及重置测试', () {
+    test('12.1 allGrades 能正确提取并排序，setGradeFilter 能够准确过滤线索并持久化', () async {
+      SharedPreferences.setMockInitialValues({});
+      final provider = AppProvider();
+      while (!provider.isLoaded) {
+        await Future.delayed(const Duration(milliseconds: 10));
+      }
+      final adminUser = AppUser(
+        id: 'usr_test_admin',
+        username: 'admin',
+        password: 'password123',
+        name: '超级管理员',
+        role: UserRole.superAdmin,
+      );
+      provider.setCurrentUserForTesting(adminUser);
+      
+      final now = DateTime.now();
+      final c1 = Clue(id: 'c_g_1', wxNick: '学员A', grade: '24级', ownerName: '招生顾问小李', createTime: now);
+      final c2 = Clue(id: 'c_g_2', wxNick: '学员B', grade: '25级', ownerName: '招生顾问小王', createTime: now);
+      final c3 = Clue(id: 'c_g_3', wxNick: '学员C', grade: '26级', ownerName: '招生顾问小张', createTime: now);
+      provider.addClue(c1);
+      provider.addClue(c2);
+      provider.addClue(c3);
+
+      expect(provider.allGrades.contains('24级'), true);
+      expect(provider.allGrades.contains('25级'), true);
+      expect(provider.allGrades.contains('26级'), true);
+
+      // 切换届别到 25级
+      await provider.setGradeFilter('25级');
+      expect(provider.gradeFilter, '25级');
+      expect(provider.hasActiveFilter, true);
+
+      final filtered = provider.filteredClues.where((c) => c.id.startsWith('c_g_')).toList();
+      expect(filtered.length, 1);
+      expect(filtered.first.wxNick, '学员B');
+
+      // 验证持久化
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('crm_grade_filter'), '25级');
+
+      // 重置筛选
+      await provider.resetFilters();
+      expect(provider.gradeFilter, 'all');
+      expect(provider.hasActiveFilter, false);
+      expect(prefs.getString('crm_grade_filter'), 'all');
+
+      final allReset = provider.filteredClues.where((c) => c.id.startsWith('c_g_')).toList();
+      expect(allReset.length, 3);
+    });
+  });
 }
+

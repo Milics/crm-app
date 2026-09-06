@@ -45,6 +45,35 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // 届别/年级筛选（'all' 全部, 或指定届别如 '25级'、'24级'）
+  String _gradeFilter = 'all';
+  String get gradeFilter => _gradeFilter;
+
+  Future<void> setGradeFilter(String filter) async {
+    _gradeFilter = filter;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('crm_grade_filter', filter);
+    } catch (_) {}
+  }
+
+  /// 是否激活了任何高阶筛选条件（届别或顾问）
+  bool get hasActiveFilter =>
+      (_gradeFilter != 'all' && _gradeFilter.isNotEmpty) ||
+      (canViewAllClues && _ownerFilter != 'all');
+
+  /// 一键重置所有高阶筛选条件（恢复全部届别与全员）
+  Future<void> resetFilters() async {
+    _gradeFilter = 'all';
+    _ownerFilter = 'all';
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('crm_grade_filter', 'all');
+    } catch (_) {}
+  }
+
   // 数据是否已加载完成
   bool _isLoaded = false;
   bool get isLoaded => _isLoaded;
@@ -164,6 +193,10 @@ class AppProvider extends ChangeNotifier {
     }
     if (needResave) {
       _saveClues();
+    }
+
+    if (_gradeFilter == 'all') {
+      _gradeFilter = prefs.getString('crm_grade_filter') ?? 'all';
     }
 
     _isLoaded = true;
@@ -1033,6 +1066,23 @@ class AppProvider extends ChangeNotifier {
     return set.toList();
   }
 
+  /// 获取当前系统中所有出现过的届别/年级列表（用于筛选）
+  List<String> get allGrades {
+    final set = <String>{};
+    for (final c in _clues) {
+      final g = c.grade.trim();
+      if (g.isNotEmpty) {
+        set.add(g);
+      }
+    }
+    set.add('25级');
+    set.add('24级');
+    set.add('26级');
+    final list = set.toList();
+    list.sort((a, b) => b.compareTo(a));
+    return list;
+  }
+
   /// 获取未加胶囊筛选前的基础线索列表（用于动态计算各状态/意向的有数据胶囊）
   List<Clue> get baseFilteredClues {
     List<Clue> result = List.from(_clues);
@@ -1047,6 +1097,10 @@ class AppProvider extends ChangeNotifier {
       } else if (_ownerFilter != 'all') {
         result = result.where((c) => c.ownerName == _ownerFilter).toList();
       }
+    }
+    // 年级/届别筛选
+    if (_gradeFilter != 'all' && _gradeFilter.isNotEmpty) {
+      result = result.where((c) => c.grade.trim() == _gradeFilter).toList();
     }
     if (_searchKeyword.trim().isNotEmpty) {
       final kw = _searchKeyword.trim().toLowerCase();
@@ -1121,7 +1175,12 @@ class AppProvider extends ChangeNotifier {
       }
     }
 
-    // 2. 按搜索关键词过滤
+    // 2. 年级/届别筛选
+    if (_gradeFilter != 'all' && _gradeFilter.isNotEmpty) {
+      result = result.where((c) => c.grade.trim() == _gradeFilter).toList();
+    }
+
+    // 3. 按搜索关键词过滤
     if (_searchKeyword.trim().isNotEmpty) {
       final kw = _searchKeyword.trim().toLowerCase();
       result = result.where((c) {
