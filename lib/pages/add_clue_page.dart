@@ -81,6 +81,7 @@ class _ManualFormState extends State<_ManualForm> {
   String _subject = '';
   String _source = '';
   String _classType = '';
+  ClueStatus _status = ClueStatus.following;
   IntentLevel _intentLevel = IntentLevel.none;
   final List<String> _selectedTags = [];
 
@@ -157,6 +158,7 @@ class _ManualFormState extends State<_ManualForm> {
       subject: _subject,
       source: _source,
       classType: _classType,
+      status: _status,
       intentLevel: _intentLevel,
       nextVisitTime: nextVisitDateTime,
       tags: _selectedTags,
@@ -197,45 +199,122 @@ class _ManualFormState extends State<_ManualForm> {
             _buildDropdown('意向班型', _classTypes, _classType, (v) => setState(() => _classType = v ?? '')),
           ]),
           const SizedBox(height: 16),
-          _buildSection('意向等级', [
-            Row(
-              children: IntentLevel.values
-                  .where((l) => l != IntentLevel.none)
-                  .map((level) {
-                final isSelected = _intentLevel == level;
-                Color color = level == IntentLevel.high
-                    ? Colors.red
-                    : level == IntentLevel.medium
-                        ? Colors.orange
-                        : Colors.grey;
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: GestureDetector(
-                      onTap: () => setState(() =>
-                          _intentLevel = isSelected ? IntentLevel.none : level),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        decoration: BoxDecoration(
-                          color: isSelected ? color : Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                              color: isSelected ? color : Colors.grey[300]!),
-                        ),
-                        child: Text(
-                          level.label,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: isSelected ? Colors.white : color,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
+          _buildSection('状态 & 意向', [
+            const Text('线索状态',
+                style: TextStyle(fontSize: 12, color: Color(0xFF757575))),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: ClueStatus.values.map((s) {
+                final selected = _status == s;
+                return GestureDetector(
+                  onTap: () => setState(() => _status = s),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? const Color(0xFF1976D2)
+                          : const Color(0xFFF7F8FA),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: selected
+                            ? const Color(0xFF1976D2)
+                            : const Color(0xFFDEE2E8),
+                      ),
+                    ),
+                    child: Text(
+                      s.label,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: selected
+                            ? Colors.white
+                            : const Color(0xFF555555),
+                        fontWeight: selected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
                       ),
                     ),
                   ),
                 );
               }).toList(),
+            ),
+            const SizedBox(height: 12),
+            const Text('意向等级',
+                style: TextStyle(fontSize: 12, color: Color(0xFF757575))),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ...IntentLevel.values
+                    .where((l) => l != IntentLevel.none)
+                    .map((l) {
+                  final selected = _intentLevel == l;
+                  return GestureDetector(
+                    onTap: () => setState(() => _intentLevel = l),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? const Color(0xFF1976D2)
+                            : const Color(0xFFF7F8FA),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: selected
+                              ? const Color(0xFF1976D2)
+                              : const Color(0xFFDEE2E8),
+                        ),
+                      ),
+                      child: Text(
+                        l.label,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: selected
+                              ? Colors.white
+                              : const Color(0xFF555555),
+                          fontWeight: selected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+                GestureDetector(
+                  onTap: () =>
+                      setState(() => _intentLevel = IntentLevel.none),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _intentLevel == IntentLevel.none
+                          ? const Color(0xFF1976D2)
+                          : const Color(0xFFF7F8FA),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: _intentLevel == IntentLevel.none
+                            ? const Color(0xFF1976D2)
+                            : const Color(0xFFDEE2E8),
+                      ),
+                    ),
+                    child: Text(
+                      '未标记',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _intentLevel == IntentLevel.none
+                            ? Colors.white
+                            : const Color(0xFF555555),
+                        fontWeight: _intentLevel == IntentLevel.none
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ]),
           const SizedBox(height: 16),
