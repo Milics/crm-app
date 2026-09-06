@@ -1125,6 +1125,9 @@ class _SourceTag extends StatelessWidget {
       case '地推':
         return const Icon(Icons.location_on_rounded, size: 15, color: Color(0xFF1976D2));
 
+      case '电话打入':
+        return const Icon(Icons.phone_in_talk_rounded, size: 15, color: Color(0xFFE65100));
+
       case '转介绍':
         return const Icon(Icons.people_alt_rounded, size: 15, color: Color(0xFF00897B));
 

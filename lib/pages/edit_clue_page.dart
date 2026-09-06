@@ -30,7 +30,7 @@ class _EditCluePageState extends State<EditCluePage> {
   late List<String> _tags;
   final _newTagCtrl = TextEditingController();
 
-  final List<String> _sources = ['抖音', '小红书', '地推', '转介绍', '老带新'];
+  final List<String> _sources = ['抖音', '小红书', '地推', '电话打入', '转介绍', '老带新'];
   final List<String> _subjects = [
     '高等数学',
     '管理学',

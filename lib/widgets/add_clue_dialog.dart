@@ -41,7 +41,7 @@ class _AddClueDialogState extends State<AddClueDialog> {
     '体育专业综合',
   ];
   // 线索来源选项
-  final List<String> _sources = ['抖音', '小红书', '地推', '其他'];
+  final List<String> _sources = ['抖音', '小红书', '地推', '电话打入', '转介绍', '老带新', '其他'];
 
   @override
   void dispose() {

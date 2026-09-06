@@ -104,7 +104,7 @@ class _ManualFormState extends State<_ManualForm> {
     '舞蹈专业综合',
     '体育专业综合',
   ];
-  final List<String> _sources = ['抖音', '小红书', '地推', '转介绍', '老带新', '其他'];
+  final List<String> _sources = ['抖音', '小红书', '地推', '电话打入', '转介绍', '老带新', '其他'];
   final List<String> _classTypes = ['全程集训班', '寒假集训班', '周末走读班', '单科提分班'];
   final List<String> _presetTags = [
     '跨专业',
@@ -549,7 +549,7 @@ class _OcrFormState extends State<_OcrForm> {
     '舞蹈专业综合',
     '体育专业综合',
   ];
-  final List<String> _sources = ['微信', '抖音', '小红书', '地推', '转介绍', '老带新'];
+  final List<String> _sources = ['微信', '抖音', '小红书', '地推', '电话打入', '转介绍', '老带新'];
   final List<String> _classTypes = ['全程集训班', '寒假集训班', '周末走读班', '单科提分班'];
   final List<String> _presetTags = [
     '跨专业',
