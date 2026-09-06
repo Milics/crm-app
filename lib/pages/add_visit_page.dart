@@ -17,12 +17,31 @@ class _AddVisitPageState extends State<AddVisitPage> {
   VisitResult _visitResult = VisitResult.normal;
   final _contentCtrl = TextEditingController();
   final Set<String> _selectedConcerns = {};
+  
+  // 状态与意向（默认带过来当前线索原有的状态和意向）
+  ClueStatus _status = ClueStatus.following;
+  IntentLevel _intentLevel = IntentLevel.medium;
+  bool _initializedFromClue = false;
+
   // 下次回访时间配置
   bool _enableNextVisit = true;
   DateTime _nextVisitDate = DateTime.now().add(const Duration(days: 1));
   TimeOfDay _nextVisitTime = const TimeOfDay(hour: 14, minute: 30);
 
   final List<String> _concernOptions = ['学费', '基础', '住宿', '时间', '距离', '效果'];
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initializedFromClue) {
+      final clue = context.read<AppProvider>().getClueById(widget.clueId);
+      if (clue != null) {
+        _status = clue.status;
+        _intentLevel = clue.intentLevel;
+      }
+      _initializedFromClue = true;
+    }
+  }
 
   @override
   void dispose() {
@@ -61,7 +80,12 @@ class _AddVisitPageState extends State<AddVisitPage> {
       createTime: DateTime.now(),
     );
 
-    provider.addVisitLog(widget.clueId, log);
+    provider.addVisitLog(
+      widget.clueId,
+      log,
+      newStatus: _status,
+      newIntentLevel: _intentLevel,
+    );
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('回访记录已保存'), backgroundColor: Colors.green),
@@ -163,7 +187,23 @@ class _AddVisitPageState extends State<AddVisitPage> {
                 children: VisitResult.values.map((r) {
                   final isSelected = _visitResult == r;
                   return GestureDetector(
-                    onTap: () => setState(() => _visitResult = r),
+                    onTap: () {
+                      setState(() {
+                        _visitResult = r;
+                        if (r == VisitResult.intentUp) {
+                          _intentLevel = IntentLevel.high;
+                          _status = ClueStatus.invited;
+                        } else if (r == VisitResult.noIntent) {
+                          _status = ClueStatus.paused;
+                        } else if (r == VisitResult.trialBooked) {
+                          _status = ClueStatus.invited;
+                        } else {
+                          if (_status == ClueStatus.following) {
+                            _status = ClueStatus.contacted;
+                          }
+                        }
+                      });
+                    },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 8),
@@ -207,6 +247,136 @@ class _AddVisitPageState extends State<AddVisitPage> {
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.zero,
                 ),
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // 状态 & 意向（方便顾问在创建回访时直接查看并修改线索状态与意向）
+            _SectionCard(
+              title: '状态 & 意向',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '线索状态',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF757575)),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: ClueStatus.values.map((s) {
+                      final selected = _status == s;
+                      return GestureDetector(
+                        onTap: () => setState(() => _status = s),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? const Color(0xFF1976D2)
+                                : Colors.grey[100],
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: selected
+                                  ? const Color(0xFF1976D2)
+                                  : Colors.grey[300]!,
+                            ),
+                          ),
+                          child: Text(
+                            s.label,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: selected
+                                  ? Colors.white
+                                  : const Color(0xFF555555),
+                              fontWeight: selected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    '意向等级',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF757575)),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      ...IntentLevel.values
+                          .where((l) => l != IntentLevel.none)
+                          .map((l) {
+                        final selected = _intentLevel == l;
+                        return GestureDetector(
+                          onTap: () => setState(() => _intentLevel = l),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 7),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? const Color(0xFF1976D2)
+                                  : Colors.grey[100],
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: selected
+                                    ? const Color(0xFF1976D2)
+                                    : Colors.grey[300]!,
+                              ),
+                            ),
+                            child: Text(
+                              l.label,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: selected
+                                    ? Colors.white
+                                    : const Color(0xFF555555),
+                                fontWeight: selected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                      GestureDetector(
+                        onTap: () => setState(() => _intentLevel = IntentLevel.none),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: _intentLevel == IntentLevel.none
+                                ? const Color(0xFF1976D2)
+                                : Colors.grey[100],
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: _intentLevel == IntentLevel.none
+                                  ? const Color(0xFF1976D2)
+                                  : Colors.grey[300]!,
+                            ),
+                          ),
+                          child: Text(
+                            '未标记',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: _intentLevel == IntentLevel.none
+                                  ? Colors.white
+                                  : const Color(0xFF555555),
+                              fontWeight: _intentLevel == IntentLevel.none
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 14),

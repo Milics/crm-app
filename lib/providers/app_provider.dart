@@ -1391,18 +1391,31 @@ class AppProvider extends ChangeNotifier {
   }
 
   // 新增回访记录
-  void addVisitLog(String clueId, VisitLog log) {
+  void addVisitLog(
+    String clueId,
+    VisitLog log, {
+    ClueStatus? newStatus,
+    IntentLevel? newIntentLevel,
+  }) {
     final clue = getClueById(clueId);
     if (clue != null) {
       clue.visitLogs.insert(0, log);
       clue.nextVisitTime = log.nextVisitTime;
-      if (log.visitResult == VisitResult.intentUp) {
-        clue.status = ClueStatus.invited;
-        clue.intentLevel = IntentLevel.high;
-      } else if (log.visitResult == VisitResult.noIntent) {
-        clue.status = ClueStatus.paused;
+      if (newStatus != null) {
+        clue.status = newStatus;
       } else {
-        clue.status = ClueStatus.contacted;
+        if (log.visitResult == VisitResult.intentUp) {
+          clue.status = ClueStatus.invited;
+        } else if (log.visitResult == VisitResult.noIntent) {
+          clue.status = ClueStatus.paused;
+        } else {
+          clue.status = ClueStatus.contacted;
+        }
+      }
+      if (newIntentLevel != null) {
+        clue.intentLevel = newIntentLevel;
+      } else if (log.visitResult == VisitResult.intentUp) {
+        clue.intentLevel = IntentLevel.high;
       }
       notifyListeners();
       _saveClues(changedClue: clue);

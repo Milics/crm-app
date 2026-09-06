@@ -759,5 +759,48 @@ void main() {
       expect(allReset.length, 3);
     });
   });
+
+  group('【QA 专项测试 13】新增回访支持直接改变状态与意向等级', () {
+    test('13.1 addVisitLog 接收并更新 newStatus 与 newIntentLevel', () async {
+      SharedPreferences.setMockInitialValues({});
+      final provider = AppProvider();
+      while (!provider.isLoaded) {
+        await Future.delayed(const Duration(milliseconds: 10));
+      }
+
+      final now = DateTime.now();
+      final testClue = Clue(
+        id: 'c_visit_status_test',
+        wxNick: '回访测试学员',
+        status: ClueStatus.contacted,
+        intentLevel: IntentLevel.medium,
+        createTime: now,
+      );
+      provider.addClue(testClue);
+
+      // 新增回访并显式指定修改为「已试听」与「高意向」
+      final log = VisitLog(
+        id: 'v_log_001',
+        clueId: 'c_visit_status_test',
+        contactMethod: ContactMethod.wechat,
+        visitResult: VisitResult.normal,
+        visitContent: '学生今天准时参加了试听课，反馈良好',
+        createTime: now,
+      );
+
+      provider.addVisitLog(
+        'c_visit_status_test',
+        log,
+        newStatus: ClueStatus.attended,
+        newIntentLevel: IntentLevel.high,
+      );
+
+      final updated = provider.getClueById('c_visit_status_test')!;
+      expect(updated.visitLogs.length, 1);
+      expect(updated.status, ClueStatus.attended);
+      expect(updated.intentLevel, IntentLevel.high);
+    });
+  });
 }
+
 
