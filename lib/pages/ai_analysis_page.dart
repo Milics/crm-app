@@ -102,10 +102,20 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
       baseScore = 30;
     }
 
-    if (clue.intentLevel == IntentLevel.high) baseScore += 12;
-    if (clue.intentLevel == IntentLevel.medium) baseScore += 5;
-    if (clue.tags.contains('目标名校') || clue.tags.contains('二战升本')) baseScore += 6;
-    if (clue.tags.contains('价格敏感')) baseScore -= 5;
+    if (clue.intentLevel == IntentLevel.high) {
+      baseScore += 12;
+    }
+    if (clue.intentLevel == IntentLevel.medium) {
+      baseScore += 5;
+    }
+    if (clue.tags.contains('目标名校') ||
+        clue.tags.contains('目前公办') ||
+        clue.tags.contains('二战升本')) {
+      baseScore += 6;
+    }
+    if (clue.tags.contains('价格敏感')) {
+      baseScore -= 5;
+    }
     final score = baseScore.clamp(15, 99);
 
     final scoreLevel = score >= 80
@@ -142,6 +152,9 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
                   return '🔄 跨专业备考：对跨考政策与加试科目不熟悉，需提供精准跨考院校招生分析表。';
                 case '二战升本':
                   return '🎯 二战考生：心理压力大且目标明确，需强调往年高分通过率与针对性刷题集训。';
+                case '目标名校':
+                case '目前公办':
+                  return '🏫 专科公办/目标冲本：专科基础较好且学习自律性高，目标通常锁定优质公办本科，可重点推荐名师协议班与冲刺模考。';
                 case '住宿':
                 case '住宿需求':
                   return '🏠 住宿需求：关注吃住学一体化集训环境，需发送基地宿舍与食堂实拍图。';

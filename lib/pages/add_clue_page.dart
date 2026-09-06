@@ -106,15 +106,14 @@ class _ManualFormState extends State<_ManualForm> {
   ];
   final List<String> _sources = ['抖音', '小红书', '地推', '电话打入', '转介绍', '老带新', '其他'];
   final List<String> _classTypes = ['全程协议班', '全程非协议班', '网课班', '冲刺班'];
+  final _customTagCtrl = TextEditingController();
+
   final List<String> _presetTags = [
-    '跨专业',
     '价格敏感',
     '基础薄弱',
-    '目标名校',
-    '二战升本',
-    '在职备考',
+    '目前公办',
     '家长决策',
-    '住宿需求'
+    '住宿需求',
   ];
 
   @override
@@ -124,6 +123,7 @@ class _ManualFormState extends State<_ManualForm> {
     _phoneCtrl.dispose();
     _schoolCtrl.dispose();
     _gradeCtrl.dispose();
+    _customTagCtrl.dispose();
     super.dispose();
   }
 
@@ -282,6 +282,110 @@ class _ManualFormState extends State<_ManualForm> {
                 );
               }).toList(),
             ),
+            if (_selectedTags.any((t) => !_presetTags.contains(t))) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _selectedTags
+                    .where((t) => !_presetTags.contains(t))
+                    .map((t) {
+                  return Container(
+                    padding: const EdgeInsets.only(
+                        left: 10, right: 4, top: 2, bottom: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE3F2FD),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFF90CAF9)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          t,
+                          style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF1976D2),
+                              fontWeight: FontWeight.w500),
+                        ),
+                        const SizedBox(width: 2),
+                        GestureDetector(
+                          onTap: () => setState(() => _selectedTags.remove(t)),
+                          child: const Padding(
+                            padding: EdgeInsets.all(2),
+                            child: Icon(Icons.close,
+                                size: 14, color: Color(0xFF1976D2)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _customTagCtrl,
+                    decoration: InputDecoration(
+                      hintText: '输入自定义标签（如：考虑专转本）',
+                      hintStyle: const TextStyle(
+                          fontSize: 12, color: Color(0xFF9E9E9E)),
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
+                      filled: true,
+                      fillColor: const Color(0xFFF7F8FA),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide:
+                            const BorderSide(color: Color(0xFFDEE2E8)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide:
+                            const BorderSide(color: Color(0xFFDEE2E8)),
+                      ),
+                    ),
+                    onSubmitted: (val) {
+                      final text = val.trim();
+                      if (text.isNotEmpty && !_selectedTags.contains(text)) {
+                        setState(() {
+                          _selectedTags.add(text);
+                          _customTagCtrl.clear();
+                        });
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () {
+                    final text = _customTagCtrl.text.trim();
+                    if (text.isNotEmpty && !_selectedTags.contains(text)) {
+                      setState(() {
+                        _selectedTags.add(text);
+                        _customTagCtrl.clear();
+                      });
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1976D2),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    elevation: 0,
+                  ),
+                  child: const Text('添加',
+                      style: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
           ]),
           const SizedBox(height: 16),
           _buildSection('⏰ 下次回访提醒设置', [
@@ -419,6 +523,7 @@ class _ManualFormState extends State<_ManualForm> {
                 color: Color(0xFF333333))),
         const SizedBox(height: 10),
         Container(
+          width: double.infinity,
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: Colors.white,
@@ -527,7 +632,8 @@ class _OcrFormState extends State<_OcrForm> {
   String _source = '微信';
   String _classType = '全程协议班';
   final IntentLevel _intentLevel = IntentLevel.high;
-  final List<String> _selectedTags = ['跨专业', '价格敏感'];
+  final List<String> _selectedTags = ['价格敏感'];
+  final _customTagCtrl = TextEditingController();
 
   // 下次回访时间设置
   bool _enableNextVisit = true;
@@ -552,14 +658,11 @@ class _OcrFormState extends State<_OcrForm> {
   final List<String> _sources = ['微信', '抖音', '小红书', '地推', '电话打入', '转介绍', '老带新'];
   final List<String> _classTypes = ['全程协议班', '全程非协议班', '网课班', '冲刺班'];
   final List<String> _presetTags = [
-    '跨专业',
     '价格敏感',
     '基础薄弱',
-    '目标名校',
-    '二战升本',
-    '在职备考',
+    '目前公办',
     '家长决策',
-    '住宿需求'
+    '住宿需求',
   ];
 
   final ImagePicker _picker = ImagePicker();
@@ -572,6 +675,7 @@ class _OcrFormState extends State<_OcrForm> {
     _phoneCtrl.dispose();
     _schoolCtrl.dispose();
     _gradeCtrl.dispose();
+    _customTagCtrl.dispose();
     super.dispose();
   }
 
@@ -1264,6 +1368,112 @@ class _OcrFormState extends State<_OcrForm> {
                         ),
                       );
                     }).toList(),
+                  ),
+                  if (_selectedTags.any((t) => !_presetTags.contains(t))) ...[
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _selectedTags
+                          .where((t) => !_presetTags.contains(t))
+                          .map((t) {
+                        return Container(
+                          padding: const EdgeInsets.only(
+                              left: 10, right: 4, top: 2, bottom: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE3F2FD),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFF90CAF9)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                t,
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF1976D2),
+                                    fontWeight: FontWeight.w500),
+                              ),
+                              const SizedBox(width: 2),
+                              GestureDetector(
+                                onTap: () =>
+                                    setState(() => _selectedTags.remove(t)),
+                                child: const Padding(
+                                    padding: EdgeInsets.all(2),
+                                    child: Icon(Icons.close,
+                                        size: 14, color: Color(0xFF1976D2))),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _customTagCtrl,
+                          decoration: InputDecoration(
+                            hintText: '输入自定义标签（如：考虑专转本）',
+                            hintStyle: const TextStyle(
+                                fontSize: 12, color: Color(0xFF9E9E9E)),
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 8),
+                            filled: true,
+                            fillColor: const Color(0xFFF7F8FA),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide:
+                                  const BorderSide(color: Color(0xFFDEE2E8)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide:
+                                  const BorderSide(color: Color(0xFFDEE2E8)),
+                            ),
+                          ),
+                          onSubmitted: (val) {
+                            final text = val.trim();
+                            if (text.isNotEmpty &&
+                                !_selectedTags.contains(text)) {
+                              setState(() {
+                                _selectedTags.add(text);
+                                _customTagCtrl.clear();
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () {
+                          final text = _customTagCtrl.text.trim();
+                          if (text.isNotEmpty &&
+                              !_selectedTags.contains(text)) {
+                            setState(() {
+                              _selectedTags.add(text);
+                              _customTagCtrl.clear();
+                            });
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1976D2),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                          elevation: 0,
+                        ),
+                        child: const Text('添加',
+                            style: TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
                   ),
                 ],
               ),

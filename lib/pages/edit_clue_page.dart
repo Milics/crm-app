@@ -48,12 +48,9 @@ class _EditCluePageState extends State<EditCluePage> {
   ];
   final List<String> _classTypes = ['全程协议班', '全程非协议班', '网课班', '冲刺班'];
   final List<String> _presetTags = [
-    '跨专业',
     '价格敏感',
     '基础薄弱',
-    '目标名校',
-    '二战升本',
-    '在职备考',
+    '目前公办',
     '家长决策',
     '考虑竞品',
     '住宿需求',
