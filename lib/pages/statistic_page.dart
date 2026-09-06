@@ -144,6 +144,7 @@ class _StatisticPageState extends State<StatisticPage> {
                       _SectionTitle(title: '咨询师业绩排行'),
                       const SizedBox(height: 12),
                       _buildRankList(provider),
+                      const SizedBox(height: 100), // 留出底部闲鱼导航栏充足安全距离
                     ],
                   ),
                 ),

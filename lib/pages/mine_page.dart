@@ -172,7 +172,7 @@ class MinePage extends StatelessWidget {
                   '专升本招生 CRM  v1.0.0 (Release)',
                   style: TextStyle(color: Colors.grey, fontSize: 12),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 100), // 留出底部闲鱼导航栏充足安全距离
               ],
             ),
           );

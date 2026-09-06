@@ -331,7 +331,8 @@ class _ClueListPageState extends State<ClueListPage>
                       : (isTodoTab
                           ? ListView(
                               physics: const AlwaysScrollableScrollPhysics(),
-                              padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+                              padding:
+                                  const EdgeInsets.fromLTRB(12, 8, 12, 100),
                               children: [
                                 _TodayTaskCard(
                                   todayClues: todayClues,
@@ -405,7 +406,7 @@ class _ClueListPageState extends State<ClueListPage>
                           : ListView.builder(
                               physics: const AlwaysScrollableScrollPhysics(),
                               padding:
-                                  const EdgeInsets.fromLTRB(12, 8, 12, 16),
+                                  const EdgeInsets.fromLTRB(12, 8, 12, 100),
                               itemCount: clues.length,
                               itemBuilder: (context, index) {
                                 final clue = clues[index];
