@@ -347,6 +347,40 @@
         });
       }
     } catch(e) {}
+
+    // ══════════════════════════════════════════════════════════════
+    // 🛡️ iOS Safari PWA 虚拟视口与触控热区对齐校准器（彻底消除点击需要往上偏移的问题）
+    // ══════════════════════════════════════════════════════════════
+    function _resetViewportOffset() {
+      if (window.scrollY !== 0 || (document.body && document.body.scrollTop !== 0) || (document.documentElement && document.documentElement.scrollTop !== 0)) {
+        window.scrollTo(0, 0);
+        if (document.body) document.body.scrollTop = 0;
+        if (document.documentElement) document.documentElement.scrollTop = 0;
+      }
+    }
+
+    // 1. 当输入框失焦软键盘收起后，强制校正 HitTest 坐标系与视觉层严格重合
+    window.addEventListener('focusout', function() {
+      setTimeout(_resetViewportOffset, 60);
+      setTimeout(_resetViewportOffset, 200);
+    });
+
+    // 2. 监听 visualViewport 变动，自动归位
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', function() {
+        setTimeout(_resetViewportOffset, 50);
+      });
+      window.visualViewport.addEventListener('scroll', function() {
+        _resetViewportOffset();
+      });
+    }
+
+    // 3. 页面全局滚动兜底拦截
+    window.addEventListener('scroll', function() {
+      if (window.scrollY !== 0) {
+        window.scrollTo(0, 0);
+      }
+    }, { passive: true });
   </script>
 
   <script src="flutter_bootstrap.js" async></script>
