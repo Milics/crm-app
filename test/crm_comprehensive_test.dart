@@ -618,6 +618,14 @@ void main() {
       expect(pausedList.any((c) => c.id == 'c_paused_past'), true);
       expect(pausedList.any((c) => c.id == 'c_active_todo'), false);
       expect(pausedList.any((c) => c.id == 'c_active_overdue'), false);
+
+      // 检验 Tab 0：首页「全部」列表（严格排除已报名与暂搁置）
+      provider.setClueTabIndex(0);
+      final allList = provider.filteredClues;
+      expect(allList.any((c) => c.id == 'c_active_todo'), true);
+      expect(allList.any((c) => c.id == 'c_active_overdue'), true);
+      expect(allList.any((c) => c.id == 'c_paused_future'), false, reason: '首页全部列表必须排除暂搁置线索');
+      expect(allList.any((c) => c.id == 'c_paused_past'), false, reason: '首页全部列表必须排除暂搁置线索');
     });
   });
 

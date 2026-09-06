@@ -1066,7 +1066,11 @@ class AppProvider extends ChangeNotifier {
     }
     switch (_clueTabIndex) {
       case 0:
-        result = result.where((c) => c.status != ClueStatus.enrolled).toList();
+        result = result
+            .where((c) =>
+                c.status != ClueStatus.enrolled &&
+                c.status != ClueStatus.paused)
+            .toList();
         break;
       case 1:
         final todayStart = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
@@ -1148,8 +1152,12 @@ class AppProvider extends ChangeNotifier {
 
     // 4. 按Tab过滤与排序
     switch (_clueTabIndex) {
-      case 0: // 全部（排除已报名，优先按下次回访时间由近及远升序，无回访时间的按创建时间倒序）
-        result = result.where((c) => c.status != ClueStatus.enrolled).toList()
+      case 0: // 全部（排除已报名和暂搁置，优先按下次回访时间由近及远升序，无回访时间的按创建时间倒序）
+        result = result
+            .where((c) =>
+                c.status != ClueStatus.enrolled &&
+                c.status != ClueStatus.paused)
+            .toList()
           ..sort((a, b) {
             if (a.nextVisitTime != null && b.nextVisitTime != null) {
               return a.nextVisitTime!.compareTo(b.nextVisitTime!);

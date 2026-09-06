@@ -159,15 +159,17 @@ class _ClueListPageState extends State<ClueListPage>
         ],
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
           indicatorColor: Colors.white,
           indicatorWeight: 3,
-          labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+          labelPadding: const EdgeInsets.symmetric(horizontal: 14),
           labelStyle: const TextStyle(
-              fontSize: 13, fontWeight: FontWeight.bold),
+              fontSize: 14, fontWeight: FontWeight.bold),
           unselectedLabelStyle: const TextStyle(
-              fontSize: 13, fontWeight: FontWeight.normal),
+              fontSize: 14, fontWeight: FontWeight.normal),
           tabs: _tabs.map((t) => Tab(text: t)).toList(),
         ),
       ),
