@@ -46,7 +46,7 @@ class _EditCluePageState extends State<EditCluePage> {
     '舞蹈专业综合',
     '体育专业综合',
   ];
-  final List<String> _classTypes = ['全程协议班', '全程非协议班', '网课班', '冲刺班'];
+  final List<String> _classTypes = ['全程协议班', '全程非协议班', '单科班', '网课班', '冲刺班'];
   final List<String> _presetTags = [
     '价格敏感',
     '基础薄弱',

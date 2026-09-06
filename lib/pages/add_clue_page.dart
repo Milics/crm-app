@@ -105,7 +105,7 @@ class _ManualFormState extends State<_ManualForm> {
     '体育专业综合',
   ];
   final List<String> _sources = ['抖音', '小红书', '地推', '电话打入', '转介绍', '老带新', '其他'];
-  final List<String> _classTypes = ['全程协议班', '全程非协议班', '网课班', '冲刺班'];
+  final List<String> _classTypes = ['全程协议班', '全程非协议班', '单科班', '网课班', '冲刺班'];
   final _customTagCtrl = TextEditingController();
 
   final List<String> _presetTags = [
@@ -656,7 +656,7 @@ class _OcrFormState extends State<_OcrForm> {
     '体育专业综合',
   ];
   final List<String> _sources = ['微信', '抖音', '小红书', '地推', '电话打入', '转介绍', '老带新'];
-  final List<String> _classTypes = ['全程协议班', '全程非协议班', '网课班', '冲刺班'];
+  final List<String> _classTypes = ['全程协议班', '全程非协议班', '单科班', '网课班', '冲刺班'];
   final List<String> _presetTags = [
     '价格敏感',
     '基础薄弱',

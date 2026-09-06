@@ -33,6 +33,10 @@ class _EnrollPageState extends State<EnrollPage> {
           icon: Icons.school_rounded,
           desc: '线下全科系统面授，高师带学'),
       const _ClassType(
+          name: '单科班',
+          icon: Icons.star_outline_rounded,
+          desc: '针对薄弱单科突破，专项拔高提分'),
+      const _ClassType(
           name: '网课班',
           icon: Icons.laptop_mac_rounded,
           desc: '线上网课随心学，时间灵活自由'),
