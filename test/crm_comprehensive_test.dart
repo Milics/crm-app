@@ -620,4 +620,83 @@ void main() {
       expect(pausedList.any((c) => c.id == 'c_active_overdue'), false);
     });
   });
+
+  group('【QA 专项测试 11】已报名学员报名详情改造、预交金额持久化与修改验证', () {
+    test('11.1 Clue模型支持enrollAmount预交金额的JSON序列化与反序列化（兼容整数/浮点/空值）', () {
+      final clue = Clue(
+        id: 'c_enrolled_01',
+        wxNick: '报名学员大成',
+        classType: '全程集训班',
+        status: ClueStatus.enrolled,
+        enrollAmount: 3500.0,
+        remark: '已协议分期首付',
+        createTime: DateTime.now(),
+      );
+
+      final jsonMap = clue.toJson();
+      expect(jsonMap['enrollAmount'], 3500.0);
+      expect(jsonMap['classType'], '全程集训班');
+
+      final fromJsonClue = Clue.fromJson(jsonMap);
+      expect(fromJsonClue.enrollAmount, 3500.0);
+      expect(fromJsonClue.classType, '全程集训班');
+      expect(fromJsonClue.remark, '已协议分期首付');
+
+      // 测试兼容整数字段解析
+      final intJsonMap = Map<String, dynamic>.from(jsonMap);
+      intJsonMap['enrollAmount'] = 5000;
+      final fromIntClue = Clue.fromJson(intJsonMap);
+      expect(fromIntClue.enrollAmount, 5000.0);
+
+      // 测试空值兼容性
+      intJsonMap.remove('enrollAmount');
+      final nullClue = Clue.fromJson(intJsonMap);
+      expect(nullClue.enrollAmount, isNull);
+    });
+
+    test('11.2 AppProvider 支持直接转为报名并记录预交金额，且支持 updateEnrollInfo 更新报名班型、金额及备注', () async {
+      SharedPreferences.setMockInitialValues({});
+      final provider = AppProvider();
+      provider.initMockData();
+
+      final now = DateTime.now();
+      final testClue = Clue(
+        id: 'c_flow_test',
+        wxNick: '测试流转学员',
+        status: ClueStatus.contacted,
+        ownerName: '测试顾问',
+        createTime: now,
+      );
+      provider.addClue(testClue);
+
+      // 1. 初次转为报名（全程集训班，预交2000元，初始备注）
+      provider.enrollClue(
+        'c_flow_test',
+        '全程集训班',
+        '初次报名协议',
+        enrollAmount: 2000.0,
+      );
+
+      final enrolled = provider.getClueById('c_flow_test')!;
+      expect(enrolled.status, ClueStatus.enrolled);
+      expect(enrolled.classType, '全程集训班');
+      expect(enrolled.enrollAmount, 2000.0);
+      expect(enrolled.remark, '初次报名协议');
+      expect(enrolled.nextVisitTime, isNull);
+
+      // 2. 学员补齐或更换班型：修改报名详情（转为寒暑假集训班，补齐至3800元，更新备注）
+      provider.updateEnrollInfo(
+        'c_flow_test',
+        '寒暑假集训班',
+        3800.0,
+        '已补齐尾款并确认食宿安排',
+      );
+
+      final updated = provider.getClueById('c_flow_test')!;
+      expect(updated.status, ClueStatus.enrolled);
+      expect(updated.classType, '寒暑假集训班');
+      expect(updated.enrollAmount, 3800.0);
+      expect(updated.remark, '已补齐尾款并确认食宿安排');
+    });
+  });
 }

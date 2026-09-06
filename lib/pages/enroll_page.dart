@@ -26,6 +26,27 @@ class _EnrollPageState extends State<EnrollPage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // 自动回显已有报班类型
+    final foundIndex =
+        _classTypes.indexWhere((ct) => ct.name == widget.clue.classType);
+    if (foundIndex != -1) {
+      _selectedClassType = foundIndex;
+    }
+    // 自动回显预交金额
+    if (widget.clue.enrollAmount != null) {
+      final amt = widget.clue.enrollAmount!;
+      _amountCtrl.text =
+          (amt % 1 == 0) ? amt.toInt().toString() : amt.toString();
+    }
+    // 自动回显备注信息
+    if (widget.clue.remark.isNotEmpty) {
+      _remarkCtrl.text = widget.clue.remark;
+    }
+  }
+
+  @override
   void dispose() {
     _amountCtrl.dispose();
     _remarkCtrl.dispose();
@@ -33,7 +54,19 @@ class _EnrollPageState extends State<EnrollPage> {
   }
 
   Future<void> _confirmEnroll() async {
-    if (_amountCtrl.text.isEmpty) {
+    final isEnrolled = widget.clue.status == ClueStatus.enrolled;
+    final amountText = _amountCtrl.text.trim();
+    double? amount;
+    if (amountText.isNotEmpty) {
+      amount = double.tryParse(amountText);
+      if (amount == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('请输入合法的预交金额数值'), backgroundColor: Colors.red),
+        );
+        return;
+      }
+    } else if (!isEnrolled) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('请填写预交金额'), backgroundColor: Colors.red),
       );
@@ -41,23 +74,36 @@ class _EnrollPageState extends State<EnrollPage> {
     }
 
     setState(() => _loading = true);
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 400));
 
     if (!mounted) return;
     final provider = context.read<AppProvider>();
-    provider.enrollClue(
-      widget.clue.id,
-      _classTypes[_selectedClassType].name,
-      _remarkCtrl.text.trim(),
-    );
+    if (isEnrolled) {
+      provider.updateEnrollInfo(
+        widget.clue.id,
+        _classTypes[_selectedClassType].name,
+        amount,
+        _remarkCtrl.text.trim(),
+      );
+    } else {
+      provider.enrollClue(
+        widget.clue.id,
+        _classTypes[_selectedClassType].name,
+        _remarkCtrl.text.trim(),
+        enrollAmount: amount,
+      );
+    }
     setState(() => _loading = false);
 
     if (!mounted) return;
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('🎉 ${widget.clue.wxNick} 已成功转为报名！'),
-        backgroundColor: const Color(0xFFE65100),
+        content: Text(isEnrolled
+            ? '✅ ${widget.clue.wxNick} 的报名信息已成功更新！'
+            : '🎉 ${widget.clue.wxNick} 已成功转为报名！'),
+        backgroundColor:
+            isEnrolled ? const Color(0xFF2E7D32) : const Color(0xFFE65100),
         duration: const Duration(seconds: 3),
       ),
     );
@@ -66,10 +112,14 @@ class _EnrollPageState extends State<EnrollPage> {
   @override
   Widget build(BuildContext context) {
     final clue = widget.clue;
+    final isEnrolled = clue.status == ClueStatus.enrolled;
+    final themeColor =
+        isEnrolled ? const Color(0xFF2E7D32) : const Color(0xFFE65100);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('转为报名'),
-        backgroundColor: const Color(0xFFE65100),
+        title: Text(isEnrolled ? '报名详情' : '转为报名'),
+        backgroundColor: themeColor,
         foregroundColor: Colors.white,
       ),
       body: Column(
@@ -84,8 +134,10 @@ class _EnrollPageState extends State<EnrollPage> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFE65100), Color(0xFFFF8F00)],
+                      gradient: LinearGradient(
+                        colors: isEnrolled
+                            ? const [Color(0xFF2E7D32), Color(0xFF43A047)]
+                            : const [Color(0xFFE65100), Color(0xFFFF8F00)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -163,20 +215,19 @@ class _EnrollPageState extends State<EnrollPage> {
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? const Color(0xFFFFF3E0)
+                              ? themeColor.withValues(alpha: 0.1)
                               : Colors.white,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: isSelected
-                                ? const Color(0xFFE65100)
+                                ? themeColor
                                 : Colors.grey[200]!,
                             width: isSelected ? 2 : 1,
                           ),
                           boxShadow: isSelected
                               ? [
                                   BoxShadow(
-                                    color: const Color(0xFFE65100)
-                                        .withValues(alpha: 0.15),
+                                    color: themeColor.withValues(alpha: 0.15),
                                     blurRadius: 8,
                                     offset: const Offset(0, 3),
                                   )
@@ -189,14 +240,13 @@ class _EnrollPageState extends State<EnrollPage> {
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? const Color(0xFFE65100)
-                                        .withValues(alpha: 0.15)
+                                    ? themeColor.withValues(alpha: 0.15)
                                     : Colors.grey[100],
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Icon(ct.icon,
                                   color: isSelected
-                                      ? const Color(0xFFE65100)
+                                      ? themeColor
                                       : Colors.grey[400],
                                   size: 20),
                             ),
@@ -211,7 +261,7 @@ class _EnrollPageState extends State<EnrollPage> {
                                       fontWeight: FontWeight.bold,
                                       fontSize: 15,
                                       color: isSelected
-                                          ? const Color(0xFFE65100)
+                                          ? themeColor
                                           : Colors.black87,
                                     ),
                                   ),
@@ -224,8 +274,8 @@ class _EnrollPageState extends State<EnrollPage> {
                               ),
                             ),
                             if (isSelected)
-                              const Icon(Icons.check_circle,
-                                  color: Color(0xFFE65100)),
+                              Icon(Icons.check_circle,
+                                  color: themeColor),
                           ],
                         ),
                       ),
@@ -246,10 +296,10 @@ class _EnrollPageState extends State<EnrollPage> {
                     ),
                     child: Row(
                       children: [
-                        const Text('¥',
+                        Text('¥',
                             style: TextStyle(
                                 fontSize: 20,
-                                color: Color(0xFFE65100),
+                                color: themeColor,
                                 fontWeight: FontWeight.bold)),
                         const SizedBox(width: 8),
                         Expanded(
@@ -297,19 +347,30 @@ class _EnrollPageState extends State<EnrollPage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.orange[50],
+                      color: isEnrolled ? Colors.green[50] : Colors.orange[50],
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(Icons.warning_amber_rounded,
-                            color: Colors.orange, size: 16),
-                        SizedBox(width: 8),
+                        Icon(
+                            isEnrolled
+                                ? Icons.verified_user_outlined
+                                : Icons.warning_amber_rounded,
+                            color: isEnrolled
+                                ? const Color(0xFF2E7D32)
+                                : Colors.orange,
+                            size: 16),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            '确认后，该线索状态将更新为"已报名"，请核实信息无误后再提交。',
-                            style:
-                                TextStyle(color: Colors.orange, fontSize: 12),
+                            isEnrolled
+                                ? '该学员已成功报名，如班型、预交金额或特殊协议备注有变动，可直接修改并保存更新。'
+                                : '确认后，该线索状态将更新为"已报名"，请核实信息无误后再提交。',
+                            style: TextStyle(
+                                color: isEnrolled
+                                    ? const Color(0xFF2E7D32)
+                                    : Colors.orange[800],
+                                fontSize: 12),
                           ),
                         ),
                       ],
@@ -338,7 +399,7 @@ class _EnrollPageState extends State<EnrollPage> {
               child: ElevatedButton(
                 onPressed: _loading ? null : _confirmEnroll,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFE65100),
+                  backgroundColor: themeColor,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -351,8 +412,8 @@ class _EnrollPageState extends State<EnrollPage> {
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white),
                       )
-                    : const Text('确认转为报名',
-                        style: TextStyle(
+                    : Text(isEnrolled ? '保存修改' : '确认转为报名',
+                        style: const TextStyle(
                             fontSize: 17, fontWeight: FontWeight.bold)),
               ),
             ),

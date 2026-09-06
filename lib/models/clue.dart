@@ -67,6 +67,7 @@ class Clue {
   String ownerName; // 归属老师姓名
   String? aiAnalysisReport; // 最新保存的 AI 大模型深度分析报告
   DateTime? aiAnalysisTime; // 最新分析生成时间
+  double? enrollAmount; // 报名预交金额（元）
 
   Clue({
     required this.id,
@@ -89,6 +90,7 @@ class Clue {
     this.ownerName = '',
     this.aiAnalysisReport,
     this.aiAnalysisTime,
+    this.enrollAmount,
   })  : visitLogs = visitLogs ?? [],
         chatRecords = chatRecords ?? [],
         tags = tags ?? [];
@@ -114,6 +116,7 @@ class Clue {
         'ownerName': ownerName,
         'aiAnalysisReport': aiAnalysisReport,
         'aiAnalysisTime': aiAnalysisTime?.toIso8601String(),
+        'enrollAmount': enrollAmount,
       };
 
   factory Clue.fromJson(Map<String, dynamic> json) => Clue(
@@ -152,6 +155,11 @@ class Clue {
         ownerName: json['ownerName'] ?? '',
         aiAnalysisReport: json['aiAnalysisReport'],
         aiAnalysisTime: _safeParseDatetime(json['aiAnalysisTime']),
+        enrollAmount: json['enrollAmount'] != null
+            ? (json['enrollAmount'] is num
+                ? (json['enrollAmount'] as num).toDouble()
+                : double.tryParse(json['enrollAmount'].toString()))
+            : null,
       );
 
   String get statusText {

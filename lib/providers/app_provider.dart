@@ -1364,13 +1364,28 @@ class AppProvider extends ChangeNotifier {
   }
 
   // 转为报名
-  void enrollClue(String clueId, String classType, String remark) {
+  void enrollClue(String clueId, String classType, String remark, {double? enrollAmount}) {
     final clue = getClueById(clueId);
     if (clue != null) {
       clue.status = ClueStatus.enrolled;
       clue.classType = classType;
       clue.remark = remark;
+      if (enrollAmount != null) {
+        clue.enrollAmount = enrollAmount;
+      }
       clue.nextVisitTime = null;
+      notifyListeners();
+      _saveClues(changedClue: clue);
+    }
+  }
+
+  // 修改报名详情信息（已报名学员更新班型、金额及备注）
+  void updateEnrollInfo(String clueId, String classType, double? enrollAmount, String remark) {
+    final clue = getClueById(clueId);
+    if (clue != null) {
+      clue.classType = classType;
+      clue.enrollAmount = enrollAmount;
+      clue.remark = remark;
       notifyListeners();
       _saveClues(changedClue: clue);
     }

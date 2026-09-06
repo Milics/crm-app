@@ -33,7 +33,7 @@ class ClueDetailPage extends StatelessWidget {
         return Scaffold(
           backgroundColor: const Color(0xFFF5F7FA),
           appBar: AppBar(
-            title: const Text('线索详情'),
+            title: Text(clue.status == ClueStatus.enrolled ? '报名详情' : '线索详情'),
             actions: [
               IconButton(
                 icon: const Icon(Icons.edit_outlined),
@@ -234,8 +234,14 @@ class _HeaderCard extends StatelessWidget {
                     child: Padding(
                       padding: const EdgeInsets.only(left: 12),
                       child: _InfoChip(
-                        label: '意向班型',
-                        value: clue.classType.isEmpty ? '未填写' : clue.classType,
+                        label: clue.status == ClueStatus.enrolled
+                            ? '已报班型'
+                            : '意向班型',
+                        value: clue.classType.isEmpty
+                            ? '未填写'
+                            : (clue.enrollAmount != null
+                                ? '${clue.classType} (¥${clue.enrollAmount! % 1 == 0 ? clue.enrollAmount!.toInt() : clue.enrollAmount})'
+                                : clue.classType),
                         enableCopy: false,
                       ),
                     ),
@@ -701,9 +707,13 @@ class _ActionButtons extends StatelessWidget {
             ),
           ),
           _ActionBtn(
-            icon: Icons.how_to_reg_outlined,
-            label: '转为报名',
-            color: const Color(0xFFE65100),
+            icon: clue.status == ClueStatus.enrolled
+                ? Icons.assignment_turned_in_outlined
+                : Icons.how_to_reg_outlined,
+            label: clue.status == ClueStatus.enrolled ? '报名详情' : '转为报名',
+            color: clue.status == ClueStatus.enrolled
+                ? const Color(0xFF2E7D32)
+                : const Color(0xFFE65100),
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
