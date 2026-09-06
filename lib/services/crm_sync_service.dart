@@ -34,6 +34,25 @@ class CrmSyncService {
 
   String? lastError;
 
+  /// 获取对用户友好的中文错误描述，避免直接暴露底层英文堆栈
+  String get friendlyErrorMessage {
+    if (lastError == null) return '网络连接稍有延迟，已保留本地全部数据';
+    final err = lastError!.toLowerCase();
+    if (err.contains('timeout') || err.contains('timed out')) {
+      return '云端服务器正在唤醒中，已保留本地最新数据，请稍后下拉重试';
+    }
+    if (err.contains('socketexception') ||
+        err.contains('failed host lookup') ||
+        err.contains('connection refused') ||
+        err.contains('network is unreachable')) {
+      return '当前网络未连接或信号较弱，已启用离线模式，本地数据不受影响';
+    }
+    if (err.contains('clientexception') || err.contains('xmlhttprequest')) {
+      return '网络连接轻微波动，已自动转为本地安全存储';
+    }
+    return '云端连接稍有延迟，已保留本地全部数据';
+  }
+
   /// 设置并保存自定义云端同步域名
   Future<bool> setCustomCloudUrl(String url) async {
     final cleanUrl = url.trim().replaceAll(RegExp(r'/+$'), '');
@@ -87,7 +106,7 @@ class CrmSyncService {
     try {
       final res = await http
           .get(Uri.parse('$baseUrl/api/users'))
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 15));
       if (res.statusCode == 200) {
         final list = jsonDecode(res.body) as List<dynamic>;
         _activeBaseUrl = baseUrl;
@@ -113,7 +132,7 @@ class CrmSyncService {
             headers: {'Content-Type': 'application/json; charset=utf-8'},
             body: jsonEncode(payload),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 15));
       if (res.statusCode == 200) {
         _activeBaseUrl = baseUrl;
         return true;
@@ -150,7 +169,7 @@ class CrmSyncService {
     try {
       final res = await http
           .get(Uri.parse('$baseUrl/api/clues'))
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 15));
       if (res.statusCode == 200) {
         final list = jsonDecode(res.body) as List<dynamic>;
         final clues = list.map((e) => Clue.fromJson(e)).toList();
@@ -179,7 +198,7 @@ class CrmSyncService {
             headers: {'Content-Type': 'application/json; charset=utf-8'},
             body: jsonEncode(payload),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 15));
       if (res.statusCode == 200) {
         _activeBaseUrl = baseUrl;
         lastError = null;

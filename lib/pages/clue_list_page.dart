@@ -212,10 +212,9 @@ class _ClueListPageState extends State<ClueListPage>
             onRefresh: () async {
               final success = await provider.refreshClues();
               if (context.mounted) {
-                final err = CrmSyncService().lastError;
                 final msg = success
                     ? '☁️ 已从云端同步最新数据'
-                    : (err != null ? '⚠️ 同步失败: $err' : '⚠️ 同步失败，请检查网络');
+                    : '⚠️ ${CrmSyncService().friendlyErrorMessage}';
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(msg),

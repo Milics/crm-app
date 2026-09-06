@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/app_provider.dart';
 import '../models/clue.dart';
+import '../services/crm_sync_service.dart';
 import 'clue_detail_page.dart';
 
 /// 待回访列表页
@@ -24,7 +25,9 @@ class TodoVisitPage extends StatelessWidget {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(success ? '☁️ 已从云端同步最新数据' : '⚠️ 同步失败，请检查网络'),
+                      content: Text(success
+                          ? '☁️ 已从云端同步最新数据'
+                          : '⚠️ ${CrmSyncService().friendlyErrorMessage}'),
                       duration: const Duration(seconds: 2),
                       backgroundColor: success ? Colors.green : Colors.orange,
                     ),
@@ -73,15 +76,17 @@ class TodoVisitPage extends StatelessWidget {
           return RefreshIndicator(
             onRefresh: () async {
               final success = await provider.refreshClues();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(success ? '☁️ 已从云端同步最新数据' : '⚠️ 同步失败，请检查网络'),
-                    duration: const Duration(seconds: 2),
-                    backgroundColor: success ? Colors.green : Colors.orange,
-                  ),
-                );
-              }
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(success
+                          ? '☁️ 已从云端同步最新数据'
+                          : '⚠️ ${CrmSyncService().friendlyErrorMessage}'),
+                      duration: const Duration(seconds: 2),
+                      backgroundColor: success ? Colors.green : Colors.orange,
+                    ),
+                  );
+                }
             },
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
