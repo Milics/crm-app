@@ -1009,7 +1009,7 @@ class AppProvider extends ChangeNotifier {
     '已邀约',
     '已试听',
     '已报名',
-    '无效线索'
+    '暂搁置'
   ];
 
   /// 获取当前所有线索中使用过的所有标签（去重）
@@ -1073,6 +1073,7 @@ class AppProvider extends ChangeNotifier {
         result = result
             .where((c) =>
                 c.status != ClueStatus.enrolled &&
+                c.status != ClueStatus.paused &&
                 c.nextVisitTime != null &&
                 !c.nextVisitTime!.isBefore(todayStart))
             .toList();
@@ -1080,7 +1081,7 @@ class AppProvider extends ChangeNotifier {
       case 2:
         final now = DateTime.now();
         result = result.where((c) {
-          if (c.status == ClueStatus.enrolled || c.nextVisitTime == null) return false;
+          if (c.status == ClueStatus.enrolled || c.status == ClueStatus.paused || c.nextVisitTime == null) return false;
           return c.nextVisitTime!.isBefore(now);
         }).toList();
         break;
@@ -1089,6 +1090,9 @@ class AppProvider extends ChangeNotifier {
         break;
       case 4:
         result = result.where((c) => c.status == ClueStatus.enrolled).toList();
+        break;
+      case 5: // 暂搁置
+        result = result.where((c) => c.status == ClueStatus.paused).toList();
         break;
     }
     return result;
@@ -1164,6 +1168,7 @@ class AppProvider extends ChangeNotifier {
         result = result
             .where((c) =>
                 c.status != ClueStatus.enrolled &&
+                c.status != ClueStatus.paused &&
                 c.nextVisitTime != null &&
                 !c.nextVisitTime!.isBefore(todayStart))
             .toList()
@@ -1175,6 +1180,7 @@ class AppProvider extends ChangeNotifier {
         result = result
             .where((c) =>
                 c.status != ClueStatus.enrolled &&
+                c.status != ClueStatus.paused &&
                 c.nextVisitTime != null &&
                 c.nextVisitTime!.isBefore(now))
             .toList()
@@ -1194,14 +1200,26 @@ class AppProvider extends ChangeNotifier {
             .toList()
           ..sort((a, b) => b.createTime.compareTo(a.createTime));
         break;
+
+      case 5: // 暂搁置（按创建时间倒序）
+        result = result
+            .where((c) => c.status == ClueStatus.paused)
+            .toList()
+          ..sort((a, b) => b.createTime.compareTo(a.createTime));
+        break;
     }
 
     return result;
   }
 
-  // 获取待回访线索列表（有下次回访时间的，按权限隔离）
+  // 获取待回访线索列表（有下次回访时间的，排除已报名和暂搁置，按权限隔离）
   List<Clue> get todoClues {
-    List<Clue> list = _clues.where((c) => c.nextVisitTime != null).toList();
+    List<Clue> list = _clues
+        .where((c) =>
+            c.nextVisitTime != null &&
+            c.status != ClueStatus.enrolled &&
+            c.status != ClueStatus.paused)
+        .toList();
 
     if (!canViewAllClues) {
       list = list.where((c) =>

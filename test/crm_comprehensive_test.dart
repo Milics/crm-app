@@ -512,4 +512,112 @@ void main() {
       expect(provider.myPrivateTextMaterials.any((m) => m.id == 'tm_admin_pub_001'), false);
     });
   });
+
+  group('【QA 专项测试 10】暂搁置 (ClueStatus.paused) 隔离与专属 Tab 机制校验', () {
+    test('10.1 状态枚举与文本映射统一：Clue.statusText 与 ClueStatusExt.label 均映射为「暂搁置」', () {
+      final pausedClue = Clue(
+        id: 'c_paused_01',
+        wxNick: '搁置学员小明',
+        status: ClueStatus.paused,
+        createTime: DateTime.now(),
+      );
+      expect(pausedClue.statusText, '暂搁置');
+      expect(ClueStatus.paused.label, '暂搁置');
+      expect(AppProvider.statusFilters.contains('暂搁置'), true);
+      expect(AppProvider.statusFilters.contains('无效线索'), false);
+    });
+
+    test('10.2 待回访(Tab 1)与已逾期(Tab 2)严格排除暂搁置线索，即使存在回访时间也不打扰', () async {
+      SharedPreferences.setMockInitialValues({});
+      final provider = AppProvider();
+      provider.initMockData();
+
+      final testUser = AppUser(
+        id: 'usr_test',
+        username: 'test_advisor',
+        password: '123',
+        name: '测试顾问',
+        role: UserRole.advisor,
+      );
+      provider.setCurrentUserForTesting(testUser);
+
+      final now = DateTime.now();
+      final todayStart = DateTime(now.year, now.month, now.day);
+
+      // 1. 正常的待回访线索（今天下午）
+      final activeTodoClue = Clue(
+        id: 'c_active_todo',
+        wxNick: '正常待回访',
+        status: ClueStatus.following,
+        ownerName: '测试顾问',
+        createTime: now,
+        nextVisitTime: todayStart.add(const Duration(hours: 15)),
+      );
+
+      // 2. 正常的逾期线索（昨天）
+      final activeOverdueClue = Clue(
+        id: 'c_active_overdue',
+        wxNick: '正常已逾期',
+        status: ClueStatus.contacted,
+        ownerName: '测试顾问',
+        createTime: now.subtract(const Duration(days: 1)),
+        nextVisitTime: todayStart.subtract(const Duration(hours: 5)),
+      );
+
+      // 3. 暂搁置线索 A（原回访时间为未来，但已标记暂搁置）
+      final pausedFutureClue = Clue(
+        id: 'c_paused_future',
+        wxNick: '暂搁置学员未来的',
+        status: ClueStatus.paused,
+        ownerName: '测试顾问',
+        createTime: now.subtract(const Duration(hours: 3)),
+        nextVisitTime: todayStart.add(const Duration(days: 2)),
+      );
+
+      // 4. 暂搁置线索 B（原回访时间已过去，但已标记暂搁置）
+      final pausedPastClue = Clue(
+        id: 'c_paused_past',
+        wxNick: '暂搁置学员过去的',
+        status: ClueStatus.paused,
+        ownerName: '测试顾问',
+        createTime: now.subtract(const Duration(hours: 5)),
+        nextVisitTime: todayStart.subtract(const Duration(days: 3)),
+      );
+
+      // 添加到 provider
+      provider.addClue(activeTodoClue);
+      provider.addClue(activeOverdueClue);
+      provider.addClue(pausedFutureClue);
+      provider.addClue(pausedPastClue);
+
+      // 检验 Tab 1：待回访
+      provider.setClueTabIndex(1);
+      final todoList = provider.filteredClues;
+      expect(todoList.any((c) => c.id == 'c_active_todo'), true);
+      expect(todoList.any((c) => c.id == 'c_paused_future'), false, reason: '暂搁置客户绝不能出现在待回访列表');
+      expect(todoList.any((c) => c.id == 'c_paused_past'), false);
+
+      // 检验 Tab 2：已逾期
+      provider.setClueTabIndex(2);
+      final overdueList = provider.filteredClues;
+      expect(overdueList.any((c) => c.id == 'c_active_overdue'), true);
+      expect(overdueList.any((c) => c.id == 'c_paused_past'), false, reason: '暂搁置客户绝不能出现在已逾期列表');
+      expect(overdueList.any((c) => c.id == 'c_paused_future'), false);
+
+      // 检验待办任务列表 todoClues（工作台快捷入口）
+      final todoCluesList = provider.todoClues;
+      expect(todoCluesList.any((c) => c.id == 'c_active_todo'), true);
+      expect(todoCluesList.any((c) => c.id == 'c_active_overdue'), true);
+      expect(todoCluesList.any((c) => c.id == 'c_paused_future'), false, reason: 'todoClues中必须排除暂搁置客户');
+      expect(todoCluesList.any((c) => c.id == 'c_paused_past'), false, reason: 'todoClues中必须排除暂搁置客户');
+
+      // 检验 Tab 5：独立「暂搁置」池
+      provider.setClueTabIndex(5);
+      final pausedList = provider.filteredClues;
+      expect(pausedList.any((c) => c.id == 'c_paused_future'), true);
+      expect(pausedList.any((c) => c.id == 'c_paused_past'), true);
+      expect(pausedList.any((c) => c.id == 'c_active_todo'), false);
+      expect(pausedList.any((c) => c.id == 'c_active_overdue'), false);
+    });
+  });
 }

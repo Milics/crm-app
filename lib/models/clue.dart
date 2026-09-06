@@ -167,7 +167,7 @@ class Clue {
       case ClueStatus.enrolled:
         return '已报名';
       case ClueStatus.paused:
-        return '无效线索';
+        return '暂搁置';
     }
   }
 

@@ -21,7 +21,7 @@ class _ClueListPageState extends State<ClueListPage>
   final _searchCtrl = TextEditingController();
   bool _isSearching = false;
 
-  final List<String> _tabs = ['全部', '待回访', '已逾期', '已试听', '已报名'];
+  final List<String> _tabs = ['全部', '待回访', '已逾期', '已试听', '已报名', '暂搁置'];
 
   @override
   void initState() {
@@ -163,8 +163,11 @@ class _ClueListPageState extends State<ClueListPage>
           unselectedLabelColor: Colors.white70,
           indicatorColor: Colors.white,
           indicatorWeight: 3,
+          labelPadding: const EdgeInsets.symmetric(horizontal: 4),
           labelStyle: const TextStyle(
-              fontSize: 14, fontWeight: FontWeight.bold),
+              fontSize: 13, fontWeight: FontWeight.bold),
+          unselectedLabelStyle: const TextStyle(
+              fontSize: 13, fontWeight: FontWeight.normal),
           tabs: _tabs.map((t) => Tab(text: t)).toList(),
         ),
       ),
@@ -172,6 +175,7 @@ class _ClueListPageState extends State<ClueListPage>
         builder: (context, provider, _) {
           final clues = provider.filteredClues;
           final isEnrolledTab = _tabController.index == 4;
+          final isPausedTab = _tabController.index == 5;
           final isTodoTab = _tabController.index == 1;
           final keyword = provider.searchKeyword.trim();
 
@@ -261,7 +265,7 @@ class _ClueListPageState extends State<ClueListPage>
                   baseClues: provider.baseFilteredClues,
                   selectedFilter: provider.selectedFilter,
                   onSelect: (filter) => provider.setSelectedFilter(filter),
-                  isOnlyIntent: provider.clueTabIndex == 3,
+                  isOnlyIntent: provider.clueTabIndex >= 3,
                 ),
                 Expanded(
                   child: clues.isEmpty && !isTodoTab
@@ -280,7 +284,9 @@ class _ClueListPageState extends State<ClueListPage>
                                         ? Icons.search_off_outlined
                                         : (isEnrolledTab
                                             ? Icons.school_outlined
-                                            : Icons.inbox_outlined),
+                                            : (isPausedTab
+                                                ? Icons.pause_circle_outline
+                                                : Icons.inbox_outlined)),
                                     size: 60,
                                     color: Colors.grey[300],
                                   ),
@@ -292,7 +298,9 @@ class _ClueListPageState extends State<ClueListPage>
                                             ? '暂无「${provider.selectedFilter}」的学员线索'
                                             : (isEnrolledTab
                                                 ? '暂无报名学员'
-                                                : '暂无线索')),
+                                                : (isPausedTab
+                                                    ? '暂无搁置学员'
+                                                    : '暂无线索'))),
                                     style: const TextStyle(
                                         color: Colors.grey, fontSize: 14),
                                   ),
@@ -304,9 +312,11 @@ class _ClueListPageState extends State<ClueListPage>
                                             ? '可点击上方胶囊切换其他状态，或点击【全部】'
                                             : (isEnrolledTab
                                                 ? '线索转为报名后会出现在这里'
-                                                : (_tabController.index == 0
-                                                    ? '点击下方 + 新建线索，或下拉刷新同步云端'
-                                                    : '当前分类下没有线索'))),
+                                                : (isPausedTab
+                                                    ? '暂搁置客户会集中在此处沉淀，可在时机成熟时批量唤醒'
+                                                    : (_tabController.index == 0
+                                                        ? '点击下方 + 新建线索，或下拉刷新同步云端'
+                                                        : '当前分类下没有线索')))),
                                     style: const TextStyle(
                                         color: Colors.grey, fontSize: 12),
                                   ),
@@ -478,7 +488,7 @@ class _StatusAndIntentionFilterBar extends StatelessWidget {
     final attendedCount = baseClues.where((c) => c.statusText == '已试听').length;
     final enrolledCount = baseClues.where((c) => c.statusText == '已报名').length;
     final pausedCount =
-        baseClues.where((c) => c.statusText == '无效线索').length;
+        baseClues.where((c) => c.statusText == '暂搁置').length;
 
     final hasIntents = highCount > 0 || medCount > 0 || lowCount > 0;
     final hasStatuses = !isOnlyIntent &&
@@ -594,10 +604,10 @@ class _StatusAndIntentionFilterBar extends StatelessWidget {
               if (pausedCount > 0) ...[
                 const SizedBox(width: 8),
                 _FilterCapsuleChip(
-                  label: '🚫 无效线索 ($pausedCount)',
-                  isSelected: selectedFilter == '无效线索',
+                  label: '⏸️ 暂搁置 ($pausedCount)',
+                  isSelected: selectedFilter == '暂搁置',
                   color: const Color(0xFF9E9E9E),
-                  onTap: () => onSelect(selectedFilter == '无效线索' ? '' : '无效线索'),
+                  onTap: () => onSelect(selectedFilter == '暂搁置' ? '' : '暂搁置'),
                 ),
               ],
             ],
