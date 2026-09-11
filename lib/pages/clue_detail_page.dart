@@ -85,16 +85,25 @@ class ClueDetailPage extends StatelessWidget {
   }
 }
 
-/// 顶部信息卡片
-class _HeaderCard extends StatelessWidget {
+/// 顶部信息卡片（支持折叠收起，默认仅保留就读学校与年级届别，极致压缩卡片高度）
+class _HeaderCard extends StatefulWidget {
   final Clue clue;
   const _HeaderCard({required this.clue});
 
   @override
+  State<_HeaderCard> createState() => _HeaderCardState();
+}
+
+class _HeaderCardState extends State<_HeaderCard> {
+  bool _expanded = false;
+
+  @override
   Widget build(BuildContext context) {
+    final clue = widget.clue;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+      padding: EdgeInsets.fromLTRB(16, 14, 16, _expanded ? 16 : 10),
       decoration: const BoxDecoration(
         color: Color(0xFF1976D2),
       ),
@@ -105,13 +114,13 @@ class _HeaderCard extends StatelessWidget {
           Row(
             children: [
               CircleAvatar(
-                radius: 26,
+                radius: 24,
                 backgroundColor: Colors.white.withValues(alpha: 0.25),
                 child: Text(
                   clue.wxNick.isNotEmpty ? clue.wxNick[0] : '?',
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -125,7 +134,7 @@ class _HeaderCard extends StatelessWidget {
                       clue.wxNick,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 20,
+                        fontSize: 19,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -133,7 +142,7 @@ class _HeaderCard extends StatelessWidget {
                     Text(
                       clue.status.label,
                       style: const TextStyle(
-                          color: Colors.white70, fontSize: 13),
+                          color: Colors.white70, fontSize: 12.5),
                     ),
                   ],
                 ),
@@ -153,156 +162,200 @@ class _HeaderCard extends StatelessWidget {
                     clue.intentLevel.label,
                     style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 13,
+                        fontSize: 12.5,
                         fontWeight: FontWeight.bold),
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
-          // 信息行（三行网格）
-          Column(
+          // 核心常驻行：就读学校 + 年级届别
+          Row(
             children: [
-              // 第一行：微信号 + 手机号
-              Row(
-                children: [
-                  Expanded(
-                    child: _InfoChip(
-                      label: '微信号',
-                      value: clue.wxId.isEmpty ? '未填写' : clue.wxId,
-                      actionIcon: Icons.open_in_new,
-                      customTap: clue.wxId.isNotEmpty
-                          ? () => LauncherService.copyAndOpenWechat(
-                              context, clue.wxId)
-                          : null,
-                    ),
-                  ),
-                  Container(width: 1, height: 32, color: Colors.white24),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 12),
-                      child: _InfoChip(
-                        label: '手机号',
-                        value: clue.phone.isEmpty ? '未填写' : clue.phone,
-                        actionIcon: Icons.phone_in_talk,
-                        customTap: clue.phone.isNotEmpty
-                            ? () => _showPhoneActionSheet(context, clue.phone)
-                            : null,
-                      ),
-                    ),
-                  ),
-                ],
+              Expanded(
+                child: _InfoChip(
+                  label: '就读学校',
+                  value: clue.school.isEmpty ? '未填写' : clue.school,
+                  enableCopy: false,
+                ),
               ),
-              const SizedBox(height: 12),
-              // 第二行：就读学校 + 年级届别
-              Row(
-                children: [
-                  Expanded(
-                    child: _InfoChip(
-                      label: '就读学校',
-                      value: clue.school.isEmpty ? '未填写' : clue.school,
-                      enableCopy: false,
-                    ),
-                  ),
-                  Container(width: 1, height: 32, color: Colors.white24),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 12),
-                      child: _InfoChip(
-                        label: '年级/届别',
-                        value: clue.grade.isEmpty ? '未填写' : clue.grade,
-                        enableCopy: false,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // 第三行：报考科目 + 意向班型
-              Row(
-                children: [
-                  Expanded(
-                    child: _InfoChip(
-                      label: '报考科目',
-                      value: clue.subject.isEmpty ? '未填写' : clue.subject,
-                      enableCopy: false,
-                    ),
-                  ),
-                  Container(width: 1, height: 32, color: Colors.white24),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 12),
-                      child: _InfoChip(
-                        label: clue.status == ClueStatus.enrolled
-                            ? '已报班型'
-                            : '意向班型',
-                        value: clue.classType.isEmpty
-                            ? '未填写'
-                            : (clue.enrollAmount != null
-                                ? '${clue.classType} (¥${clue.enrollAmount! % 1 == 0 ? clue.enrollAmount!.toInt() : clue.enrollAmount})'
-                                : clue.classType),
-                        enableCopy: false,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // 第四行：线索来源 + 归属顾问
-              Row(
-                children: [
-                  Expanded(
-                    child: _InfoChip(
-                      label: '线索来源',
-                      value: clue.source.isEmpty ? '未填写' : clue.source,
-                      enableCopy: false,
-                    ),
-                  ),
-                  Container(width: 1, height: 32, color: Colors.white24),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 12),
-                      child: _InfoChip(
-                        label: '归属顾问',
-                        value: clue.ownerName.isEmpty ? '待分配' : clue.ownerName,
-                        actionIcon: context.read<AppProvider>().canViewAllClues
-                            ? Icons.swap_horiz
-                            : null,
-                        customTap: context.read<AppProvider>().canViewAllClues
-                            ? () => _showReassignDialog(context, clue)
-                            : null,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              if (clue.tags.isNotEmpty) ...[
-                const SizedBox(height: 14),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: clue.tags.map((t) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 9, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          t,
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 11.5),
-                        ),
-                      );
-                    }).toList(),
+              Container(width: 1, height: 30, color: Colors.white24),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 12),
+                  child: _InfoChip(
+                    label: '年级/届别',
+                    value: clue.grade.isEmpty ? '未填写' : clue.grade,
+                    enableCopy: false,
                   ),
                 ),
-              ],
+              ),
             ],
+          ),
+
+          // 折叠内容区域（微信号/手机号/科目/班型/来源/顾问/标签）
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 220),
+            crossFadeState: _expanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            firstChild: const SizedBox.shrink(),
+            secondChild: Column(
+              children: [
+                const SizedBox(height: 12),
+                // 微信号 + 手机号
+                Row(
+                  children: [
+                    Expanded(
+                      child: _InfoChip(
+                        label: '微信号',
+                        value: clue.wxId.isEmpty ? '未填写' : clue.wxId,
+                        actionIcon: Icons.open_in_new,
+                        customTap: clue.wxId.isNotEmpty
+                            ? () => LauncherService.copyAndOpenWechat(
+                                context, clue.wxId)
+                            : null,
+                      ),
+                    ),
+                    Container(width: 1, height: 30, color: Colors.white24),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 12),
+                        child: _InfoChip(
+                          label: '手机号',
+                          value: clue.phone.isEmpty ? '未填写' : clue.phone,
+                          actionIcon: Icons.phone_in_talk,
+                          customTap: clue.phone.isNotEmpty
+                              ? () => _showPhoneActionSheet(context, clue.phone)
+                              : null,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // 报考科目 + 意向班型
+                Row(
+                  children: [
+                    Expanded(
+                      child: _InfoChip(
+                        label: '报考科目',
+                        value: clue.subject.isEmpty ? '未填写' : clue.subject,
+                        enableCopy: false,
+                      ),
+                    ),
+                    Container(width: 1, height: 30, color: Colors.white24),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 12),
+                        child: _InfoChip(
+                          label: clue.status == ClueStatus.enrolled
+                              ? '已报班型'
+                              : '意向班型',
+                          value: clue.classType.isEmpty
+                              ? '未填写'
+                              : (clue.enrollAmount != null
+                                  ? '${clue.classType} (¥${clue.enrollAmount! % 1 == 0 ? clue.enrollAmount!.toInt() : clue.enrollAmount})'
+                                  : clue.classType),
+                          enableCopy: false,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // 线索来源 + 归属顾问
+                Row(
+                  children: [
+                    Expanded(
+                      child: _InfoChip(
+                        label: '线索来源',
+                        value: clue.source.isEmpty ? '未填写' : clue.source,
+                        enableCopy: false,
+                      ),
+                    ),
+                    Container(width: 1, height: 30, color: Colors.white24),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 12),
+                        child: _InfoChip(
+                          label: '归属顾问',
+                          value:
+                              clue.ownerName.isEmpty ? '待分配' : clue.ownerName,
+                          actionIcon: context.read<AppProvider>().canViewAllClues
+                              ? Icons.swap_horiz
+                              : null,
+                          customTap: context.read<AppProvider>().canViewAllClues
+                              ? () => _showReassignDialog(context, clue)
+                              : null,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (clue.tags.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: clue.tags.map((t) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 9, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            t,
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 11.5),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 6),
+
+          // 展开/收起切换按钮
+          Center(
+            child: InkWell(
+              onTap: () => setState(() => _expanded = !_expanded),
+              borderRadius: BorderRadius.circular(14),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _expanded ? '收起资料' : '展开完整档案 (微信/电话/班型等)',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    Icon(
+                      _expanded
+                          ? Icons.keyboard_arrow_up
+                          : Icons.keyboard_arrow_down,
+                      color: Colors.white.withValues(alpha: 0.8),
+                      size: 16,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),

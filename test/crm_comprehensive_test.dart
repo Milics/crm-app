@@ -7,7 +7,9 @@ import 'package:crm_app/utils/clue_text_parser.dart';
 import 'package:crm_app/data/default_materials.dart';
 import 'package:crm_app/services/material_rag_service.dart';
 import 'package:crm_app/providers/app_provider.dart';
-
+import 'package:flutter/material.dart';
+import 'package:crm_app/pages/clue_detail_page.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -799,6 +801,77 @@ void main() {
       expect(updated.visitLogs.length, 1);
       expect(updated.status, ClueStatus.attended);
       expect(updated.intentLevel, IntentLevel.high);
+    });
+  });
+
+  group('【QA 专项测试 14】线索详情页顶部卡片高度压缩与折叠展开测试', () {
+    testWidgets('14.1 默认仅展示就读学校与年级届别，点击可展开完整档案与收起', (tester) async {
+      final provider = AppProvider();
+      await tester.runAsync(() async {
+        while (!provider.isLoaded) {
+          await Future.delayed(const Duration(milliseconds: 10));
+        }
+      });
+
+      final testClue = Clue(
+        id: 'c_expand_header_test',
+        wxNick: '苏梦琪',
+        wxId: 'wx_expand_test',
+        phone: '13899998888',
+        school: '广东轻工职业技术学院',
+        grade: '25级',
+        subject: '经管',
+        classType: '全程集训班',
+        source: '老带新',
+        ownerName: '郭培杨',
+        status: ClueStatus.invited,
+        intentLevel: IntentLevel.high,
+        createTime: DateTime.now(),
+      );
+      provider.addClue(testClue);
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: provider,
+          child: MaterialApp(
+            home: ClueDetailPage(clueId: 'c_expand_header_test'),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // 1. 验证默认状态：姓名、状态、意向标签可见
+      expect(find.text('苏梦琪'), findsOneWidget);
+      expect(find.text('已邀约'), findsOneWidget);
+      expect(find.text('高意向'), findsOneWidget);
+
+      // 2. 验证默认状态：常驻展示就读学校和年级/届别
+      expect(find.text('就读学校'), findsOneWidget);
+      expect(find.text('广东轻工职业技术学院'), findsOneWidget);
+      expect(find.text('年级/届别'), findsOneWidget);
+      expect(find.text('25级'), findsOneWidget);
+
+      // 3. 验证默认状态：存在折叠展开按钮
+      final expandBtn = find.text('展开完整档案 (微信/电话/班型等)');
+      expect(expandBtn, findsOneWidget);
+
+      // 4. 点击展开
+      await tester.tap(expandBtn);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // 5. 展开后：微信号、手机号、科目、班型等完整信息可见
+      expect(find.text('微信号'), findsOneWidget);
+      expect(find.text('wx_expand_test'), findsOneWidget);
+      expect(find.text('手机号'), findsOneWidget);
+      expect(find.text('13899998888'), findsOneWidget);
+      expect(find.text('报考科目'), findsOneWidget);
+      expect(find.text('经管'), findsOneWidget);
+      expect(find.text('收起资料'), findsOneWidget);
+
+      // 6. 点击收起
+      await tester.tap(find.text('收起资料'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('展开完整档案 (微信/电话/班型等)'), findsOneWidget);
     });
   });
 }
