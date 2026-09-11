@@ -194,132 +194,153 @@ class _HeaderCardState extends State<_HeaderCard> {
             ],
           ),
 
-          // 折叠内容区域（微信号/手机号/科目/班型/来源/顾问/标签）
-          AnimatedCrossFade(
-            duration: const Duration(milliseconds: 220),
-            crossFadeState: _expanded
-                ? CrossFadeState.showSecond
-                : CrossFadeState.showFirst,
-            firstChild: const SizedBox.shrink(),
-            secondChild: Column(
-              children: [
-                const SizedBox(height: 12),
-                // 微信号 + 手机号
-                Row(
-                  children: [
-                    Expanded(
-                      child: _InfoChip(
-                        label: '微信号',
-                        value: clue.wxId.isEmpty ? '未填写' : clue.wxId,
-                        actionIcon: Icons.open_in_new,
-                        customTap: clue.wxId.isNotEmpty
-                            ? () => LauncherService.copyAndOpenWechat(
-                                context, clue.wxId)
-                            : null,
-                      ),
-                    ),
-                    Container(width: 1, height: 30, color: Colors.white24),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 12),
-                        child: _InfoChip(
-                          label: '手机号',
-                          value: clue.phone.isEmpty ? '未填写' : clue.phone,
-                          actionIcon: Icons.phone_in_talk,
-                          customTap: clue.phone.isNotEmpty
-                              ? () => _showPhoneActionSheet(context, clue.phone)
-                              : null,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                // 报考科目 + 意向班型
-                Row(
-                  children: [
-                    Expanded(
-                      child: _InfoChip(
-                        label: '报考科目',
-                        value: clue.subject.isEmpty ? '未填写' : clue.subject,
-                        enableCopy: false,
-                      ),
-                    ),
-                    Container(width: 1, height: 30, color: Colors.white24),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 12),
-                        child: _InfoChip(
-                          label: clue.status == ClueStatus.enrolled
-                              ? '已报班型'
-                              : '意向班型',
-                          value: clue.classType.isEmpty
-                              ? '未填写'
-                              : (clue.enrollAmount != null
-                                  ? '${clue.classType} (¥${clue.enrollAmount! % 1 == 0 ? clue.enrollAmount!.toInt() : clue.enrollAmount})'
-                                  : clue.classType),
-                          enableCopy: false,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                // 线索来源 + 归属顾问
-                Row(
-                  children: [
-                    Expanded(
-                      child: _InfoChip(
-                        label: '线索来源',
-                        value: clue.source.isEmpty ? '未填写' : clue.source,
-                        enableCopy: false,
-                      ),
-                    ),
-                    Container(width: 1, height: 30, color: Colors.white24),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 12),
-                        child: _InfoChip(
-                          label: '归属顾问',
-                          value:
-                              clue.ownerName.isEmpty ? '待分配' : clue.ownerName,
-                          actionIcon: context.read<AppProvider>().canViewAllClues
-                              ? Icons.swap_horiz
-                              : null,
-                          customTap: context.read<AppProvider>().canViewAllClues
-                              ? () => _showReassignDialog(context, clue)
-                              : null,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                if (clue.tags.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: clue.tags.map((t) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 9, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(12),
+          // 折叠内容区域（微信号/手机号/科目/班型/来源/顾问/标签）——纯垂直向下延展动画，彻底避免左右水平拉伸/左侧划入
+          ClipRect(
+            child: AnimatedSize(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeInOutCubic,
+              alignment: Alignment.topCenter,
+              child: SizedBox(
+                width: double.infinity,
+                child: _expanded
+                    ? Column(
+                        children: [
+                          const SizedBox(height: 12),
+                          // 微信号 + 手机号
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _InfoChip(
+                                  label: '微信号',
+                                  value: clue.wxId.isEmpty ? '未填写' : clue.wxId,
+                                  actionIcon: Icons.open_in_new,
+                                  customTap: clue.wxId.isNotEmpty
+                                      ? () => LauncherService.copyAndOpenWechat(
+                                          context, clue.wxId)
+                                      : null,
+                                ),
+                              ),
+                              Container(
+                                  width: 1, height: 30, color: Colors.white24),
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(left: 12),
+                                  child: _InfoChip(
+                                    label: '手机号',
+                                    value:
+                                        clue.phone.isEmpty ? '未填写' : clue.phone,
+                                    actionIcon: Icons.phone_in_talk,
+                                    customTap: clue.phone.isNotEmpty
+                                        ? () => _showPhoneActionSheet(
+                                            context, clue.phone)
+                                        : null,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          child: Text(
-                            t,
-                            style: const TextStyle(
-                                color: Colors.white, fontSize: 11.5),
+                          const SizedBox(height: 12),
+                          // 报考科目 + 意向班型
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _InfoChip(
+                                  label: '报考科目',
+                                  value: clue.subject.isEmpty
+                                      ? '未填写'
+                                      : clue.subject,
+                                  enableCopy: false,
+                                ),
+                              ),
+                              Container(
+                                  width: 1, height: 30, color: Colors.white24),
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(left: 12),
+                                  child: _InfoChip(
+                                    label: clue.status == ClueStatus.enrolled
+                                        ? '已报班型'
+                                        : '意向班型',
+                                    value: clue.classType.isEmpty
+                                        ? '未填写'
+                                        : (clue.enrollAmount != null
+                                            ? '${clue.classType} (¥${clue.enrollAmount! % 1 == 0 ? clue.enrollAmount!.toInt() : clue.enrollAmount})'
+                                            : clue.classType),
+                                    enableCopy: false,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ],
-              ],
+                          const SizedBox(height: 12),
+                          // 线索来源 + 归属顾问
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _InfoChip(
+                                  label: '线索来源',
+                                  value: clue.source.isEmpty
+                                      ? '未填写'
+                                      : clue.source,
+                                  enableCopy: false,
+                                ),
+                              ),
+                              Container(
+                                  width: 1, height: 30, color: Colors.white24),
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(left: 12),
+                                  child: _InfoChip(
+                                    label: '归属顾问',
+                                    value: clue.ownerName.isEmpty
+                                        ? '待分配'
+                                        : clue.ownerName,
+                                    actionIcon: context
+                                            .read<AppProvider>()
+                                            .canViewAllClues
+                                        ? Icons.swap_horiz
+                                        : null,
+                                    customTap: context
+                                            .read<AppProvider>()
+                                            .canViewAllClues
+                                        ? () =>
+                                            _showReassignDialog(context, clue)
+                                        : null,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (clue.tags.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: clue.tags.map((t) {
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 9, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.18),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      t,
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 11.5),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          ],
+                        ],
+                      )
+                    : const SizedBox.shrink(),
+              ),
             ),
           ),
 
