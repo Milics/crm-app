@@ -13,6 +13,16 @@ class DefaultMaterials {
     '逆袭案例与口碑背书',
   ];
 
+  /// 推荐图片物料分类
+  static const List<String> defaultImageCategories = [
+    '课程海报',
+    '成绩展示',
+    '课程介绍',
+    '学员好评',
+    '校区环境',
+    '招生简章',
+  ];
+
   static List<TextMaterial> getDefaultTextMaterials() {
     return [
       // ══════════════════════════════════════════════════════════════

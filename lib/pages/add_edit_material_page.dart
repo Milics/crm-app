@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../models/material_item.dart';
 import '../models/material_type.dart';
+import '../data/default_materials.dart';
 
 /// 添加/编辑物料页面
 class AddEditMaterialPage extends StatefulWidget {
@@ -65,7 +66,9 @@ class _AddEditMaterialPageState extends State<AddEditMaterialPage> {
       _titleCtrl = TextEditingController(text: m?.title ?? '');
       _contentCtrl = TextEditingController(text: m?.desc ?? '');
       _imageBase64 = m?.imageData;
-      _existingCategories = provider.publicImageCategories;
+      _existingCategories = provider.publicImageCategories.isNotEmpty
+          ? provider.publicImageCategories
+          : DefaultMaterials.defaultImageCategories;
       _saveToPublic = m?.isPublic ?? (isSuper && widget.defaultToPublic);
       _applyForReview = m?.reviewStatus == MaterialReviewStatus.pending;
     }

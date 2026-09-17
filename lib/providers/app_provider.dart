@@ -189,6 +189,15 @@ class AppProvider extends ChangeNotifier {
       _imageMaterials.addAll(list.map((e) => ImageMaterial.fromJson(e)));
     }
 
+    // 全量清洗并丢弃历史预置的模拟图片物料卡片，保持纯净图片物料库
+    const mockImageIds = {
+      'im1', 'im2', 'im3', 'im4', 'im5', 'im6', 'im7', 'im8'
+    };
+    _imageMaterials.removeWhere((m) =>
+        mockImageIds.contains(m.id) ||
+        (m.imageData == null && (m.imageUrl == null || m.imageUrl!.isEmpty)));
+    _saveMaterials();
+
     if (cluesJson == null) {
       // 首次启动或全新初始化：保持纯净空线索库，供录入真实学员
       _clues.clear();
@@ -1883,19 +1892,9 @@ class AppProvider extends ChangeNotifier {
   }
 
 
-  /// 初始化物料模拟数据（在 initMockData 中调用）
+  /// 初始化物料数据（在 initMockData 中调用：注入80条金牌话术，图片物料保持纯净空列表）
   void _initMockMaterials() {
     _textMaterials.addAll(DefaultMaterials.getDefaultTextMaterials());
-
-    _imageMaterials.addAll([
-      ImageMaterial(id: 'im1', category: '课程海报', title: '全程集训班招生海报', desc: '1080×1920px · 适合朋友圈'),
-      ImageMaterial(id: 'im2', category: '课程海报', title: '周末走读班宣传图', desc: '750×1000px · 适合私信发送'),
-      ImageMaterial(id: 'im3', category: '课程海报', title: '早鸟优惠限时海报', desc: '1080×1080px · 方形，适合微信'),
-      ImageMaterial(id: 'im4', category: '成绩展示', title: '历届学员成绩汇总', desc: '多图合集 · 真实数据'),
-      ImageMaterial(id: 'im5', category: '成绩展示', title: '高分学员录取截图', desc: '3张组合 · 院校录取通知书'),
-      ImageMaterial(id: 'im6', category: '课程介绍', title: '课程大纲一览图', desc: '各科知识点覆盖'),
-      ImageMaterial(id: 'im7', category: '课程介绍', title: '师资团队介绍', desc: '主讲老师照片+资质'),
-      ImageMaterial(id: 'im8', category: '学员好评', title: '学员感谢截图合集', desc: '微信/朋友圈好评截图'),
-    ]);
+    _imageMaterials.clear();
   }
 }
