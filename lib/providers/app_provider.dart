@@ -180,7 +180,7 @@ class AppProvider extends ChangeNotifier {
       initMockData();
     }
 
-    // 确保所有线索都有明确归属人（修复历史老数据或空归属人线索，超级管理员开箱即见）
+    // 确保所有线索都有明确归属人，并对历史非标年级（如 24/25/12）与科目进行自动清洗归一
     bool needResave = false;
     final defaultAdvisors = ['李广东', '郭培杨', '王主管', '张老师'];
     int advisorIdx = 0;
@@ -188,6 +188,15 @@ class AppProvider extends ChangeNotifier {
       if (c.ownerName.trim().isEmpty) {
         c.ownerName = defaultAdvisors[advisorIdx % defaultAdvisors.length];
         advisorIdx++;
+        needResave = true;
+      }
+      final normG = normalizeGrade(c.grade);
+      if (normG != c.grade) {
+        c.grade = normG;
+        needResave = true;
+      }
+      if (c.subject == '艺术') {
+        c.subject = '美术专业综合';
         needResave = true;
       }
     }
@@ -1066,18 +1075,50 @@ class AppProvider extends ChangeNotifier {
     return set.toList();
   }
 
-  /// 获取当前系统中所有出现过的届别/年级列表（用于筛选）
+  /// 年级/届别规范化归一（将 25 -> 25级, 2024 -> 24级, 过滤 12 等异常乱码）
+  static String normalizeGrade(String raw) {
+    final g = raw.trim();
+    if (g.isEmpty) return '';
+    // 2024级 / 2024届 / 2024 -> 24级
+    final y4Match = RegExp(r'^20(\d{2})[级届]?$').firstMatch(g);
+    if (y4Match != null) {
+      return '${y4Match.group(1)}级';
+    }
+    // 24 / 25 / 26 / 23 / 22 / 27 等纯2位数字（20~29年） -> 补齐为 "XX级"
+    if (RegExp(r'^(2[0-9])$').hasMatch(g)) {
+      return '${g}级';
+    }
+    // 24届 / 25届 -> 24级 / 25级
+    final jieMatch = RegExp(r'^(2[0-9])届$').firstMatch(g);
+    if (jieMatch != null) {
+      return '${jieMatch.group(1)}级';
+    }
+    // 标准格式 "2X级"
+    if (RegExp(r'^(2[0-9])级$').hasMatch(g)) {
+      return g;
+    }
+    // 大专年级映射
+    if (g == '大三') return '24级';
+    if (g == '大二') return '25级';
+    if (g == '大一') return '26级';
+    // 异常手误或测试乱填（如 "12"、非规范文本），过滤不入库
+    return '';
+  }
+
+  /// 获取当前系统中所有出现过的届别/年级列表（用于筛选，纯净规范不重复）
   List<String> get allGrades {
     final set = <String>{};
     for (final c in _clues) {
-      final g = c.grade.trim();
+      final g = normalizeGrade(c.grade);
       if (g.isNotEmpty) {
         set.add(g);
       }
     }
+    // 确保核心在招届别始终展示在筛选列表中
+    set.add('26级');
     set.add('25级');
     set.add('24级');
-    set.add('26级');
+    set.add('23级');
     final list = set.toList();
     list.sort((a, b) => b.compareTo(a));
     return list;
@@ -1098,9 +1139,9 @@ class AppProvider extends ChangeNotifier {
         result = result.where((c) => c.ownerName == _ownerFilter).toList();
       }
     }
-    // 年级/届别筛选
+    // 年级/届别筛选（做规范化兼容匹配）
     if (_gradeFilter != 'all' && _gradeFilter.isNotEmpty) {
-      result = result.where((c) => c.grade.trim() == _gradeFilter).toList();
+      result = result.where((c) => normalizeGrade(c.grade) == _gradeFilter).toList();
     }
     if (_searchKeyword.trim().isNotEmpty) {
       final kw = _searchKeyword.trim().toLowerCase();
@@ -1175,9 +1216,9 @@ class AppProvider extends ChangeNotifier {
       }
     }
 
-    // 2. 年级/届别筛选
+    // 2. 年级/届别筛选（做规范化兼容匹配）
     if (_gradeFilter != 'all' && _gradeFilter.isNotEmpty) {
-      result = result.where((c) => c.grade.trim() == _gradeFilter).toList();
+      result = result.where((c) => normalizeGrade(c.grade) == _gradeFilter).toList();
     }
 
     // 3. 按搜索关键词过滤

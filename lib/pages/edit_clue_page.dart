@@ -30,6 +30,7 @@ class _EditCluePageState extends State<EditCluePage> {
   late List<String> _tags;
   final _newTagCtrl = TextEditingController();
 
+  final List<String> _presetGrades = ['27级', '26级', '25级', '24级', '23级', '其他'];
   final List<String> _sources = ['抖音', '小红书', '地推', '电话打入', '转介绍', '老带新'];
   final List<String> _subjects = [
     '高等数学',
@@ -64,9 +65,9 @@ class _EditCluePageState extends State<EditCluePage> {
     _wxNickCtrl = TextEditingController(text: c.wxNick);
     _wxIdCtrl = TextEditingController(text: c.wxId);
     _phoneCtrl = TextEditingController(text: c.phone);
-    _gradeCtrl = TextEditingController(text: c.grade);
+    _gradeCtrl = TextEditingController(text: AppProvider.normalizeGrade(c.grade));
     _schoolCtrl = TextEditingController(text: c.school);
-    _subjectCtrl = TextEditingController(text: c.subject);
+    _subjectCtrl = TextEditingController(text: c.subject == '艺术' ? '美术专业综合' : c.subject);
     _classTypeCtrl = TextEditingController(text: c.classType);
     _remarkCtrl = TextEditingController(text: c.remark);
     _status = c.status;
@@ -195,10 +196,56 @@ class _EditCluePageState extends State<EditCluePage> {
                 controller: _schoolCtrl,
                 hint: '例如：河南经贸职业学院',
               ),
-              _Field(
-                label: '年级/届别',
-                controller: _gradeCtrl,
-                hint: '例如：24级 / 23级 / 25级',
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8, bottom: 6),
+                    child: Text('年级/届别',
+                        style:
+                            TextStyle(fontSize: 13, color: Color(0xFF555555))),
+                  ),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: _presetGrades.map((g) {
+                      final selected = _gradeCtrl.text == g;
+                      return GestureDetector(
+                        onTap: () => setState(() {
+                          _gradeCtrl.text = selected ? '' : g;
+                        }),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? const Color(0xFF1976D2)
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: selected
+                                  ? const Color(0xFF1976D2)
+                                  : const Color(0xFFDEE2E8),
+                            ),
+                          ),
+                          child: Text(
+                            g,
+                            style: TextStyle(
+                              color: selected
+                                  ? Colors.white
+                                  : const Color(0xFF444444),
+                              fontSize: 13,
+                              fontWeight: selected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 4),
+                ],
               ),
             ]),
 

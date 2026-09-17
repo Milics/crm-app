@@ -90,6 +90,7 @@ class _ManualFormState extends State<_ManualForm> {
   DateTime _nextVisitDate = DateTime.now().add(const Duration(days: 1));
   TimeOfDay _nextVisitTime = const TimeOfDay(hour: 10, minute: 0);
 
+  final List<String> _presetGrades = ['27级', '26级', '25级', '24级', '23级', '其他'];
   final List<String> _subjects = [
     '高等数学',
     '管理学',
@@ -188,7 +189,51 @@ class _ManualFormState extends State<_ManualForm> {
             const SizedBox(height: 12),
             _buildField('就读学校（选填）', _schoolCtrl, '例如：河南经贸职业学院'),
             const SizedBox(height: 12),
-            _buildField('年级/届别（选填）', _gradeCtrl, '例如：24级 / 23级'),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('年级/届别（选填）',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF757575))),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: _presetGrades.map((g) {
+                    final selected = _gradeCtrl.text == g;
+                    return GestureDetector(
+                      onTap: () => setState(() {
+                        _gradeCtrl.text = selected ? '' : g;
+                      }),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 13, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? const Color(0xFF1976D2)
+                              : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: selected
+                                ? const Color(0xFF1976D2)
+                                : Colors.grey[300]!,
+                          ),
+                        ),
+                        child: Text(
+                          g,
+                          style: TextStyle(
+                            color: selected ? Colors.white : Colors.black87,
+                            fontSize: 12.5,
+                            fontWeight: selected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
           ]),
           const SizedBox(height: 16),
           _buildSection('招生信息', [
@@ -719,6 +764,7 @@ class _OcrFormState extends State<_OcrForm> {
   DateTime _nextVisitDate = DateTime.now().add(const Duration(days: 1));
   TimeOfDay _nextVisitTime = const TimeOfDay(hour: 10, minute: 0);
 
+  final List<String> _presetGrades = ['27级', '26级', '25级', '24级', '23级', '其他'];
   final List<String> _subjects = [
     '高等数学',
     '管理学',
@@ -850,7 +896,9 @@ class _OcrFormState extends State<_OcrForm> {
     if (parsed.wxId.isNotEmpty) _wxIdCtrl.text = parsed.wxId;
     if (parsed.phone.isNotEmpty) _phoneCtrl.text = parsed.phone;
     if (parsed.school.isNotEmpty) _schoolCtrl.text = parsed.school;
-    if (parsed.grade.isNotEmpty) _gradeCtrl.text = parsed.grade;
+    if (parsed.grade.isNotEmpty) {
+      _gradeCtrl.text = AppProvider.normalizeGrade(parsed.grade);
+    }
     if (parsed.subject.isNotEmpty) {
       if (_subjects.contains(parsed.subject)) {
         _subject = parsed.subject;
@@ -1334,12 +1382,52 @@ class _OcrFormState extends State<_OcrForm> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
-                    controller: _gradeCtrl,
-                    decoration: const InputDecoration(
-                      labelText: '年级/届别',
-                      prefixIcon: Icon(Icons.grade_outlined, size: 20),
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('年级/届别',
+                          style: TextStyle(
+                              fontSize: 12, color: Color(0xFF757575))),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: _presetGrades.map((g) {
+                          final selected = _gradeCtrl.text == g;
+                          return GestureDetector(
+                            onTap: () => setState(() {
+                              _gradeCtrl.text = selected ? '' : g;
+                            }),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 13, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: selected
+                                    ? const Color(0xFF1976D2)
+                                    : Colors.grey[100],
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: selected
+                                      ? const Color(0xFF1976D2)
+                                      : Colors.grey[300]!,
+                                ),
+                              ),
+                              child: Text(
+                                g,
+                                style: TextStyle(
+                                  color:
+                                      selected ? Colors.white : Colors.black87,
+                                  fontSize: 12.5,
+                                  fontWeight: selected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
                   ),
                 ],
               ),

@@ -874,6 +874,55 @@ void main() {
       expect(find.text('展开完整档案 (微信/电话/班型等)'), findsOneWidget);
     });
   });
+
+  group('【QA 专项测试 15】年级/届别规范化归一与纯净筛选胶囊校验', () {
+    test('15.1 normalizeGrade 规范清洗纯数字、大专年级、过滤异常字符', () {
+      expect(AppProvider.normalizeGrade('25'), '25级');
+      expect(AppProvider.normalizeGrade('24'), '24级');
+      expect(AppProvider.normalizeGrade('23'), '23级');
+      expect(AppProvider.normalizeGrade('2025'), '25级');
+      expect(AppProvider.normalizeGrade('2024级'), '24级');
+      expect(AppProvider.normalizeGrade('25届'), '25级');
+      expect(AppProvider.normalizeGrade('大三'), '24级');
+      expect(AppProvider.normalizeGrade('大二'), '25级');
+      expect(AppProvider.normalizeGrade('大一'), '26级');
+      expect(AppProvider.normalizeGrade('12'), ''); // 误输入的异常值直接过滤
+      expect(AppProvider.normalizeGrade(''), '');
+    });
+
+    test('15.2 allGrades 提取去重后全为标准规范格式，无 25/24/12 等杂乱项', () {
+      final provider = AppProvider();
+      final adminUser = AppUser(
+        id: 'usr_admin',
+        username: 'admin',
+        password: 'password123',
+        name: '超级管理员',
+        role: UserRole.superAdmin,
+      );
+      provider.setCurrentUserForTesting(adminUser);
+
+      final now = DateTime.now();
+      // 模拟添加混杂了不同格式的线索
+      provider.addClue(Clue(id: 'cg1', wxNick: 'A', grade: '25', ownerName: 'admin', createTime: now));
+      provider.addClue(Clue(id: 'cg2', wxNick: 'B', grade: '25级', ownerName: 'admin', createTime: now));
+      provider.addClue(Clue(id: 'cg3', wxNick: 'C', grade: '24', ownerName: 'admin', createTime: now));
+      provider.addClue(Clue(id: 'cg4', wxNick: 'D', grade: '12', ownerName: 'admin', createTime: now));
+
+      final grades = provider.allGrades;
+      // 必须包含规范的 25级、24级
+      expect(grades.contains('25级'), true);
+      expect(grades.contains('24级'), true);
+      // 绝不能包含散乱的 '25'、'24'、'12'
+      expect(grades.contains('25'), false);
+      expect(grades.contains('24'), false);
+      expect(grades.contains('12'), false);
+
+      // 筛选 '25级' 应该能同时命中录入为 '25' 和 '25级' 的线索
+      provider.setGradeFilter('25级');
+      final filtered = provider.filteredClues.where((c) => c.id == 'cg1' || c.id == 'cg2').toList();
+      expect(filtered.length, 2);
+    });
+  });
 }
 
 
