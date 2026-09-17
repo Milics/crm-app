@@ -122,9 +122,15 @@ class AppProvider extends ChangeNotifier {
       _users.addAll(list.map((e) => AppUser.fromJson(e)));
     }
 
-    // 自动清洗历史测试账号（仅保留超级管理员）
-    const allowedUserIds = {'usr_super_admin'};
-    _users.removeWhere((u) => !allowedUserIds.contains(u.id));
+    // 自动清洗历史遗留测试账号（彻底剔除王主管、张老师、旧郭培杨、旧李老师等）
+    const mockUserIds = {
+      'usr_manager_wang',
+      'usr_advisor_zhang',
+      'usr_1788342882634',
+      'usr_advisor_li',
+      'usr_1788340055423',
+    };
+    _users.removeWhere((u) => mockUserIds.contains(u.id));
     if (_users.isEmpty) {
       _initDefaultUsers();
     }
@@ -266,8 +272,20 @@ class AppProvider extends ChangeNotifier {
     try {
       final remoteUsers = await _crmSyncService.fetchUsers();
       if (remoteUsers != null && remoteUsers.isNotEmpty) {
-        final map = {for (var u in _users) u.id: u};
-        for (var ru in remoteUsers) {
+        const mockUserIds = {
+          'usr_manager_wang',
+          'usr_advisor_zhang',
+          'usr_1788342882634',
+          'usr_advisor_li',
+          'usr_1788340055423',
+        };
+        final cleanRemote =
+            remoteUsers.where((u) => !mockUserIds.contains(u.id)).toList();
+        final map = {
+          for (var u in _users.where((u) => !mockUserIds.contains(u.id)))
+            u.id: u
+        };
+        for (var ru in cleanRemote) {
           map[ru.id] = ru;
         }
         _users.clear();

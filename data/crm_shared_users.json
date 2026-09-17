@@ -10,5 +10,17 @@
     "canManageMaterials": true,
     "createdAt": "2026-09-03T00:49:14.393",
     "createdBy": "系统初始化"
+  },
+  {
+    "id": "usr_1789655255260",
+    "username": "lgd1992",
+    "password": "123456",
+    "name": "李广东",
+    "role": "super_admin",
+    "isActive": true,
+    "phone": "15738801926",
+    "canManageMaterials": true,
+    "createdAt": "2026-09-17T22:27:35.261007",
+    "createdBy": "超级管理员"
   }
 ]
