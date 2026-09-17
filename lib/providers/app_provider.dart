@@ -186,16 +186,12 @@ class AppProvider extends ChangeNotifier {
 
     if (imageJson != null) {
       final list = jsonDecode(imageJson) as List<dynamic>;
-      _imageMaterials.addAll(list.map((e) => ImageMaterial.fromJson(e)));
+      _imageMaterials.addAll(list
+          .map((e) => ImageMaterial.fromJson(e))
+          .where(_isValidRealImage));
+    } else {
+      _imageMaterials.clear();
     }
-
-    // 全量清洗并丢弃历史预置的模拟图片物料卡片，保持纯净图片物料库
-    const mockImageIds = {
-      'im1', 'im2', 'im3', 'im4', 'im5', 'im6', 'im7', 'im8'
-    };
-    _imageMaterials.removeWhere((m) =>
-        mockImageIds.contains(m.id) ||
-        (m.imageData == null && (m.imageUrl == null || m.imageUrl!.isEmpty)));
     _saveMaterials();
 
     if (cluesJson == null) {
@@ -526,34 +522,23 @@ class AppProvider extends ChangeNotifier {
 
       // 2. 同步宣传图片物料（🌟 核心：双向拉取与合并对齐）
       final remoteImages = await _crmSyncService.fetchImageMaterials();
-      if (remoteImages != null && remoteImages.isNotEmpty) {
-        final imgMap = {for (var m in _imageMaterials) m.id: m};
-        bool imgChanged = false;
-        for (var rim in remoteImages) {
-          if (!imgMap.containsKey(rim.id) || imgMap[rim.id]!.imageData != rim.imageData) {
+      if (remoteImages != null) {
+        final cleanRemote = remoteImages.where(_isValidRealImage).toList();
+        final imgMap = {
+          for (var m in _imageMaterials.where(_isValidRealImage)) m.id: m
+        };
+        for (var rim in cleanRemote) {
+          if (!imgMap.containsKey(rim.id) ||
+              imgMap[rim.id]!.imageData != rim.imageData) {
             imgMap[rim.id] = rim;
-            imgChanged = true;
           }
         }
-        // 若本地存在未上报到云端的图片物料，自动双向上报
-        final localOnly = _imageMaterials.where((m) => !remoteImages.any((rm) => rm.id == m.id)).toList();
-        if (localOnly.isNotEmpty) {
-          unawaited(_crmSyncService.saveImageMaterials(_imageMaterials));
-        }
-
-        if (imgChanged) {
-          _imageMaterials.clear();
-          _imageMaterials.addAll(imgMap.values);
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('crm_image_materials',
-              jsonEncode(_imageMaterials.map((m) => m.toJson()).toList()));
-          hasChanges = true;
-        }
-      } else if (remoteImages != null &&
-          remoteImages.isEmpty &&
-          _imageMaterials.isNotEmpty) {
-        // 云端为空但本地有数据，自动双向上报
-        unawaited(_crmSyncService.saveImageMaterials(_imageMaterials));
+        _imageMaterials.clear();
+        _imageMaterials.addAll(imgMap.values);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('crm_image_materials',
+            jsonEncode(_imageMaterials.map((m) => m.toJson()).toList()));
+        hasChanges = true;
       }
 
       if (hasChanges) {
@@ -1619,6 +1604,17 @@ class AppProvider extends ChangeNotifier {
   List<TextMaterial> get textMaterials => List.unmodifiable(_textMaterials);
   List<ImageMaterial> get imageMaterials => List.unmodifiable(_imageMaterials);
 
+  /// 校验物料是否为真实有效的图片素材（严格排除历史遗留模拟占位物料）
+  static bool _isValidRealImage(ImageMaterial m) {
+    const mockIds = {
+      'im1', 'im2', 'im3', 'im4', 'im5', 'im6', 'im7', 'im8'
+    };
+    if (mockIds.contains(m.id)) return false;
+    final hasData = m.imageData != null && m.imageData!.trim().isNotEmpty;
+    final hasUrl = m.imageUrl != null && m.imageUrl!.trim().isNotEmpty;
+    return hasData || hasUrl;
+  }
+
   // ─────────────────────────────────────
   // 双层物料池分层 Getter
   // ─────────────────────────────────────
@@ -1629,7 +1625,10 @@ class AppProvider extends ChangeNotifier {
       .toList();
 
   List<ImageMaterial> get publicImageMaterials => _imageMaterials
-      .where((m) => m.isPublic && m.reviewStatus == MaterialReviewStatus.approved)
+      .where((m) =>
+          m.isPublic &&
+          m.reviewStatus == MaterialReviewStatus.approved &&
+          _isValidRealImage(m))
       .toList();
 
   /// 2. 个人私有物料池（当前登录老师创建的专属物料，包含私有自用、审核中及已通过上架公共池的个人自有物料）
@@ -1653,24 +1652,18 @@ class AppProvider extends ChangeNotifier {
       }).toList();
 
   List<ImageMaterial> get myPrivateImageMaterials => _imageMaterials.where((m) {
-        // 1. 严格排除系统预置海报
-        const officialIds = {
-          'im1', 'im2', 'im3', 'im4', 'im5', 'im6', 'im7', 'im8'
-        };
-        if (officialIds.contains(m.id)) {
-          return false;
-        }
+        if (!_isValidRealImage(m)) return false;
 
-        // 2. 归属人检查
+        // 归属人检查
         final isMyMaterial = m.ownerName.isNotEmpty
             ? m.ownerName == currentUser
             : (!m.isPublic);
         if (!isMyMaterial) return false;
 
-        // 3. 私有自用、待审核、被驳回状态直接展示
+        // 私有自用、待审核、被驳回状态直接展示
         if (!m.isPublic) return true;
 
-        // 4. 已上架物料仅保留源自专属池的
+        // 已上架物料仅保留源自专属池的
         return m.fromPrivatePool;
       }).toList();
 
@@ -1680,7 +1673,9 @@ class AppProvider extends ChangeNotifier {
       .toList();
 
   List<ImageMaterial> get pendingReviewImageMaterials => _imageMaterials
-      .where((m) => m.reviewStatus == MaterialReviewStatus.pending)
+      .where((m) =>
+          m.reviewStatus == MaterialReviewStatus.pending &&
+          _isValidRealImage(m))
       .toList();
 
   /// 待审核物料总数
