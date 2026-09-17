@@ -122,11 +122,22 @@ class AppProvider extends ChangeNotifier {
       _users.addAll(list.map((e) => AppUser.fromJson(e)));
     }
 
-    // 若无用户数据，初始化预设初始超管和示范顾问
-    if (_users.isEmpty) {
-      _initDefaultUsers();
-      await _saveUsersLocal();
+    // 自动清洗历史测试账号（仅保留超管与李老师）
+    const allowedUserIds = {'usr_super_admin', 'usr_advisor_li'};
+    _users.removeWhere((u) => !allowedUserIds.contains(u.id));
+    if (!_users.any((u) => u.id == 'usr_advisor_li')) {
+      _users.add(AppUser(
+        id: 'usr_advisor_li',
+        username: 'lilaoshi',
+        password: '123456',
+        name: '李老师',
+        role: UserRole.advisor,
+        phone: '13733334444',
+        canManageMaterials: true,
+        createdBy: '超级管理员',
+      ));
     }
+    await _saveUsersLocal();
 
     // 恢复登录态
     final currentUserId = prefs.getString('crm_current_user_id');
@@ -149,6 +160,17 @@ class AppProvider extends ChangeNotifier {
       final list = jsonDecode(cluesJson) as List<dynamic>;
       _clues.addAll(list.map((e) => Clue.fromJson(e)));
     }
+
+    // 全量清洗并丢弃历史测试线索与演示线索
+    const mockIds = {
+      '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
+      '11', '12', '13', '14', '15', 'sync_test_01'
+    };
+    _clues.removeWhere((c) =>
+        mockIds.contains(c.id) ||
+        c.id.startsWith('sync_test') ||
+        c.wxNick.contains('测试') ||
+        c.wxNick.contains('郭培杨测试'));
 
     if (textJson != null) {
       final list = jsonDecode(textJson) as List<dynamic>;
@@ -177,12 +199,14 @@ class AppProvider extends ChangeNotifier {
     }
 
     if (cluesJson == null) {
-      initMockData();
+      // 首次启动或全新初始化：保持纯净空线索库，供录入真实学员
+      _clues.clear();
+      _saveCluesLocalOnly();
     }
 
     // 确保所有线索都有明确归属人，并对历史非标年级（如 24/25/12）与科目进行自动清洗归一
     bool needResave = false;
-    final defaultAdvisors = ['李广东', '郭培杨', '王主管', '张老师'];
+    final defaultAdvisors = ['李老师', '超级管理员'];
     int advisorIdx = 0;
     for (final c in _clues) {
       if (c.ownerName.trim().isEmpty) {
@@ -230,53 +254,13 @@ class AppProvider extends ChangeNotifier {
         createdBy: '系统初始化',
       ),
       AppUser(
-        id: 'usr_manager_wang',
-        username: 'wangzhuguan',
-        password: '123456',
-        name: '王主管',
-        role: UserRole.advisor,
-        phone: '13733334444',
-        canManageMaterials: false,
-        createdBy: '超级管理员',
-      ),
-      AppUser(
-        id: 'usr_1788340055423',
-        username: 'lgd1992',
-        password: '123456',
-        name: '李广东',
-        role: UserRole.advisor,
-        phone: '15738801926',
-        canManageMaterials: true,
-        createdBy: '超级管理员',
-      ),
-      AppUser(
-        id: 'usr_advisor_zhang',
-        username: 'zhanglaoshi',
-        password: '123456',
-        name: '张老师',
-        role: UserRole.advisor,
-        phone: '13911112222',
-        canManageMaterials: true,
-        createdBy: '超级管理员',
-      ),
-      AppUser(
-        id: 'usr_1788342882634',
-        username: 'gpy1992',
-        password: '123456',
-        name: '郭培杨',
-        role: UserRole.advisor,
-        phone: '13290823050',
-        canManageMaterials: true,
-        createdBy: '超级管理员',
-      ),
-      AppUser(
         id: 'usr_advisor_li',
         username: 'lilaoshi',
         password: '123456',
         name: '李老师',
         role: UserRole.advisor,
         phone: '13733334444',
-        canManageMaterials: false,
+        canManageMaterials: true,
         createdBy: '超级管理员',
       ),
     ]);
