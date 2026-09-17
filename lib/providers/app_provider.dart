@@ -85,6 +85,29 @@ class AppProvider extends ChangeNotifier {
   String _syncStatus = '正在同步...';
   String get syncStatus => _syncStatus;
 
+  static const Set<String> _mockClueIds = {
+    '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
+    '11', '12', '13', '14', '15', 'sync_test_01',
+    '1788343427076', '1788197247395', '1788196502601', '1788196332812',
+    '1788189895199', '1788186240315', '1788184925476', '1788184879093',
+    '1788165706686', '1788164371780', '1788163280908'
+  };
+
+  static const Set<String> _mockClueNames = {
+    '小雪同学', '李明明', '王小燕', '张大伟', '赵文文',
+    '刘思雨', '陈佳佳', '吴晓峰', '林小雨', '周鹏程',
+    '苏梦琪', '杨晨曦', '方芳', '谢一鸣', '韩冰冰'
+  };
+
+  static bool _isMockClue(Clue c) {
+    if (_mockClueIds.contains(c.id)) return true;
+    if (c.id.startsWith('sync_test')) return true;
+    final nick = c.wxNick.trim();
+    if (nick.contains('测试') || nick.contains('郭培杨测试')) return true;
+    if (_mockClueNames.contains(nick)) return true;
+    return false;
+  }
+
   // 私有线索池
   final List<Clue> _clues = [];
   List<Clue> get clues => List.unmodifiable(_clues);
@@ -155,19 +178,12 @@ class AppProvider extends ChangeNotifier {
 
     if (cluesJson != null) {
       final list = jsonDecode(cluesJson) as List<dynamic>;
-      _clues.addAll(list.map((e) => Clue.fromJson(e)));
+      _clues.addAll(list.map((e) => Clue.fromJson(e)).where((c) => !_isMockClue(c)));
     }
 
-    // 全量清洗并丢弃历史测试线索与演示线索
-    const mockIds = {
-      '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
-      '11', '12', '13', '14', '15', 'sync_test_01'
-    };
-    _clues.removeWhere((c) =>
-        mockIds.contains(c.id) ||
-        c.id.startsWith('sync_test') ||
-        c.wxNick.contains('测试') ||
-        c.wxNick.contains('郭培杨测试'));
+    // 全量清洗并彻底丢弃历史测试线索与演示线索
+    _clues.removeWhere(_isMockClue);
+    await _saveCluesLocalOnly();
 
     if (textJson != null) {
       final list = jsonDecode(textJson) as List<dynamic>;
@@ -485,10 +501,17 @@ class AppProvider extends ChangeNotifier {
     try {
       final remoteClues = await _crmSyncService.fetchAllClues();
       if (remoteClues != null) {
-        final remoteMap = {for (var rc in remoteClues) rc.id: rc};
-        // 发现本地独有线索（如刚在 iPhone 离线创建的数据），自动上报云端！
+        // 自动剿灭云端测试残留线索
+        final mockRemotes = remoteClues.where(_isMockClue).toList();
+        for (var mc in mockRemotes) {
+          unawaited(_crmSyncService.deleteClue(mc.id));
+        }
+
+        final validRemotes = remoteClues.where((c) => !_isMockClue(c)).toList();
+        final remoteMap = {for (var rc in validRemotes) rc.id: rc};
+        // 发现本地独有真实线索，自动上报云端！
         final localOnly =
-            _clues.where((c) => !remoteMap.containsKey(c.id)).toList();
+            _clues.where((c) => !_isMockClue(c) && !remoteMap.containsKey(c.id)).toList();
         if (localOnly.isNotEmpty) {
           unawaited(_crmSyncService.saveClues(localOnly));
           for (var c in localOnly) {
@@ -585,9 +608,16 @@ class AppProvider extends ChangeNotifier {
         _isCloudConnected = true;
         _syncStatus = '实时同步中';
 
-        final remoteMap = {for (var rc in remoteClues) rc.id: rc};
+        // 自动剿灭云端测试残留线索
+        final mockRemotes = remoteClues.where(_isMockClue).toList();
+        for (var mc in mockRemotes) {
+          unawaited(_crmSyncService.deleteClue(mc.id));
+        }
+
+        final validRemotes = remoteClues.where((c) => !_isMockClue(c)).toList();
+        final remoteMap = {for (var rc in validRemotes) rc.id: rc};
         final localOnly =
-            _clues.where((c) => !remoteMap.containsKey(c.id)).toList();
+            _clues.where((c) => !_isMockClue(c) && !remoteMap.containsKey(c.id)).toList();
         if (localOnly.isNotEmpty) {
           debugPrint('☁️ [CrmSync] 发现本地有 ${localOnly.length} 条未上报线索，正在自动双向上报...');
           await _crmSyncService.saveClues(localOnly);
@@ -614,9 +644,10 @@ class AppProvider extends ChangeNotifier {
         _isCloudConnected = true;
         _syncStatus = '云端实时同步中';
 
-        final remoteMap = {for (var rc in fbClues) rc.id: rc};
+        final validFbClues = fbClues.where((c) => !_isMockClue(c)).toList();
+        final remoteMap = {for (var rc in validFbClues) rc.id: rc};
         final localOnly =
-            _clues.where((c) => !remoteMap.containsKey(c.id)).toList();
+            _clues.where((c) => !_isMockClue(c) && !remoteMap.containsKey(c.id)).toList();
         if (localOnly.isNotEmpty) {
           debugPrint('☁️ [Sync] 发现本地有 ${localOnly.length} 条未上云线索，正在自动双向上报...');
           await _firestoreService.batchUploadClues(localOnly);
@@ -643,6 +674,7 @@ class AppProvider extends ChangeNotifier {
 
   /// 仅保存到本地（避免循环触发云端保存）
   Future<void> _saveCluesLocalOnly() async {
+    _clues.removeWhere(_isMockClue);
     final prefs = await SharedPreferences.getInstance();
     final json = jsonEncode(_clues.map((c) => c.toJson()).toList());
     await prefs.setString('crm_clues', json);
@@ -650,8 +682,9 @@ class AppProvider extends ChangeNotifier {
 
   /// 保存线索到本地存储并多通道双向同步
   Future<void> _saveClues({Clue? changedClue}) async {
+    _clues.removeWhere(_isMockClue);
     await _saveCluesLocalOnly();
-    if (changedClue != null) {
+    if (changedClue != null && !_isMockClue(changedClue)) {
       try {
         await _crmSyncService.saveClues([changedClue]);
       } catch (e) {
@@ -660,6 +693,7 @@ class AppProvider extends ChangeNotifier {
       _tencentService.saveClue(changedClue);
       _firestoreService.saveClue(changedClue);
     }
+    notifyListeners();
   }
 
   /// 手动强制触发全量双向同步（一键将本地未上报数据推上云端，并拉回最新数据）
