@@ -10,17 +10,5 @@
     "canManageMaterials": true,
     "createdAt": "2026-09-03T00:49:14.393",
     "createdBy": "系统初始化"
-  },
-  {
-    "id": "usr_advisor_li",
-    "username": "lilaoshi",
-    "password": "123456",
-    "name": "李老师",
-    "role": "advisor",
-    "isActive": true,
-    "phone": "13733334444",
-    "canManageMaterials": true,
-    "createdAt": "2026-09-03T00:49:14.393",
-    "createdBy": "超级管理员"
   }
 ]

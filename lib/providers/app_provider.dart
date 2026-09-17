@@ -122,20 +122,11 @@ class AppProvider extends ChangeNotifier {
       _users.addAll(list.map((e) => AppUser.fromJson(e)));
     }
 
-    // 自动清洗历史测试账号（仅保留超管与李老师）
-    const allowedUserIds = {'usr_super_admin', 'usr_advisor_li'};
+    // 自动清洗历史测试账号（仅保留超级管理员）
+    const allowedUserIds = {'usr_super_admin'};
     _users.removeWhere((u) => !allowedUserIds.contains(u.id));
-    if (!_users.any((u) => u.id == 'usr_advisor_li')) {
-      _users.add(AppUser(
-        id: 'usr_advisor_li',
-        username: 'lilaoshi',
-        password: '123456',
-        name: '李老师',
-        role: UserRole.advisor,
-        phone: '13733334444',
-        canManageMaterials: true,
-        createdBy: '超级管理员',
-      ));
+    if (_users.isEmpty) {
+      _initDefaultUsers();
     }
     await _saveUsersLocal();
 
@@ -206,7 +197,7 @@ class AppProvider extends ChangeNotifier {
 
     // 确保所有线索都有明确归属人，并对历史非标年级（如 24/25/12）与科目进行自动清洗归一
     bool needResave = false;
-    final defaultAdvisors = ['李老师', '超级管理员'];
+    final defaultAdvisors = ['超级管理员'];
     int advisorIdx = 0;
     for (final c in _clues) {
       if (c.ownerName.trim().isEmpty) {
@@ -239,10 +230,10 @@ class AppProvider extends ChangeNotifier {
     _initCloudSync();
   }
 
-  /// 初始化默认用户（超级管理员 + 招生顾问）
+  /// 初始化默认用户（仅保留超级管理员）
   void _initDefaultUsers() {
     _users.clear();
-    _users.addAll([
+    _users.add(
       AppUser(
         id: 'usr_super_admin',
         username: 'admin',
@@ -253,17 +244,7 @@ class AppProvider extends ChangeNotifier {
         canManageMaterials: true,
         createdBy: '系统初始化',
       ),
-      AppUser(
-        id: 'usr_advisor_li',
-        username: 'lilaoshi',
-        password: '123456',
-        name: '李老师',
-        role: UserRole.advisor,
-        phone: '13733334444',
-        canManageMaterials: true,
-        createdBy: '超级管理员',
-      ),
-    ]);
+    );
   }
 
   /// 保存用户列表到本地并异步广播到云端同步服务
