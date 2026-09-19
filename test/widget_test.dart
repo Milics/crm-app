@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:crm_app/providers/app_provider.dart';
+import 'package:crm_app/models/clue.dart';
 
 void main() {
   setUp(() {
@@ -35,7 +36,7 @@ void main() {
     expect(provider.isLoaded, isTrue);
   });
 
-  testWidgets('AppProvider 首次启动加载模拟线索数据', (WidgetTester tester) async {
+  testWidgets('AppProvider 首次启动保持纯净线索池并支持录入真实学员', (WidgetTester tester) async {
     final provider = AppProvider();
     await tester.pumpWidget(
       ChangeNotifierProvider.value(
@@ -44,8 +45,18 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    // 首次运行会加载模拟数据，线索数量应大于 0
-    expect(provider.clues.length, greaterThan(0));
+    // 纯净状态：默认不包含测试线索
+    expect(provider.clues.length, 0);
+
+    // 录入真实学员线索成功
+    final newClue = Clue(
+      id: 'real_student_001',
+      wxNick: '李华',
+      phone: '13811112222',
+      createTime: DateTime.now(),
+    );
+    provider.addClue(newClue);
+    expect(provider.clues.length, 1);
   });
 }
 

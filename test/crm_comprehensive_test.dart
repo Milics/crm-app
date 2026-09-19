@@ -672,9 +672,9 @@ void main() {
       final now = DateTime.now();
       final testClue = Clue(
         id: 'c_flow_test',
-        wxNick: '测试流转学员',
+        wxNick: '周小峰',
         status: ClueStatus.contacted,
-        ownerName: '测试顾问',
+        ownerName: '李老师',
         createTime: now,
       );
       provider.addClue(testClue);
@@ -773,7 +773,7 @@ void main() {
       final now = DateTime.now();
       final testClue = Clue(
         id: 'c_visit_status_test',
-        wxNick: '回访测试学员',
+        wxNick: '张小凡',
         status: ClueStatus.contacted,
         intentLevel: IntentLevel.medium,
         createTime: now,
@@ -790,7 +790,7 @@ void main() {
         createTime: now,
       );
 
-      provider.addVisitLog(
+      await provider.addVisitLog(
         'c_visit_status_test',
         log,
         newStatus: ClueStatus.attended,
@@ -815,7 +815,7 @@ void main() {
 
       final testClue = Clue(
         id: 'c_expand_header_test',
-        wxNick: '苏梦琪',
+        wxNick: '王晓宇',
         wxId: 'wx_expand_test',
         phone: '13899998888',
         school: '广东轻工职业技术学院',
@@ -841,7 +841,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       // 1. 验证默认状态：姓名、状态、意向标签可见
-      expect(find.text('苏梦琪'), findsOneWidget);
+      expect(find.text('王晓宇'), findsOneWidget);
       expect(find.text('已邀约'), findsOneWidget);
       expect(find.text('高意向'), findsOneWidget);
 

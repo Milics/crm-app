@@ -183,7 +183,7 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
     );
   }
 
-  void _saveToTimeline() {
+  Future<void> _saveToTimeline() async {
     if (_saved) return;
     final provider = context.read<AppProvider>();
     final summary = _usingLlm && _llmOutput != null
@@ -200,7 +200,8 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
       nextVisitTime: widget.clue.nextVisitTime,
       createTime: DateTime.now(),
     );
-    provider.addVisitLog(widget.clue.id, log);
+    await provider.addVisitLog(widget.clue.id, log);
+    if (!mounted) return;
     setState(() => _saved = true);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(

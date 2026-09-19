@@ -46,6 +46,7 @@
       overscroll-behavior: none;
       overscroll-behavior-x: none;
       overscroll-behavior-y: none;
+      touch-action: pan-y pinch-zoom;
       -webkit-overflow-scrolling: touch;
       font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
     }
@@ -300,37 +301,38 @@
     }, 50);
 
     // ══════════════════════════════════════════════════════════════
-    // 🛡️ iOS Safari PWA 边缘右滑返回手势保护（核心治愈方案）
-    // 彻底阻止 iPhone 添加到主屏幕后左滑返回触发浏览器系统级后退导致的重载蓝屏
+    // 🛡️ iOS Safari / Android PWA 边缘滑动手势与历史栈多重安全盾
+    // 彻底杜绝手势滑动返回触发浏览器系统级页面卸载（Unload / Reload）
     // ══════════════════════════════════════════════════════════════
     var _edgeStartX = 0;
     var _edgeStartY = 0;
-    var _isLeftEdgeTouch = false;
+    var _isEdgeTouch = false;
 
     window.addEventListener('touchstart', function(e) {
       if (e.touches && e.touches.length === 1) {
         var x = e.touches[0].clientX;
-        // 检测是否从左边缘 32px 区域发起触摸
-        if (x <= 32) {
-          _isLeftEdgeTouch = true;
+        var screenW = window.innerWidth || document.documentElement.clientWidth || 375;
+        // 检测左右边缘 50px 危险手势触发区（覆盖全面屏防误触区）
+        if (x <= 50 || x >= screenW - 50) {
+          _isEdgeTouch = true;
           _edgeStartX = x;
           _edgeStartY = e.touches[0].clientY;
           return;
         }
       }
-      _isLeftEdgeTouch = false;
+      _isEdgeTouch = false;
     }, { passive: true });
 
     window.addEventListener('touchmove', function(e) {
-      if (_isLeftEdgeTouch && e.touches && e.touches.length === 1) {
+      if (_isEdgeTouch && e.touches && e.touches.length === 1) {
         var currentX = e.touches[0].clientX;
         var currentY = e.touches[0].clientY;
-        var diffX = currentX - _edgeStartX;
+        var diffX = Math.abs(currentX - _edgeStartX);
         var diffY = Math.abs(currentY - _edgeStartY);
 
-        // 如果用户手指往右滑（返回意图明显）
-        if (diffX > 8 && diffX > diffY) {
-          // 关键：拦截 iOS WebKit 系统级跨页面后退手势，防止 PWA 页面被浏览器刷新清空
+        // 如果用户手指呈现横向滑动趋势（试图触发浏览器边缘翻页/后退）
+        if (diffX > 6 && diffX > diffY) {
+          // 拦截系统级跨页面后退/前进手势，防止 PWA 页面被浏览器刷新清空
           if (e.cancelable) {
             e.preventDefault();
           }
@@ -338,49 +340,42 @@
       }
     }, { passive: false });
 
-    // 历史栈安全垫片：保证 Standalone 模式下始终存在历史栈，防止意外触发后退导致黑/白/蓝屏
+    // 历史栈平稳哨兵：在 PWA 根部设立一个缓冲锚点，防止退到空白页或触发容器关闭
     try {
       if (window.history && window.history.pushState) {
-        window.history.pushState({ pwaGuard: true }, '', window.location.href);
-        window.addEventListener('popstate', function(e) {
-          window.history.pushState({ pwaGuard: true }, '', window.location.href);
-        });
+        window.history.pushState({ pwaRoot: true }, '', window.location.href);
       }
     } catch(e) {}
 
     // ══════════════════════════════════════════════════════════════
     // 🛡️ iOS Safari PWA 虚拟视口与触控热区对齐校准器（彻底消除点击需要往上偏移的问题）
     // ══════════════════════════════════════════════════════════════
+    var _resetViewportTimer = null;
     function _resetViewportOffset() {
-      if (window.scrollY !== 0 || (document.body && document.body.scrollTop !== 0) || (document.documentElement && document.documentElement.scrollTop !== 0)) {
-        window.scrollTo(0, 0);
-        if (document.body) document.body.scrollTop = 0;
-        if (document.documentElement) document.documentElement.scrollTop = 0;
-      }
+      if (_resetViewportTimer) return;
+      _resetViewportTimer = setTimeout(function() {
+        _resetViewportTimer = null;
+        if (window.scrollY !== 0 || (document.body && document.body.scrollTop !== 0) || (document.documentElement && document.documentElement.scrollTop !== 0)) {
+          window.scrollTo(0, 0);
+          if (document.body) document.body.scrollTop = 0;
+          if (document.documentElement) document.documentElement.scrollTop = 0;
+        }
+      }, 60);
     }
 
     // 1. 当输入框失焦软键盘收起后，强制校正 HitTest 坐标系与视觉层严格重合
     window.addEventListener('focusout', function() {
-      setTimeout(_resetViewportOffset, 60);
-      setTimeout(_resetViewportOffset, 200);
+      setTimeout(_resetViewportOffset, 80);
     });
 
     // 2. 监听 visualViewport 变动，自动归位
     if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', function() {
-        setTimeout(_resetViewportOffset, 50);
-      });
-      window.visualViewport.addEventListener('scroll', function() {
-        _resetViewportOffset();
-      });
+      window.visualViewport.addEventListener('resize', _resetViewportOffset);
+      window.visualViewport.addEventListener('scroll', _resetViewportOffset);
     }
 
-    // 3. 页面全局滚动兜底拦截
-    window.addEventListener('scroll', function() {
-      if (window.scrollY !== 0) {
-        window.scrollTo(0, 0);
-      }
-    }, { passive: true });
+    // 3. 页面全局滚动兜底拦截（节流防暴击）
+    window.addEventListener('scroll', _resetViewportOffset, { passive: true });
   </script>
 
   <script src="flutter_bootstrap.js" async></script>

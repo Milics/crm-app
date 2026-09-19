@@ -49,13 +49,26 @@ class _AddVisitPageState extends State<AddVisitPage> {
     super.dispose();
   }
 
-  void _save() {
+  bool _isSaving = false;
+
+  Future<void> _save() async {
+    if (_isSaving) return;
+
     if (_contentCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('请填写沟通内容摘要'), backgroundColor: Colors.red),
       );
       return;
     }
+
+    // 1. 立即收起软键盘，避免键盘收缩与转场动画冲突
+    FocusScope.of(context).unfocus();
+
+    setState(() => _isSaving = true);
+
+    // 留出 80ms 让移动端视口平稳恢复
+    await Future.delayed(const Duration(milliseconds: 80));
+    if (!mounted) return;
 
     final provider = context.read<AppProvider>();
     DateTime? finalNextVisitTime;
@@ -80,16 +93,28 @@ class _AddVisitPageState extends State<AddVisitPage> {
       createTime: DateTime.now(),
     );
 
-    provider.addVisitLog(
+    final success = await provider.addVisitLog(
       widget.clueId,
       log,
       newStatus: _status,
       newIntentLevel: _intentLevel,
     );
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('回访记录已保存'), backgroundColor: Colors.green),
-    );
+
+    if (!mounted) return;
+
+    if (success) {
+      // 提前持有 messenger 引用，避免 pop 后 context 卸载导致失效
+      final messenger = ScaffoldMessenger.of(context);
+      Navigator.pop(context, true);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('回访记录已保存'), backgroundColor: Colors.green),
+      );
+    } else {
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('保存失败，请稍后重试'), backgroundColor: Colors.red),
+      );
+    }
   }
 
   Future<void> _pickCustomDate() async {
@@ -139,8 +164,10 @@ class _AddVisitPageState extends State<AddVisitPage> {
     final timeLabel =
         '${_nextVisitTime.hour.toString().padLeft(2, '0')}:${_nextVisitTime.minute.toString().padLeft(2, '0')}';
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('新增回访')),
+    return PopScope(
+      canPop: !_isSaving,
+      child: Scaffold(
+        appBar: AppBar(title: const Text('新增回访')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -593,15 +620,25 @@ class _AddVisitPageState extends State<AddVisitPage> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _save,
+                onPressed: _isSaving ? null : _save,
                 style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16)),
-                child: const Text('保存回访记录', style: TextStyle(fontSize: 16)),
+                child: _isSaving
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('保存回访记录', style: TextStyle(fontSize: 16)),
               ),
             ),
           ],
         ),
       ),
+    ),
     );
   }
 

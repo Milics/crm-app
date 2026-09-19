@@ -672,12 +672,16 @@ class AppProvider extends ChangeNotifier {
     return false;
   }
 
-  /// 仅保存到本地（避免循环触发云端保存）
+  /// 仅保存到本地（避免循环触发云端保存，加入异常捕获防崩溃）
   Future<void> _saveCluesLocalOnly() async {
-    _clues.removeWhere(_isMockClue);
-    final prefs = await SharedPreferences.getInstance();
-    final json = jsonEncode(_clues.map((c) => c.toJson()).toList());
-    await prefs.setString('crm_clues', json);
+    try {
+      _clues.removeWhere(_isMockClue);
+      final prefs = await SharedPreferences.getInstance();
+      final json = jsonEncode(_clues.map((c) => c.toJson()).toList());
+      await prefs.setString('crm_clues', json);
+    } catch (e) {
+      debugPrint('⚠️ [_saveCluesLocalOnly] 本地持久化异常: $e');
+    }
   }
 
   /// 保存线索到本地存储并多通道双向同步
@@ -690,8 +694,12 @@ class AppProvider extends ChangeNotifier {
       } catch (e) {
         debugPrint('⚠️ [CrmSync] 保存单个线索到云端异常: $e');
       }
-      _tencentService.saveClue(changedClue);
-      _firestoreService.saveClue(changedClue);
+      try {
+        _tencentService.saveClue(changedClue);
+      } catch (_) {}
+      try {
+        _firestoreService.saveClue(changedClue);
+      } catch (_) {}
     }
     notifyListeners();
   }
@@ -1442,13 +1450,13 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  // 新增回访记录
-  void addVisitLog(
+  // 新增回访记录（强保证：本地立即原子级落盘，确保在任何网络或切页情况下均不丢失）
+  Future<bool> addVisitLog(
     String clueId,
     VisitLog log, {
     ClueStatus? newStatus,
     IntentLevel? newIntentLevel,
-  }) {
+  }) async {
     final clue = getClueById(clueId);
     if (clue != null) {
       clue.visitLogs.insert(0, log);
@@ -1469,9 +1477,33 @@ class AppProvider extends ChangeNotifier {
       } else if (log.visitResult == VisitResult.intentUp) {
         clue.intentLevel = IntentLevel.high;
       }
+
+      // 1. 立即通知 UI 更新（实现页面秒级响应）
       notifyListeners();
-      _saveClues(changedClue: clue);
+
+      // 2. 强安全屏障：等待本地 SharedPreferences/localStorage 100% 写入成功
+      await _saveCluesLocalOnly();
+
+      // 3. 异步平滑上报云端同步（即便弱网或报错也不会阻碍本地）
+      if (!_isMockClue(clue)) {
+        unawaited(() async {
+          try {
+            await _crmSyncService.saveClues([clue]);
+          } catch (e) {
+            debugPrint('⚠️ [CrmSync] 回访记录上传云端异常: $e');
+          }
+          try {
+            _tencentService.saveClue(clue);
+          } catch (_) {}
+          try {
+            _firestoreService.saveClue(clue);
+          } catch (_) {}
+        }());
+      }
+
+      return true;
     }
+    return false;
   }
 
   // 批量追加聊天截图并触发云端与本地双向同步

@@ -30,8 +30,10 @@ class ClueDetailPage extends StatelessWidget {
           );
         }
 
-        return Scaffold(
-          backgroundColor: const Color(0xFFF5F7FA),
+        return PopScope(
+          canPop: true,
+          child: Scaffold(
+            backgroundColor: const Color(0xFFF5F7FA),
           appBar: AppBar(
             title: Text(clue.status == ClueStatus.enrolled ? '报名详情' : '线索详情'),
             actions: [
@@ -79,8 +81,9 @@ class ClueDetailPage extends StatelessWidget {
               ),
             ),
           ),
-        );
-      },
+        ),
+      );
+    },
     );
   }
 }
