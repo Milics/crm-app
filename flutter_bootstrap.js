@@ -39,7 +39,7 @@ _flutter.buildConfig = {"engineRevision":"78fc3012e45889657f72359b005af7beac47ba
 
 _flutter.loader.load({
   serviceWorkerSettings: {
-    serviceWorkerVersion: "2844167460",
+    serviceWorkerVersion: "274950198",
   },
   config: {
     canvasKitBaseUrl: "canvaskit/",
