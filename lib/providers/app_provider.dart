@@ -85,6 +85,10 @@ class AppProvider extends ChangeNotifier {
   String _syncStatus = '正在同步...';
   String get syncStatus => _syncStatus;
 
+  // 是否正在与云端进行数据同步
+  bool _isSyncing = false;
+  bool get isSyncing => _isSyncing;
+
   static const Set<String> _mockClueIds = {
     '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
     '11', '12', '13', '14', '15', 'sync_test_01',
@@ -122,6 +126,8 @@ class AppProvider extends ChangeNotifier {
 
   StreamSubscription<List<Clue>>? _cluesSubscription;
   StreamSubscription<List<TextMaterial>>? _textMaterialsSubscription;
+  Timer? _retryTimer;
+  bool _isDisposed = false;
 
   AppProvider() {
     _init();
@@ -129,6 +135,8 @@ class AppProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _isDisposed = true;
+    _retryTimer?.cancel();
     _cluesSubscription?.cancel();
     _textMaterialsSubscription?.cancel();
     super.dispose();
@@ -376,6 +384,10 @@ class AppProvider extends ChangeNotifier {
     await prefs.setString('crm_current_user_id', user.id);
 
     notifyListeners();
+
+    // 登录成功后立即触发全量云端数据拉取
+    unawaited(refreshClues());
+
     return {'success': true, 'user': user};
   }
 
@@ -491,8 +503,12 @@ class AppProvider extends ChangeNotifier {
     return {'success': true, 'message': '账号已成功删除'};
   }
 
-  /// 初始化云端同步与监听
+  /// 初始化云端同步与监听（含智能唤醒重试队列）
   Future<void> _initCloudSync() async {
+    _isSyncing = true;
+    _syncStatus = '正在同步云端数据...';
+    notifyListeners();
+
     // 1. 同步员工账号与物料
     unawaited(syncUsersFromCloud());
     unawaited(syncMaterialsFromCloud());
@@ -524,12 +540,82 @@ class AppProvider extends ChangeNotifier {
         await _saveCluesLocalOnly();
         _isCloudConnected = true;
         _syncStatus = '实时同步中';
+        _isSyncing = false;
         notifyListeners();
         return;
       }
     } catch (_) {}
 
+    // 如果首次拉取失败或返回空（可能处于 Render 休眠冷启动中），启动平滑自动唤醒重试队列
+    _startWakeupRetryQueue();
+
     _firestoreService.initialize();
+  }
+
+  /// 智能唤醒重试队列（在 Render 免费实例冷启动唤醒过程中平滑拉取）
+  void _startWakeupRetryQueue() {
+    // 单元测试环境直接跳过网络延迟重试，避免 pending timers 报错
+    if (WidgetsBinding.instance.runtimeType.toString().contains('TestWidgetsFlutterBinding')) {
+      _isSyncing = false;
+      return;
+    }
+
+    int retryCount = 0;
+    const maxRetries = 3;
+    const retryDelays = [3, 6, 10];
+
+    void attemptRetry() {
+      if (_isDisposed) return;
+      if (retryCount >= maxRetries) {
+        _isSyncing = false;
+        _syncStatus = _isCloudConnected ? '实时同步中' : '离线模式';
+        notifyListeners();
+        return;
+      }
+
+      final delaySec = retryDelays[retryCount];
+      retryCount++;
+
+      _retryTimer = Timer(Duration(seconds: delaySec), () async {
+        if (_isDisposed) return;
+        try {
+          final remoteClues = await _crmSyncService.fetchAllClues();
+          if (remoteClues != null && !_isDisposed) {
+            final mockRemotes = remoteClues.where(_isMockClue).toList();
+            for (var mc in mockRemotes) {
+              unawaited(_crmSyncService.deleteClue(mc.id));
+            }
+
+            final validRemotes = remoteClues.where((c) => !_isMockClue(c)).toList();
+            final remoteMap = {for (var rc in validRemotes) rc.id: rc};
+            final localOnly =
+                _clues.where((c) => !_isMockClue(c) && !remoteMap.containsKey(c.id)).toList();
+            if (localOnly.isNotEmpty) {
+              unawaited(_crmSyncService.saveClues(localOnly));
+              for (var c in localOnly) {
+                remoteMap[c.id] = c;
+              }
+            }
+            _clues.clear();
+            _clues.addAll(remoteMap.values);
+            _clues.sort((a, b) => b.createTime.compareTo(a.createTime));
+            await _saveCluesLocalOnly();
+            _isCloudConnected = true;
+            _syncStatus = '实时同步中';
+            _isSyncing = false;
+            notifyListeners();
+            debugPrint('🟢 [CrmSync] 智能唤醒重试成功，已同步 ${_clues.length} 条线索！');
+            return;
+          }
+        } catch (_) {}
+
+        if (!_isDisposed) {
+          attemptRetry();
+        }
+      });
+    }
+
+    attemptRetry();
   }
 
   /// 从云端同步文字与图片物料（全量双向对齐）
@@ -594,6 +680,7 @@ class AppProvider extends ChangeNotifier {
 
   /// 下拉刷新：强制从云端服务器拉取最新数据，并双向补齐未同步的本地线索
   Future<bool> refreshClues() async {
+    _isSyncing = true;
     _syncStatus = '正在同步最新数据...';
     notifyListeners();
 
@@ -607,6 +694,7 @@ class AppProvider extends ChangeNotifier {
       if (remoteClues != null) {
         _isCloudConnected = true;
         _syncStatus = '实时同步中';
+        _isSyncing = false;
 
         // 自动剿灭云端测试残留线索
         final mockRemotes = remoteClues.where(_isMockClue).toList();
@@ -643,6 +731,7 @@ class AppProvider extends ChangeNotifier {
       if (fbClues != null && fbClues.isNotEmpty) {
         _isCloudConnected = true;
         _syncStatus = '云端实时同步中';
+        _isSyncing = false;
 
         final validFbClues = fbClues.where((c) => !_isMockClue(c)).toList();
         final remoteMap = {for (var rc in validFbClues) rc.id: rc};
@@ -667,6 +756,7 @@ class AppProvider extends ChangeNotifier {
       debugPrint('⚠️ [Firestore Sync] 下拉刷新异常: $e');
     }
 
+    _isSyncing = false;
     _syncStatus = '离线模式';
     notifyListeners();
     return false;

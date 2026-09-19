@@ -442,6 +442,35 @@ class _ClueListPageState extends State<ClueListPage>
                       ],
                     ),
                   ),
+                // 云端实时同步状态提示条
+                if (provider.isSyncing)
+                  Container(
+                    width: double.infinity,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    color: const Color(0xFFE3F2FD),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFF1976D2),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          provider.syncStatus.isNotEmpty
+                              ? provider.syncStatus
+                              : '正在同步云端数据...',
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xFF1976D2)),
+                        ),
+                      ],
+                    ),
+                  ),
                 // 状态与意向快捷筛选胶囊栏（已试听 Tab 下只显示意向度）
                 _StatusAndIntentionFilterBar(
                   baseClues: provider.baseFilteredClues,
@@ -497,11 +526,32 @@ class _ClueListPageState extends State<ClueListPage>
                                                 : (isPausedTab
                                                     ? '暂搁置客户会集中在此处沉淀，可在时机成熟时批量唤醒'
                                                     : (_tabController.index == 0
-                                                        ? '点击下方 + 新建线索，或下拉刷新同步云端'
+                                                        ? '点击下方 + 新建线索，或点击下方按钮同步云端'
                                                         : '当前分类下没有线索')))),
                                     style: const TextStyle(
                                         color: Colors.grey, fontSize: 12),
                                   ),
+                                  if (provider.clues.isEmpty) ...[
+                                    const SizedBox(height: 16),
+                                    ElevatedButton.icon(
+                                      onPressed: provider.isSyncing
+                                          ? null
+                                          : () => provider.refreshClues(),
+                                      icon: provider.isSyncing
+                                          ? const SizedBox(
+                                              width: 14,
+                                              height: 14,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: Colors.white,
+                                              ),
+                                            )
+                                          : const Icon(Icons.cloud_sync, size: 18),
+                                      label: Text(provider.isSyncing
+                                          ? '正在连通云端...'
+                                          : '从云端同步最新线索'),
+                                    ),
+                                  ],
                                   if (keyword.isNotEmpty ||
                                       provider.selectedFilter.isNotEmpty ||
                                       provider.hasActiveFilter) ...[
@@ -1595,16 +1645,46 @@ class _TodayTaskCard extends StatelessWidget {
 
             // 内容：任务列表 or 无任务提示
             if (!hasTasks)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Column(
                 children: [
-                  Icon(Icons.check_circle_outline,
-                      size: 18, color: Colors.grey[400]),
-                  const SizedBox(width: 8),
-                  Text(
-                    '今日无回访任务，好好休息 🎉',
-                    style: TextStyle(
-                        fontSize: 13, color: Colors.grey[500]),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.check_circle_outline,
+                          size: 18, color: Colors.grey[400]),
+                      const SizedBox(width: 8),
+                      Text(
+                        '今日无回访任务，好好休息 🎉',
+                        style: TextStyle(
+                            fontSize: 13, color: Colors.grey[500]),
+                      ),
+                    ],
+                  ),
+                  Consumer<AppProvider>(
+                    builder: (context, provider, _) {
+                      if (provider.clues.isNotEmpty) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: OutlinedButton.icon(
+                          onPressed: provider.isSyncing
+                              ? null
+                              : () => provider.refreshClues(),
+                          icon: provider.isSyncing
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.cloud_download_outlined, size: 16),
+                          label: Text(
+                            provider.isSyncing ? '正在拉取云端数据...' : '从云端同步最新线索',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ],
               )

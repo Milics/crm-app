@@ -25,6 +25,15 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
+  <!-- 云端中枢首屏静默预热探针：在启动页展示期间提前激活 Render 休眠实例 -->
+  <script>
+    (function() {
+      try {
+        fetch('https://crm-app-ojs3.onrender.com/api/health', { mode: 'no-cors', cache: 'no-cache' }).catch(function(){});
+      } catch(e) {}
+    })();
+  </script>
+
   <title>专升本招生CRM</title>
   <link rel="manifest" href="manifest.json">
   <style>

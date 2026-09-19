@@ -82,7 +82,7 @@ class CrmSyncService {
       try {
         final res = await http
             .get(Uri.parse('$url/api/health'))
-            .timeout(const Duration(seconds: 8));
+            .timeout(const Duration(seconds: 15));
         if (res.statusCode == 200) {
           _activeBaseUrl = url;
           lastError = null;
@@ -106,7 +106,7 @@ class CrmSyncService {
     try {
       final res = await http
           .get(Uri.parse('$baseUrl/api/users'))
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 45));
       if (res.statusCode == 200) {
         final list = jsonDecode(res.body) as List<dynamic>;
         _activeBaseUrl = baseUrl;
@@ -132,7 +132,7 @@ class CrmSyncService {
             headers: {'Content-Type': 'application/json; charset=utf-8'},
             body: jsonEncode(payload),
           )
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 45));
       if (res.statusCode == 200) {
         _activeBaseUrl = baseUrl;
         return true;
@@ -169,7 +169,7 @@ class CrmSyncService {
     try {
       final res = await http
           .get(Uri.parse('$baseUrl/api/clues'))
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 45));
       if (res.statusCode == 200) {
         final list = jsonDecode(res.body) as List<dynamic>;
         final clues = list.map((e) => Clue.fromJson(e)).toList();
@@ -198,7 +198,7 @@ class CrmSyncService {
             headers: {'Content-Type': 'application/json; charset=utf-8'},
             body: jsonEncode(payload),
           )
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 45));
       if (res.statusCode == 200) {
         _activeBaseUrl = baseUrl;
         lastError = null;
@@ -221,7 +221,7 @@ class CrmSyncService {
     try {
       final res = await http
           .delete(Uri.parse('$_activeBaseUrl/api/clues/$clueId'))
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 15));
       return res.statusCode == 200;
     } catch (_) {
       return false;
@@ -240,7 +240,7 @@ class CrmSyncService {
     try {
       final res = await http
           .get(Uri.parse('$_activeBaseUrl/api/materials/text'))
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 30));
       if (res.statusCode == 200) {
         final list = jsonDecode(res.body) as List<dynamic>;
         return list.map((e) => TextMaterial.fromJson(e)).toList();
@@ -262,7 +262,7 @@ class CrmSyncService {
             headers: {'Content-Type': 'application/json; charset=utf-8'},
             body: jsonEncode(payload),
           )
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 30));
       return res.statusCode == 200;
     } catch (_) {
       return false;
