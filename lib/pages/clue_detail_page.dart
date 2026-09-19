@@ -147,7 +147,7 @@ class _HeaderCardState extends State<_HeaderCard> {
                           ),
                         ),
                         if (clue.wxNick.isNotEmpty) ...[
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                           InkWell(
                             onTap: () {
                               Clipboard.setData(
@@ -161,35 +161,12 @@ class _HeaderCardState extends State<_HeaderCard> {
                               );
                             },
                             borderRadius: BorderRadius.circular(6),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.22),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.4),
-                                  width: 0.8,
-                                ),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.copy_rounded,
-                                    size: 12,
-                                    color: Colors.white,
-                                  ),
-                                  SizedBox(width: 3),
-                                  Text(
-                                    '复制',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
+                            child: Padding(
+                              padding: const EdgeInsets.all(4.0),
+                              child: Icon(
+                                Icons.copy_rounded,
+                                size: 16,
+                                color: Colors.white.withValues(alpha: 0.85),
                               ),
                             ),
                           ),
