@@ -503,6 +503,165 @@ class AppProvider extends ChangeNotifier {
     return {'success': true, 'message': '账号已成功删除'};
   }
 
+  /// 智能合并本地与云端同一线索的数据（保证任何一端的新回访与状态更新均不丢失）
+  Clue _mergeClue(Clue local, Clue remote, {required List<Clue> needsUpload}) {
+    // 1. 合并回访记录 (visitLogs)
+    final logMap = <String, VisitLog>{};
+    for (final l in remote.visitLogs) {
+      logMap[l.id] = l;
+    }
+    bool localHasNewLogs = false;
+    for (final l in local.visitLogs) {
+      if (!logMap.containsKey(l.id)) {
+        localHasNewLogs = true;
+      }
+      logMap[l.id] = l;
+    }
+    final mergedLogs = logMap.values.toList()
+      ..sort((a, b) => b.createTime.compareTo(a.createTime));
+
+    // 2. 合并聊天记录 (chatRecords)
+    final chatMap = <String, ChatRecord>{};
+    for (final r in remote.chatRecords) {
+      chatMap[r.id] = r;
+    }
+    bool localHasNewChats = false;
+    for (final r in local.chatRecords) {
+      if (!chatMap.containsKey(r.id)) {
+        localHasNewChats = true;
+      }
+      chatMap[r.id] = r;
+    }
+    final mergedChats = chatMap.values.toList()
+      ..sort((a, b) => b.createTime.compareTo(a.createTime));
+
+    // 3. 合并标签 (tags)
+    final mergedTags = {...local.tags, ...remote.tags}.toList();
+
+    // 4. 决定状态、意向与次回访时间
+    DateTime? localLatestLogTime =
+        local.visitLogs.isNotEmpty ? local.visitLogs.first.createTime : null;
+    DateTime? remoteLatestLogTime =
+        remote.visitLogs.isNotEmpty ? remote.visitLogs.first.createTime : null;
+
+    bool preferLocal = localHasNewLogs ||
+        (localLatestLogTime != null &&
+            (remoteLatestLogTime == null ||
+                localLatestLogTime.isAfter(remoteLatestLogTime)));
+
+    final mergedClue = Clue(
+      id: local.id,
+      wxNick: preferLocal
+          ? local.wxNick
+          : (remote.wxNick.isNotEmpty ? remote.wxNick : local.wxNick),
+      wxId: preferLocal
+          ? local.wxId
+          : (remote.wxId.isNotEmpty ? remote.wxId : local.wxId),
+      phone: preferLocal
+          ? local.phone
+          : (remote.phone.isNotEmpty ? remote.phone : local.phone),
+      grade: preferLocal
+          ? local.grade
+          : (remote.grade.isNotEmpty ? remote.grade : local.grade),
+      school: preferLocal
+          ? local.school
+          : (remote.school.isNotEmpty ? remote.school : local.school),
+      subject: preferLocal
+          ? local.subject
+          : (remote.subject.isNotEmpty ? remote.subject : local.subject),
+      source: preferLocal
+          ? local.source
+          : (remote.source.isNotEmpty ? remote.source : local.source),
+      classType: preferLocal
+          ? local.classType
+          : (remote.classType.isNotEmpty ? remote.classType : local.classType),
+      ownerName: preferLocal
+          ? local.ownerName
+          : (remote.ownerName.isNotEmpty ? remote.ownerName : local.ownerName),
+      status: preferLocal ? local.status : remote.status,
+      intentLevel: preferLocal ? local.intentLevel : remote.intentLevel,
+      nextVisitTime: preferLocal ? local.nextVisitTime : remote.nextVisitTime,
+      remark: preferLocal
+          ? (local.remark.isNotEmpty ? local.remark : remote.remark)
+          : (remote.remark.isNotEmpty ? remote.remark : local.remark),
+      enrollAmount: local.enrollAmount ?? remote.enrollAmount,
+      aiAnalysisReport: local.aiAnalysisReport ?? remote.aiAnalysisReport,
+      aiAnalysisTime: local.aiAnalysisTime ?? remote.aiAnalysisTime,
+      createTime: local.createTime.isBefore(remote.createTime)
+          ? local.createTime
+          : remote.createTime,
+      visitLogs: mergedLogs,
+      chatRecords: mergedChats,
+      tags: mergedTags,
+    );
+
+    if (preferLocal ||
+        localHasNewChats ||
+        mergedLogs.length > remote.visitLogs.length) {
+      needsUpload.add(mergedClue);
+    }
+
+    return mergedClue;
+  }
+
+  @visibleForTesting
+  Clue mergeClueForTesting(Clue local, Clue remote, {required List<Clue> needsUpload}) {
+    return _mergeClue(local, remote, needsUpload: needsUpload);
+  }
+
+  /// 智能合并并应用远端线索列表（双向无损对齐，新回访永不被冲刷）
+  Future<void> _mergeAndApplyRemoteClues(List<Clue> remoteClues) async {
+    // 自动剿灭云端测试残留线索
+    final mockRemotes = remoteClues.where(_isMockClue).toList();
+    for (var mc in mockRemotes) {
+      unawaited(_crmSyncService.deleteClue(mc.id));
+    }
+
+    final validRemotes = remoteClues.where((c) => !_isMockClue(c)).toList();
+    final remoteMap = {for (var rc in validRemotes) rc.id: rc};
+    final localMap = {
+      for (var lc in _clues.where((c) => !_isMockClue(c))) lc.id: lc
+    };
+
+    final List<Clue> mergedResult = [];
+    final List<Clue> needsUpload = [];
+
+    // 1. 遍历远端线索：若本地已存在同名线索，执行智能融合；若不存在，直接采纳
+    for (final rc in validRemotes) {
+      if (localMap.containsKey(rc.id)) {
+        final merged =
+            _mergeClue(localMap[rc.id]!, rc, needsUpload: needsUpload);
+        mergedResult.add(merged);
+      } else {
+        mergedResult.add(rc);
+      }
+    }
+
+    // 2. 遍历本地独有线索（未上云的自建真实线索）：保留并加入上云队列
+    for (final lc in localMap.values) {
+      if (!remoteMap.containsKey(lc.id)) {
+        mergedResult.add(lc);
+        needsUpload.add(lc);
+      }
+    }
+
+    // 3. 及时将本地增量（新增回访/独有线索）推向云端
+    if (needsUpload.isNotEmpty) {
+      debugPrint(
+          '☁️ [CrmSync] 智能合并发现 ${needsUpload.length} 条线索有本地更新，正在自动双向上报...');
+      unawaited(_crmSyncService.saveClues(needsUpload));
+    }
+
+    _clues.clear();
+    _clues.addAll(mergedResult);
+    _clues.sort((a, b) => b.createTime.compareTo(a.createTime));
+    await _saveCluesLocalOnly();
+    _isCloudConnected = true;
+    _syncStatus = '实时同步中';
+    _isSyncing = false;
+    notifyListeners();
+  }
+
   /// 初始化云端同步与监听（含智能唤醒重试队列）
   Future<void> _initCloudSync() async {
     _isSyncing = true;
@@ -517,31 +676,7 @@ class AppProvider extends ChangeNotifier {
     try {
       final remoteClues = await _crmSyncService.fetchAllClues();
       if (remoteClues != null) {
-        // 自动剿灭云端测试残留线索
-        final mockRemotes = remoteClues.where(_isMockClue).toList();
-        for (var mc in mockRemotes) {
-          unawaited(_crmSyncService.deleteClue(mc.id));
-        }
-
-        final validRemotes = remoteClues.where((c) => !_isMockClue(c)).toList();
-        final remoteMap = {for (var rc in validRemotes) rc.id: rc};
-        // 发现本地独有真实线索，自动上报云端！
-        final localOnly =
-            _clues.where((c) => !_isMockClue(c) && !remoteMap.containsKey(c.id)).toList();
-        if (localOnly.isNotEmpty) {
-          unawaited(_crmSyncService.saveClues(localOnly));
-          for (var c in localOnly) {
-            remoteMap[c.id] = c;
-          }
-        }
-        _clues.clear();
-        _clues.addAll(remoteMap.values);
-        _clues.sort((a, b) => b.createTime.compareTo(a.createTime));
-        await _saveCluesLocalOnly();
-        _isCloudConnected = true;
-        _syncStatus = '实时同步中';
-        _isSyncing = false;
-        notifyListeners();
+        await _mergeAndApplyRemoteClues(remoteClues);
         return;
       }
     } catch (_) {}
@@ -555,7 +690,9 @@ class AppProvider extends ChangeNotifier {
   /// 智能唤醒重试队列（在 Render 免费实例冷启动唤醒过程中平滑拉取）
   void _startWakeupRetryQueue() {
     // 单元测试环境直接跳过网络延迟重试，避免 pending timers 报错
-    if (WidgetsBinding.instance.runtimeType.toString().contains('TestWidgetsFlutterBinding')) {
+    if (WidgetsBinding.instance.runtimeType
+        .toString()
+        .contains('TestWidgetsFlutterBinding')) {
       _isSyncing = false;
       return;
     }
@@ -581,29 +718,7 @@ class AppProvider extends ChangeNotifier {
         try {
           final remoteClues = await _crmSyncService.fetchAllClues();
           if (remoteClues != null && !_isDisposed) {
-            final mockRemotes = remoteClues.where(_isMockClue).toList();
-            for (var mc in mockRemotes) {
-              unawaited(_crmSyncService.deleteClue(mc.id));
-            }
-
-            final validRemotes = remoteClues.where((c) => !_isMockClue(c)).toList();
-            final remoteMap = {for (var rc in validRemotes) rc.id: rc};
-            final localOnly =
-                _clues.where((c) => !_isMockClue(c) && !remoteMap.containsKey(c.id)).toList();
-            if (localOnly.isNotEmpty) {
-              unawaited(_crmSyncService.saveClues(localOnly));
-              for (var c in localOnly) {
-                remoteMap[c.id] = c;
-              }
-            }
-            _clues.clear();
-            _clues.addAll(remoteMap.values);
-            _clues.sort((a, b) => b.createTime.compareTo(a.createTime));
-            await _saveCluesLocalOnly();
-            _isCloudConnected = true;
-            _syncStatus = '实时同步中';
-            _isSyncing = false;
-            notifyListeners();
+            await _mergeAndApplyRemoteClues(remoteClues);
             debugPrint('🟢 [CrmSync] 智能唤醒重试成功，已同步 ${_clues.length} 条线索！');
             return;
           }
@@ -692,33 +807,7 @@ class AppProvider extends ChangeNotifier {
     try {
       final remoteClues = await _crmSyncService.fetchAllClues();
       if (remoteClues != null) {
-        _isCloudConnected = true;
-        _syncStatus = '实时同步中';
-        _isSyncing = false;
-
-        // 自动剿灭云端测试残留线索
-        final mockRemotes = remoteClues.where(_isMockClue).toList();
-        for (var mc in mockRemotes) {
-          unawaited(_crmSyncService.deleteClue(mc.id));
-        }
-
-        final validRemotes = remoteClues.where((c) => !_isMockClue(c)).toList();
-        final remoteMap = {for (var rc in validRemotes) rc.id: rc};
-        final localOnly =
-            _clues.where((c) => !_isMockClue(c) && !remoteMap.containsKey(c.id)).toList();
-        if (localOnly.isNotEmpty) {
-          debugPrint('☁️ [CrmSync] 发现本地有 ${localOnly.length} 条未上报线索，正在自动双向上报...');
-          await _crmSyncService.saveClues(localOnly);
-          for (var c in localOnly) {
-            remoteMap[c.id] = c;
-          }
-        }
-
-        _clues.clear();
-        _clues.addAll(remoteMap.values);
-        _clues.sort((a, b) => b.createTime.compareTo(a.createTime));
-        await _saveCluesLocalOnly();
-        notifyListeners();
+        await _mergeAndApplyRemoteClues(remoteClues);
         return true;
       }
     } catch (e) {
@@ -729,27 +818,7 @@ class AppProvider extends ChangeNotifier {
     try {
       final fbClues = await _firestoreService.fetchCluesFromServer();
       if (fbClues != null && fbClues.isNotEmpty) {
-        _isCloudConnected = true;
-        _syncStatus = '云端实时同步中';
-        _isSyncing = false;
-
-        final validFbClues = fbClues.where((c) => !_isMockClue(c)).toList();
-        final remoteMap = {for (var rc in validFbClues) rc.id: rc};
-        final localOnly =
-            _clues.where((c) => !_isMockClue(c) && !remoteMap.containsKey(c.id)).toList();
-        if (localOnly.isNotEmpty) {
-          debugPrint('☁️ [Sync] 发现本地有 ${localOnly.length} 条未上云线索，正在自动双向上报...');
-          await _firestoreService.batchUploadClues(localOnly);
-          for (var c in localOnly) {
-            remoteMap[c.id] = c;
-          }
-        }
-
-        _clues.clear();
-        _clues.addAll(remoteMap.values);
-        _clues.sort((a, b) => b.createTime.compareTo(a.createTime));
-        await _saveCluesLocalOnly();
-        notifyListeners();
+        await _mergeAndApplyRemoteClues(fbClues);
         return true;
       }
     } catch (e) {
@@ -1574,21 +1643,21 @@ class AppProvider extends ChangeNotifier {
       // 2. 强安全屏障：等待本地 SharedPreferences/localStorage 100% 写入成功
       await _saveCluesLocalOnly();
 
-      // 3. 异步平滑上报云端同步（即便弱网或报错也不会阻碍本地）
+      // 3. 强力保证：优先等待云端在 3 秒内快速确认落盘（即便弱网或离线也不阻碍本地顺利返回）
       if (!_isMockClue(clue)) {
-        unawaited(() async {
-          try {
-            await _crmSyncService.saveClues([clue]);
-          } catch (e) {
-            debugPrint('⚠️ [CrmSync] 回访记录上传云端异常: $e');
-          }
-          try {
-            _tencentService.saveClue(clue);
-          } catch (_) {}
-          try {
-            _firestoreService.saveClue(clue);
-          } catch (_) {}
-        }());
+        try {
+          await _crmSyncService
+              .saveClues([clue])
+              .timeout(const Duration(seconds: 3));
+        } catch (e) {
+          debugPrint('⚠️ [CrmSync] 回访记录上传云端稍有延迟，已受智能合并保护: $e');
+        }
+        try {
+          _tencentService.saveClue(clue);
+        } catch (_) {}
+        try {
+          _firestoreService.saveClue(clue);
+        } catch (_) {}
       }
 
       return true;

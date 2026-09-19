@@ -922,6 +922,70 @@ void main() {
       final filtered = provider.filteredClues.where((c) => c.id == 'cg1' || c.id == 'cg2').toList();
       expect(filtered.length, 2);
     });
+
+    test('【QA 专项测试 16】回访记录保存与双向合并防覆盖测试：刷新后新回访不丢失、下次跟进时间不回退', () async {
+      final provider = AppProvider();
+      while (!provider.isLoaded) {
+        await Future.delayed(const Duration(milliseconds: 10));
+      }
+
+      final now = DateTime.now();
+      final todayTenAm = DateTime(now.year, now.month, now.day, 10, 0);
+      final futureDate = now.add(const Duration(days: 5));
+
+      // 1. 本地初始化一条原线索（今日待回访）
+      final clueId = 'c_merge_protect_001';
+      final initialClue = Clue(
+        id: clueId,
+        wxNick: '何海燕',
+        nextVisitTime: todayTenAm,
+        status: ClueStatus.following,
+        ownerName: '超级管理员',
+        createTime: now.subtract(const Duration(days: 1)),
+      );
+      provider.addClue(initialClue);
+
+      // 2. 本地新增一条回访记录，并推迟下次跟进时间到 5 天后
+      final newLog = VisitLog(
+        id: 'log_protect_001',
+        clueId: clueId,
+        contactMethod: ContactMethod.wechat,
+        visitResult: VisitResult.followUp,
+        visitContent: '今天电话沟通，学员表示周末再考虑，约好5天后再回访',
+        nextVisitTime: futureDate,
+        createTime: DateTime.now(),
+      );
+      final addSuccess = await provider.addVisitLog(clueId, newLog);
+      expect(addSuccess, true);
+
+      // 验证本地已经成功更新
+      final afterAdd = provider.getClueById(clueId)!;
+      expect(afterAdd.visitLogs.length, 1);
+      expect(afterAdd.nextVisitTime, futureDate);
+
+      // 3. 模拟此时从云端拉取到了旧版本（云端尚未收到更新，依然是0条回访记录，次回访为今天10点）
+      final staleRemoteClue = Clue(
+        id: clueId,
+        wxNick: '何海燕',
+        nextVisitTime: todayTenAm,
+        status: ClueStatus.following,
+        ownerName: '超级管理员',
+        createTime: now.subtract(const Duration(days: 1)),
+        visitLogs: [],
+      );
+
+      // 4. 执行智能合并对齐
+      final needsUpload = <Clue>[];
+      final merged = provider.mergeClueForTesting(afterAdd, staleRemoteClue, needsUpload: needsUpload);
+
+      // 5. 核心断言：本地新回访绝对不被覆盖抹平！
+      expect(merged.visitLogs.length, 1);
+      expect(merged.visitLogs.first.visitContent, '今天电话沟通，学员表示周末再考虑，约好5天后再回访');
+      // 次回访时间必须保持最新的 5 天后，绝不能回退到 todayTenAm！
+      expect(merged.nextVisitTime, futureDate);
+      // 必须被识别为 needsUpload，以便自动推回云端修复云端旧数据
+      expect(needsUpload.any((c) => c.id == clueId), true);
+    });
   });
 }
 
