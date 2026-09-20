@@ -120,6 +120,11 @@ class AppProvider extends ChangeNotifier {
   Set<String> _deletedClueIds = {};
   Set<String> get deletedClueIds => Set.unmodifiable(_deletedClueIds);
 
+  // 本地新建且尚未成功上报云端的线索ID集合（用于精准识别自建离线线索，避免历史已删线索死而复生）
+  Set<String> _pendingCreationClueIds = {};
+  Set<String> get pendingCreationClueIds =>
+      Set.unmodifiable(_pendingCreationClueIds);
+
   // 搜索关键词
   String _searchKeyword = '';
   String get searchKeyword => _searchKeyword;
@@ -161,6 +166,17 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
+  /// 保存本地新建待上报线索ID集合
+  Future<void> _savePendingCreationClueIdsLocal() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(
+          'crm_pending_creation_clues', _pendingCreationClueIds.toList());
+    } catch (e) {
+      debugPrint('⚠️ [_savePendingCreationClueIdsLocal] 持久化异常: $e');
+    }
+  }
+
   /// 初始化：加载本地用户、线索、物料并建立同步
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
@@ -169,6 +185,12 @@ class AppProvider extends ChangeNotifier {
     final deletedList = prefs.getStringList('crm_deleted_clue_ids');
     if (deletedList != null) {
       _deletedClueIds = deletedList.toSet();
+    }
+
+    // 加载本地自建待上报线索
+    final pendingList = prefs.getStringList('crm_pending_creation_clues');
+    if (pendingList != null) {
+      _pendingCreationClueIds = pendingList.toSet();
     }
 
     // 1. 初始化用户列表与权限
@@ -641,6 +663,11 @@ class AppProvider extends ChangeNotifier {
     return _mergeAndApplyRemoteClues(remoteClues);
   }
 
+  @visibleForTesting
+  void clearPendingCreationForTesting(String clueId) {
+    _pendingCreationClueIds.remove(clueId);
+  }
+
   /// 智能合并并应用远端线索列表（双向无损对齐，新回访永不被冲刷）
   Future<void> _mergeAndApplyRemoteClues(List<Clue> remoteClues) async {
     // 自动剿灭云端测试残留线索
@@ -680,14 +707,28 @@ class AppProvider extends ChangeNotifier {
       }
     }
 
-    // 2. 遍历本地独有线索（未上云的自建真实线索）：保留并加入上云队列
+    // 2. 遍历本地独有线索（检查是否属于本设备尚未上报的新增线索）
     for (final lc in localMap.values) {
       if (_deletedClueIds.contains(lc.id)) continue;
       if (!remoteMap.containsKey(lc.id)) {
-        mergedResult.add(lc);
-        needsUpload.add(lc);
+        if (_pendingCreationClueIds.contains(lc.id)) {
+          // 确系本设备新增但尚未推上云端的自建线索
+          mergedResult.add(lc);
+          needsUpload.add(lc);
+        } else {
+          // 云端已经没有此线索，且不是本设备刚才新增的 -> 说明在其他设备或服务端已被删除！
+          // 本设备同步跟随删除，记录墓碑，绝不擅自复活已删线索！
+          debugPrint(
+              '🗑️ [CrmSync] 检测到线索 ${lc.wxNick} (ID: ${lc.id}) 在云端已被删除，本地同步移除！');
+          _deletedClueIds.add(lc.id);
+        }
       }
     }
+
+    // 成功同步到云端后，从 _pendingCreationClueIds 中移除已在云端存在的线索
+    _pendingCreationClueIds.removeWhere((id) => remoteMap.containsKey(id));
+    unawaited(_savePendingCreationClueIdsLocal());
+    unawaited(_saveDeletedClueIdsLocal());
 
     // 3. 及时将本地增量（新增回访/独有线索）推向云端
     if (needsUpload.isNotEmpty) {
@@ -704,6 +745,33 @@ class AppProvider extends ChangeNotifier {
     _syncStatus = '实时同步中';
     _isSyncing = false;
     notifyListeners();
+
+    // 4. 后台静默拉取云端已删除墓碑名单，同步净化本地
+    unawaited(() async {
+      try {
+        final cloudDeleted = await _crmSyncService.fetchDeletedClueIds();
+        if (cloudDeleted != null && cloudDeleted.isNotEmpty) {
+          final toRemove = cloudDeleted.toSet();
+          bool changed = false;
+          for (final id in toRemove) {
+            if (!_deletedClueIds.contains(id)) {
+              _deletedClueIds.add(id);
+              changed = true;
+            }
+          }
+          final countBefore = _clues.length;
+          _clues.removeWhere((c) => toRemove.contains(c.id));
+          if (_clues.length != countBefore) {
+            changed = true;
+            await _saveCluesLocalOnly();
+            notifyListeners();
+          }
+          if (changed) {
+            await _saveDeletedClueIdsLocal();
+          }
+        }
+      } catch (_) {}
+    }());
   }
 
   /// 初始化云端同步与监听（含智能唤醒重试队列）
@@ -1572,6 +1640,9 @@ class AppProvider extends ChangeNotifier {
       _deletedClueIds.remove(clue.id);
       unawaited(_saveDeletedClueIdsLocal());
     }
+    _pendingCreationClueIds.add(clue.id);
+    unawaited(_savePendingCreationClueIdsLocal());
+
     if (clue.ownerName.isEmpty && currentUser.isNotEmpty) {
       clue.ownerName = currentUser;
     }
@@ -1588,6 +1659,7 @@ class AppProvider extends ChangeNotifier {
         _deletedClueIds.remove(clue.id);
         hasDeleted = true;
       }
+      _pendingCreationClueIds.add(clue.id);
       if (clue.ownerName.isEmpty && currentUser.isNotEmpty) {
         clue.ownerName = currentUser;
       }
@@ -1595,6 +1667,7 @@ class AppProvider extends ChangeNotifier {
     if (hasDeleted) {
       unawaited(_saveDeletedClueIdsLocal());
     }
+    unawaited(_savePendingCreationClueIdsLocal());
     _clues.insertAll(0, newClues);
     notifyListeners();
     await _saveClues();
@@ -1613,7 +1686,9 @@ class AppProvider extends ChangeNotifier {
   Future<void> deleteClue(String clueId) async {
     // 1. 记入墓碑黑名单，防止网络时差或刷新拉取导致已删线索复活
     _deletedClueIds.add(clueId);
+    _pendingCreationClueIds.remove(clueId);
     unawaited(_saveDeletedClueIdsLocal());
+    unawaited(_savePendingCreationClueIdsLocal());
 
     // 2. 立即从本地内存与持久化存储中移除
     _clues.removeWhere((c) => c.id == clueId);

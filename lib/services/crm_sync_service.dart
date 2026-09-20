@@ -228,6 +228,24 @@ class CrmSyncService {
     }
   }
 
+  /// 获取云端已删除的线索ID列表（用于多端同步自动清除本地残留）
+  Future<List<String>?> fetchDeletedClueIds() async {
+    if (_activeBaseUrl == null) {
+      final found = await detectServer();
+      if (!found) return null;
+    }
+    try {
+      final res = await http
+          .get(Uri.parse('$_activeBaseUrl/api/clues/deleted'))
+          .timeout(const Duration(seconds: 15));
+      if (res.statusCode == 200) {
+        final list = jsonDecode(res.body) as List<dynamic>;
+        return list.map((e) => e.toString()).toList();
+      }
+    } catch (_) {}
+    return null;
+  }
+
   // ─────────────────────────────────────
   // 3. 物料同步 (Materials)
   // ─────────────────────────────────────

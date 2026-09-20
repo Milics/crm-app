@@ -32,6 +32,12 @@ void main() async {
     imgMatFile.writeAsStringSync('[]');
   }
 
+  // 4. 已删除线索记录表（防复活墓碑）
+  final deletedCluesFile = File('data/crm_deleted_clues.json');
+  if (!deletedCluesFile.existsSync()) {
+    deletedCluesFile.writeAsStringSync('[]');
+  }
+
   final server = await HttpServer.bind(InternetAddress.anyIPv4, port);
   print('🚀 [CRM Sync Server] 全量多端数据同步服务已在端口 $port 启动成功！');
   print('🌐 访问地址: http://0.0.0.0:$port');
@@ -150,6 +156,19 @@ void main() async {
     // ─────────────────────────────────────
     // 2. 线索数据接口 (/api/clues)
     // ─────────────────────────────────────
+    // 已删除线索ID列表接口 (/api/clues/deleted)
+    if (path == '/api/clues/deleted') {
+      if (req.method == 'GET') {
+        final list = readTable(deletedCluesFile);
+        req.response
+          ..headers.contentType = ContentType.json
+          ..statusCode = HttpStatus.ok
+          ..write(jsonEncode(list.map((e) => e['id']).toList()));
+        await req.response.close();
+        continue;
+      }
+    }
+
     if (path == '/api/clues') {
       if (req.method == 'GET') {
         final list = readTable(cluesFile);
@@ -167,14 +186,22 @@ void main() async {
         final list = readTable(cluesFile);
         final map = {for (var item in list) item['id']: item};
 
+        // 获取已删除名单，严防老版本客户端擅自复活已删线索
+        final deletedList = readTable(deletedCluesFile);
+        final deletedIds = {for (var d in deletedList) d['id']};
+
         if (body is List) {
           for (var item in body) {
             final m = Map<String, dynamic>.from(item);
-            if (m['id'] != null) map[m['id']] = m;
+            if (m['id'] != null && !deletedIds.contains(m['id'])) {
+              map[m['id']] = m;
+            }
           }
         } else if (body is Map) {
           final m = Map<String, dynamic>.from(body);
-          if (m['id'] != null) map[m['id']] = m;
+          if (m['id'] != null && !deletedIds.contains(m['id'])) {
+            map[m['id']] = m;
+          }
         }
 
         final resultList = map.values.toList();
@@ -200,6 +227,17 @@ void main() async {
         final list = readTable(cluesFile);
         list.removeWhere((item) => item['id'] == id);
         writeTable(cluesFile, list);
+
+        // 记入云端墓碑表，严密防止任何客户端再次复活
+        final deletedList = readTable(deletedCluesFile);
+        final deletedSet = {for (var d in deletedList) d['id']};
+        if (!deletedSet.contains(id)) {
+          deletedList.add({'id': id, 'time': DateTime.now().toIso8601String()});
+          if (deletedList.length > 500) {
+            deletedList.removeRange(0, deletedList.length - 500);
+          }
+          writeTable(deletedCluesFile, deletedList);
+        }
 
         req.response
           ..headers.contentType = ContentType.json

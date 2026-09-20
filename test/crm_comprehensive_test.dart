@@ -1053,6 +1053,63 @@ void main() {
       expect(provider.clues.any((c) => c.id == deleteTargetId), false);
       expect(provider.clues.any((c) => c.id == survivorId), true);
     });
+
+    test('【QA 专项测试 18】跨设备删除同步对齐：设备A在云端删除了线索，设备B刷新时自动识别并移除，绝不擅自上传复活', () async {
+      final provider = AppProvider();
+      while (!provider.isLoaded) {
+        await Future.delayed(const Duration(milliseconds: 10));
+      }
+
+      final now = DateTime.now();
+      final historicClueId = 'c_historic_sync_001';
+      final normalClueId = 'c_normal_sync_002';
+
+      // 模拟设备B本地原本缓存着历史同步下来的线索（张帅）和另一条正常线索
+      final historicClue = Clue(
+        id: historicClueId,
+        wxNick: '张帅',
+        status: ClueStatus.following,
+        ownerName: '超级管理员',
+        createTime: now.subtract(const Duration(days: 3)),
+      );
+      final normalClue = Clue(
+        id: normalClueId,
+        wxNick: '林建',
+        status: ClueStatus.following,
+        ownerName: '超级管理员',
+        createTime: now.subtract(const Duration(days: 2)),
+      );
+
+      // 直接加入本地线索池（模拟历史缓存，并非本设备此时新增）
+      provider.addClue(historicClue);
+      provider.addClue(normalClue);
+
+      // 模拟已完成过云端同步上报（移出 pendingCreationClueIds）
+      provider.clearPendingCreationForTesting(historicClueId);
+      provider.clearPendingCreationForTesting(normalClueId);
+      expect(provider.getClueById(historicClueId), isNotNull);
+
+      // 模拟设备A在手机上删除了张帅，云端返回的最新列表里已经没有张帅，只有林建
+      final cloudRemotesWithoutZhangshuai = [
+        Clue(
+          id: normalClueId,
+          wxNick: '林建',
+          status: ClueStatus.following,
+          ownerName: '超级管理员',
+          createTime: now.subtract(const Duration(days: 2)),
+        ),
+      ];
+
+      // 设备B刷新列表，触发全量双向对齐
+      await provider.mergeAndApplyRemoteCluesForTesting(cloudRemotesWithoutZhangshuai);
+
+      // 核心断言：设备B必须跟随云端完成删除，张帅必须从本地彻底消失！
+      expect(provider.getClueById(historicClueId), isNull);
+      expect(provider.clues.any((c) => c.id == historicClueId), false);
+      expect(provider.getClueById(normalClueId), isNotNull);
+      // 墓碑集合必须自动记录该ID
+      expect(provider.deletedClueIds.contains(historicClueId), true);
+    });
   });
 }
 
