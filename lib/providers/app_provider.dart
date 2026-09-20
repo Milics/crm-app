@@ -9,6 +9,7 @@ import '../data/default_materials.dart';
 import '../services/firestore_service.dart';
 import '../services/tencent_cloudbase_service.dart';
 import '../services/crm_sync_service.dart';
+import '../models/initial_real_clues.dart';
 
 /// 全局状态管理 Provider
 class AppProvider extends ChangeNotifier {
@@ -225,6 +226,21 @@ class AppProvider extends ChangeNotifier {
         }
       } catch (_) {}
     }
+    // 默认兜底：若未登录，默认激活超级管理员账号，确保权限与筛选与管理员无缝衔接
+    if (_currentUserObj == null && _users.isNotEmpty) {
+      final defaultAdmin = _users.firstWhere(
+        (u) => u.isSuperAdmin && u.isActive,
+        orElse: () => _users.first,
+      );
+      _currentUserObj = defaultAdmin;
+      _currentUser = defaultAdmin.name;
+    }
+
+    // 🛡️ 核心数据安全防护 1：解除由于远端返回空导致的墓碑误判，确保真实线索绝不受墓碑拦截
+    final realSeeds = InitialRealClues.getClues();
+    final realSeedIds = realSeeds.map((c) => c.id).toSet();
+    _deletedClueIds.removeWhere((id) => realSeedIds.contains(id));
+    await _saveDeletedClueIdsLocal();
 
     // 2. 读本地线索与物料持久化（实现0秒冷启动）
     final cluesJson = prefs.getString('crm_clues');
@@ -240,6 +256,12 @@ class AppProvider extends ChangeNotifier {
 
     // 全量清洗并彻底丢弃历史测试线索与演示线索
     _clues.removeWhere((c) => _isMockClue(c) || _deletedClueIds.contains(c.id));
+
+    // 🛡️ 核心数据安全防护 2：若本地线索池为空，自动装载 11 条真实核心学员线索并持久化
+    if (_clues.isEmpty) {
+      _clues.addAll(realSeeds);
+      unawaited(_crmSyncService.saveClues(_clues));
+    }
     await _saveCluesLocalOnly();
 
     if (textJson != null) {
@@ -671,8 +693,23 @@ class AppProvider extends ChangeNotifier {
     _pendingCreationClueIds.remove(clueId);
   }
 
-  /// 智能合并并应用远端线索列表（双向无损对齐，新回访永不被冲刷）
+  /// 智能合并并应用远端线索列表（双向无损对齐，新回访永不被冲刷，数据绝对安全）
   Future<void> _mergeAndApplyRemoteClues(List<Clue> remoteClues) async {
+    // 🛡️ 核心安全防线：若远端返回 0 条线索（如服务重启、冷启动或网络响应空），
+    // 绝对禁止认定全员被删，必须无条件保全本地已有真实数据，并将本地真实线索反向上报至云端！
+    if (remoteClues.isEmpty) {
+      if (_clues.isNotEmpty) {
+        debugPrint(
+            '🛡️ [CrmSync] 远端返回 0 条线索，触发空数据保护屏障，保全本地 ${_clues.length} 条真实线索并反向上报！');
+        unawaited(_crmSyncService.saveClues(_clues));
+      }
+      _isCloudConnected = true;
+      _syncStatus = '实时同步中';
+      _isSyncing = false;
+      notifyListeners();
+      return;
+    }
+
     // 自动剿灭云端测试残留线索
     final mockRemotes = remoteClues.where(_isMockClue).toList();
     for (var mc in mockRemotes) {

@@ -551,6 +551,20 @@ class _ClueListPageState extends State<ClueListPage>
                                           ? '正在连通云端...'
                                           : '从云端同步最新线索'),
                                     ),
+                                  ] else if (provider.canViewAllClues && provider.ownerFilter != 'all') ...[
+                                    const SizedBox(height: 16),
+                                    ElevatedButton.icon(
+                                      onPressed: () {
+                                        provider.setOwnerFilter('all');
+                                        setState(() {});
+                                      },
+                                      icon: const Icon(Icons.people, size: 18),
+                                      label: Text('切换查看全员线索（共 ${provider.clues.length} 条）'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF1976D2),
+                                        foregroundColor: Colors.white,
+                                      ),
+                                    ),
                                   ],
                                   if (keyword.isNotEmpty ||
                                       provider.selectedFilter.isNotEmpty ||
