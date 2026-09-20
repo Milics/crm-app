@@ -36,8 +36,8 @@ class AppProvider extends ChangeNotifier {
   bool get canDeleteClues => true;
   bool get canManageMaterials => _currentUserObj?.canManageMaterials ?? false;
 
-  // 线索归属老师筛选（'all' 全部, 'mine' 我的, 或指定顾问姓名）
-  String _ownerFilter = 'all';
+  // 线索归属老师筛选（'mine' 默认显示自己的, 'all' 全部, 或指定顾问姓名）
+  String _ownerFilter = 'mine';
   String get ownerFilter => _ownerFilter;
 
   void setOwnerFilter(String filter) {
@@ -61,12 +61,12 @@ class AppProvider extends ChangeNotifier {
   /// 是否激活了任何高阶筛选条件（届别或顾问）
   bool get hasActiveFilter =>
       (_gradeFilter != 'all' && _gradeFilter.isNotEmpty) ||
-      (canViewAllClues && _ownerFilter != 'all');
+      (canViewAllClues && _ownerFilter != 'mine');
 
-  /// 一键重置所有高阶筛选条件（恢复全部届别与全员）
+  /// 一键重置所有高阶筛选条件（恢复全部届别与默认显示自己）
   Future<void> resetFilters() async {
     _gradeFilter = 'all';
-    _ownerFilter = 'all';
+    _ownerFilter = 'mine';
     notifyListeners();
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -428,6 +428,7 @@ class AppProvider extends ChangeNotifier {
 
     _currentUserObj = user;
     _currentUser = user.name;
+    _ownerFilter = 'mine';
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('crm_current_user_id', user.id);
@@ -444,6 +445,7 @@ class AppProvider extends ChangeNotifier {
   Future<void> logout() async {
     _currentUserObj = null;
     _currentUser = '';
+    _ownerFilter = 'mine';
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('crm_current_user_id');
     notifyListeners();
@@ -454,6 +456,7 @@ class AppProvider extends ChangeNotifier {
   void setCurrentUserForTesting(AppUser user) {
     _currentUserObj = user;
     _currentUser = user.name;
+    _ownerFilter = 'mine';
     notifyListeners();
   }
 
@@ -1424,7 +1427,9 @@ class AppProvider extends ChangeNotifier {
           (c.ownerName == currentUser || c.ownerName == _currentUserObj?.username)).toList();
     } else {
       if (_ownerFilter == 'mine') {
-        result = result.where((c) => c.ownerName == currentUser).toList();
+        result = result.where((c) =>
+            c.ownerName.isNotEmpty &&
+            (c.ownerName == currentUser || c.ownerName == _currentUserObj?.username)).toList();
       } else if (_ownerFilter != 'all') {
         result = result.where((c) => c.ownerName == _ownerFilter).toList();
       }
@@ -1498,9 +1503,11 @@ class AppProvider extends ChangeNotifier {
           c.ownerName.isNotEmpty &&
           (c.ownerName == currentUser || c.ownerName == _currentUserObj?.username)).toList();
     } else {
-      // 管理员/超管：根据 _ownerFilter 进行自由筛选
+      // 管理员/超管：根据 _ownerFilter 进行自由筛选（默认 'mine' 仅看自己）
       if (_ownerFilter == 'mine') {
-        result = result.where((c) => c.ownerName == currentUser).toList();
+        result = result.where((c) =>
+            c.ownerName.isNotEmpty &&
+            (c.ownerName == currentUser || c.ownerName == _currentUserObj?.username)).toList();
       } else if (_ownerFilter != 'all') {
         result = result.where((c) => c.ownerName == _ownerFilter).toList();
       }
@@ -1625,7 +1632,9 @@ class AppProvider extends ChangeNotifier {
           (c.ownerName == currentUser || c.ownerName == _currentUserObj?.username)).toList();
     } else {
       if (_ownerFilter == 'mine') {
-        list = list.where((c) => c.ownerName == currentUser).toList();
+        list = list.where((c) =>
+            c.ownerName.isNotEmpty &&
+            (c.ownerName == currentUser || c.ownerName == _currentUserObj?.username)).toList();
       } else if (_ownerFilter != 'all') {
         list = list.where((c) => c.ownerName == _ownerFilter).toList();
       }
@@ -1869,7 +1878,9 @@ class AppProvider extends ChangeNotifier {
   List<Clue> get accessibleClues {
     if (canViewAllClues) {
       if (_ownerFilter == 'mine') {
-        return _clues.where((c) => c.ownerName == currentUser).toList();
+        return _clues.where((c) =>
+            c.ownerName.isNotEmpty &&
+            (c.ownerName == currentUser || c.ownerName == _currentUserObj?.username)).toList();
       } else if (_ownerFilter != 'all') {
         return _clues.where((c) => c.ownerName == _ownerFilter).toList();
       }

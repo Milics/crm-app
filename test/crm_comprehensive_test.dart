@@ -727,9 +727,9 @@ void main() {
       provider.setCurrentUserForTesting(adminUser);
       
       final now = DateTime.now();
-      final c1 = Clue(id: 'c_g_1', wxNick: '学员A', grade: '24级', ownerName: '招生顾问小李', createTime: now);
-      final c2 = Clue(id: 'c_g_2', wxNick: '学员B', grade: '25级', ownerName: '招生顾问小王', createTime: now);
-      final c3 = Clue(id: 'c_g_3', wxNick: '学员C', grade: '26级', ownerName: '招生顾问小张', createTime: now);
+      final c1 = Clue(id: 'c_g_1', wxNick: '学员A', grade: '24级', ownerName: '超级管理员', createTime: now);
+      final c2 = Clue(id: 'c_g_2', wxNick: '学员B', grade: '25级', ownerName: '超级管理员', createTime: now);
+      final c3 = Clue(id: 'c_g_3', wxNick: '学员C', grade: '26级', ownerName: '超级管理员', createTime: now);
       provider.addClue(c1);
       provider.addClue(c2);
       provider.addClue(c3);
@@ -1109,6 +1109,87 @@ void main() {
       expect(provider.getClueById(normalClueId), isNotNull);
       // 墓碑集合必须自动记录该ID
       expect(provider.deletedClueIds.contains(historicClueId), true);
+    });
+
+    test('【QA 专项测试 19】超级管理员线索默认显示自己与自由切换全员/其他顾问测试', () async {
+      SharedPreferences.setMockInitialValues({});
+      final provider = AppProvider();
+      provider.initMockData();
+
+      final adminUser = AppUser(
+        id: 'usr_admin',
+        username: 'admin',
+        password: '123',
+        name: '超级管理员',
+        role: UserRole.superAdmin,
+      );
+      final liTeacher = AppUser(
+        id: 'usr_li',
+        username: 'lilaoshi',
+        password: '123',
+        name: '李老师',
+        role: UserRole.advisor,
+      );
+
+      // 录入两条不同归属人的线索
+      final adminClue = Clue(
+        id: 'c_test_admin_001',
+        wxNick: '王同学',
+        status: ClueStatus.following,
+        ownerName: '超级管理员',
+        grade: '25级',
+        createTime: DateTime.now(),
+      );
+      final liClue = Clue(
+        id: 'c_test_li_001',
+        wxNick: '张同学',
+        status: ClueStatus.following,
+        ownerName: '李老师',
+        grade: '25级',
+        createTime: DateTime.now(),
+      );
+      provider.addClue(adminClue);
+      provider.addClue(liClue);
+
+      // 1. 超管登录
+      provider.setCurrentUserForTesting(adminUser);
+      expect(provider.isSuperAdmin, true);
+      expect(provider.canViewAllClues, true);
+
+      // 核心断言 1：超管默认筛选必须为 'mine'（默认显示自己的线索）
+      expect(provider.ownerFilter, 'mine');
+      expect(provider.hasActiveFilter, false, reason: '默认状态下不应显示筛选高亮徽标');
+
+      // 默认线索列表只包含超级管理员自己的线索，不包含李老师的线索
+      final defaultClues = provider.filteredClues;
+      expect(defaultClues.any((c) => c.id == 'c_test_admin_001'), true);
+      expect(defaultClues.any((c) => c.id == 'c_test_li_001'), false);
+      expect(provider.accessibleClues.any((c) => c.id == 'c_test_admin_001'), true);
+      expect(provider.accessibleClues.any((c) => c.id == 'c_test_li_001'), false);
+
+      // 2. 超管主动切换为 'all'（查看全员线索）
+      provider.setOwnerFilter('all');
+      expect(provider.ownerFilter, 'all');
+      expect(provider.hasActiveFilter, true, reason: '切换为非默认后激活筛选指示');
+      final allClues = provider.filteredClues;
+      expect(allClues.any((c) => c.id == 'c_test_admin_001'), true);
+      expect(allClues.any((c) => c.id == 'c_test_li_001'), true);
+
+      // 3. 超管切换为 '李老师'（查看指定顾问的线索）
+      provider.setOwnerFilter('李老师');
+      expect(provider.ownerFilter, '李老师');
+      expect(provider.hasActiveFilter, true);
+      final liClues = provider.filteredClues;
+      expect(liClues.any((c) => c.id == 'c_test_admin_001'), false);
+      expect(liClues.any((c) => c.id == 'c_test_li_001'), true);
+
+      // 4. 重置筛选，必须自动恢复为 'mine'（恢复默认仅显示自己）
+      await provider.resetFilters();
+      expect(provider.ownerFilter, 'mine');
+      expect(provider.hasActiveFilter, false);
+      final resetClues = provider.filteredClues;
+      expect(resetClues.any((c) => c.id == 'c_test_admin_001'), true);
+      expect(resetClues.any((c) => c.id == 'c_test_li_001'), false);
     });
   });
 }

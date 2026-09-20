@@ -177,14 +177,14 @@ class _ClueListPageState extends State<ClueListPage>
                         runSpacing: 8,
                         children: [
                           _buildFilterChip(
-                            label: '👥 全部学员',
-                            isSelected: p.ownerFilter == 'all',
-                            onTap: () => p.setOwnerFilter('all'),
-                          ),
-                          _buildFilterChip(
-                            label: '💼 我的私有',
+                            label: '💼 我的线索',
                             isSelected: p.ownerFilter == 'mine',
                             onTap: () => p.setOwnerFilter('mine'),
+                          ),
+                          _buildFilterChip(
+                            label: '👥 全员线索',
+                            isSelected: p.ownerFilter == 'all',
+                            onTap: () => p.setOwnerFilter('all'),
                           ),
                           ...otherAdvisors.map((advisor) {
                             return _buildFilterChip(
