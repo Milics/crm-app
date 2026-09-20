@@ -83,8 +83,8 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
             _llmOutput = output;
             _result = _generateResult(widget.clue);
           });
-          // 自动持久化沉淀到线索档案并同步到云端
-          context.read<AppProvider>().saveAiAnalysisReport(widget.clue.id, output);
+          // 🛡️ 核心防丢守护：大模型诊断完成即刻自动落盘沉淀至时间轴与云端，无需手动点击
+          await _saveToTimeline(silent: true);
           return;
         }
       } catch (e) {
@@ -101,6 +101,8 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
       _usingLlm = false;
       _result = _generateResult(widget.clue);
     });
+    // 启发式规则生成完毕同样自动保全落盘
+    await _saveToTimeline(silent: true);
   }
 
   _AnalysisResult _generateResult(Clue clue) {
@@ -208,7 +210,7 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
     );
   }
 
-  Future<void> _saveToTimeline() async {
+  Future<void> _saveToTimeline({bool silent = false}) async {
     if (_saved) return;
     final provider = context.read<AppProvider>();
     final summary = _usingLlm && _llmOutput != null
@@ -232,12 +234,14 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
     }
     if (!mounted) return;
     setState(() => _saved = true);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('✅ 已成功将 AI 诊断纪要沉淀到学员时间轴！'),
-        backgroundColor: Colors.green,
-      ),
-    );
+    if (!silent) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ 已成功将 AI 诊断纪要沉淀到学员时间轴！'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   void _showSettingsDialog() {
