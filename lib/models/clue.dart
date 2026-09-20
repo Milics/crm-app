@@ -203,6 +203,7 @@ class VisitLog {
   List<String> concerns;
   DateTime? nextVisitTime;
   final DateTime createTime;
+  String? aiReport; // 本次回访记录关联的 AI 深度分析报告内容
 
   VisitLog({
     required this.id,
@@ -213,6 +214,7 @@ class VisitLog {
     List<String>? concerns,
     this.nextVisitTime,
     required this.createTime,
+    this.aiReport,
   }) : concerns = concerns ?? [];
 
   Map<String, dynamic> toJson() => {
@@ -224,6 +226,7 @@ class VisitLog {
         'concerns': concerns,
         'nextVisitTime': nextVisitTime?.toIso8601String(),
         'createTime': createTime.toIso8601String(),
+        'aiReport': aiReport,
       };
 
   factory VisitLog.fromJson(Map<String, dynamic> json) => VisitLog(
@@ -241,6 +244,7 @@ class VisitLog {
         concerns: List<String>.from(json['concerns'] ?? []),
         nextVisitTime: _safeParseDatetime(json['nextVisitTime']),
         createTime: _safeParseDatetime(json['createTime']) ?? DateTime.now(),
+        aiReport: json['aiReport'] as String?,
       );
 }
 

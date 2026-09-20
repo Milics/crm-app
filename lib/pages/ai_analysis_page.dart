@@ -9,7 +9,20 @@ import '../services/ai_service.dart';
 /// AI 智能分析页面（支持 DeepSeek / 智谱大模型实时诊断 + 专业启发式规则双引擎）
 class AiAnalysisPage extends StatefulWidget {
   final Clue clue;
-  const AiAnalysisPage({super.key, required this.clue});
+  /// 是否强制触发全新一轮分析（多次上传新图片分析时使用）
+  final bool forceRefresh;
+  /// 指定查看的历史报告（从时间轴点进来查看历史对应报告）
+  final String? initialReport;
+  /// 报告副标题说明（如“2026.09.20 15:34 诊断存档”）
+  final String? reportSubtitle;
+
+  const AiAnalysisPage({
+    super.key,
+    required this.clue,
+    this.forceRefresh = false,
+    this.initialReport,
+    this.reportSubtitle,
+  });
 
   @override
   State<AiAnalysisPage> createState() => _AiAnalysisPageState();
@@ -26,14 +39,26 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
   @override
   void initState() {
     super.initState();
-    // 优先秒开展示已保存的历史 AI 报告，省时省 Token；若没有才自动首次分析
-    if (widget.clue.aiAnalysisReport != null &&
+    // 1. 若传入了指定历史报告（从时间轴对应节点点击进入），直接秒发展示该历史报告
+    if (widget.initialReport != null && widget.initialReport!.isNotEmpty) {
+      _loading = false;
+      _usingLlm = true;
+      _llmOutput = widget.initialReport;
+      _result = _generateResult(widget.clue);
+      _saved = true;
+    } else if (widget.forceRefresh) {
+      // 2. 显式强制刷新（刚上传了新的聊天截图，必须调用大模型执行全新分析）
+      _analyze();
+    } else if (widget.clue.aiAnalysisReport != null &&
         widget.clue.aiAnalysisReport!.isNotEmpty) {
+      // 3. 从 AI 快捷入口进入，优先秒发展示最新沉淀的深度分析报告
       _loading = false;
       _usingLlm = true;
       _llmOutput = widget.clue.aiAnalysisReport;
       _result = _generateResult(widget.clue);
+      _saved = true;
     } else {
+      // 4. 首次分析
       _analyze();
     }
   }
@@ -199,8 +224,12 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
       concerns: widget.clue.tags,
       nextVisitTime: widget.clue.nextVisitTime,
       createTime: DateTime.now(),
+      aiReport: _llmOutput,
     );
     await provider.addVisitLog(widget.clue.id, log);
+    if (_llmOutput != null && _llmOutput!.isNotEmpty) {
+      await provider.saveAiAnalysisReport(widget.clue.id, _llmOutput!);
+    }
     if (!mounted) return;
     setState(() => _saved = true);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -305,7 +334,7 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text('AI 智能分析'),
+        title: Text(widget.initialReport != null ? 'AI 历史诊断报告' : 'AI 智能分析'),
         backgroundColor: const Color(0xFF7B1FA2),
         foregroundColor: Colors.white,
         actions: [
@@ -348,6 +377,79 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
+                        // 诊断报告状态指示栏（历史归档 vs 最新分析）
+                        if (widget.initialReport != null && widget.initialReport!.isNotEmpty)
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 14),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF3E5F5),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFFCE93D8)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.history_edu_rounded, color: Color(0xFF7B1FA2), size: 20),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    '历史诊断存档 · ${widget.reportSubtitle ?? "时间轴归档"}',
+                                    style: const TextStyle(
+                                      color: Color(0xFF7B1FA2),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                TextButton.icon(
+                                  style: TextButton.styleFrom(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  ),
+                                  icon: const Icon(Icons.refresh, size: 14, color: Color(0xFF7B1FA2)),
+                                  label: const Text('重新诊断',
+                                      style: TextStyle(color: Color(0xFF7B1FA2), fontSize: 12.5, fontWeight: FontWeight.bold)),
+                                  onPressed: _analyze,
+                                ),
+                              ],
+                            ),
+                          )
+                        else if (widget.clue.aiAnalysisReport != null && widget.clue.aiAnalysisReport!.isNotEmpty)
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 14),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE8F5E9),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFFA5D6A7)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.verified_outlined, color: Color(0xFF2E7D32), size: 20),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    '已加载最新诊断${widget.clue.aiAnalysisTime != null ? "（${DateFormat('MM-dd HH:mm').format(widget.clue.aiAnalysisTime!)}）" : ""}',
+                                    style: const TextStyle(
+                                      color: Color(0xFF2E7D32),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                TextButton.icon(
+                                  style: TextButton.styleFrom(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  ),
+                                  icon: const Icon(Icons.refresh, size: 14, color: Color(0xFF2E7D32)),
+                                  label: const Text('刷新分析',
+                                      style: TextStyle(color: Color(0xFF2E7D32), fontSize: 12.5, fontWeight: FontWeight.bold)),
+                                  onPressed: _analyze,
+                                ),
+                              ],
+                            ),
+                          ),
                         // 提示胶囊
                         if (_errorMessage != null)
                           Container(

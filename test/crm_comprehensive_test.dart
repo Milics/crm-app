@@ -1191,6 +1191,78 @@ void main() {
       expect(resetClues.any((c) => c.id == 'c_test_admin_001'), true);
       expect(resetClues.any((c) => c.id == 'c_test_li_001'), false);
     });
+
+    test('【QA 专项测试 20】AI 深度分析报告多版本持久化与时间轴直达测试', () async {
+      SharedPreferences.setMockInitialValues({});
+      final provider = AppProvider();
+      provider.initMockData();
+
+      final clueId = 'c_ai_history_test_01';
+      final clue = Clue(
+        id: clueId,
+        wxNick: '周同学',
+        status: ClueStatus.following,
+        ownerName: '超级管理员',
+        createTime: DateTime.now().subtract(const Duration(days: 3)),
+      );
+      provider.addClue(clue);
+
+      // 1. 模拟第一次上传聊天记录并进行 AI 分析
+      const firstReport = '# 第一次 AI 诊断\n学员重点关注专升本英语底子薄，建议早鸟名师词汇营。';
+      final log1 = VisitLog(
+        id: 'vl_ai_001',
+        clueId: clueId,
+        visitContent: '【AI大模型深度诊断】已完成深度剖析，包含破冰、案例与逼单方案，详见AI分析页。',
+        createTime: DateTime.now().subtract(const Duration(days: 2)),
+        aiReport: firstReport,
+      );
+      await provider.addVisitLog(clueId, log1);
+      await provider.saveAiAnalysisReport(clueId, firstReport);
+
+      var updatedClue = provider.getClueById(clueId)!;
+      expect(updatedClue.aiAnalysisReport, firstReport);
+      expect(updatedClue.visitLogs.length, 1);
+      expect(updatedClue.visitLogs.first.aiReport, firstReport);
+
+      // 2. 模拟三天后再次上传新的聊天记录进行第二次分析
+      const secondReport = '# 第二次 AI 诊断（最新）\n学员已产生价格敏感，核心决策人为家长，推荐周末面授协议班与分期免息。';
+      final log2 = VisitLog(
+        id: 'vl_ai_002',
+        clueId: clueId,
+        visitContent: '【AI大模型深度诊断】已完成深度剖析，包含破冰、案例与逼单方案，详见AI分析页。',
+        createTime: DateTime.now(),
+        aiReport: secondReport,
+      );
+      await provider.addVisitLog(clueId, log2);
+      await provider.saveAiAnalysisReport(clueId, secondReport);
+
+      updatedClue = provider.getClueById(clueId)!;
+      // 核心断言 1：线索主体的 aiAnalysisReport 始终保存最新的第二份报告
+      expect(updatedClue.aiAnalysisReport, secondReport);
+      expect(updatedClue.visitLogs.length, 2);
+
+      // 核心断言 2：时间轴上的两条历史记录，各自完整保存了当时的专属报告内容，互不覆盖！
+      // 备注：visitLogs 采用倒序存储（最新生成的在 index 0）
+      expect(updatedClue.visitLogs[0].aiReport, secondReport);
+      expect(updatedClue.visitLogs[1].aiReport, firstReport);
+
+      // 核心断言 3：验证从时间轴第一次历史节点点击时，获取到的是当时的专属报告（firstReport）
+      final timelineFirstLog = updatedClue.visitLogs[1];
+      final targetReportFromTimeline1 = (timelineFirstLog.aiReport != null && timelineFirstLog.aiReport!.isNotEmpty)
+          ? timelineFirstLog.aiReport
+          : updatedClue.aiAnalysisReport;
+      expect(targetReportFromTimeline1, firstReport);
+
+      // 核心断言 4：从底部 AI 入口直接进入时，获取到的是全局最新报告（secondReport）
+      final targetReportFromBottomAi = updatedClue.aiAnalysisReport;
+      expect(targetReportFromBottomAi, secondReport);
+
+      // 核心断言 5：VisitLog JSON 序列化持久化完整性
+      final json = log2.toJson();
+      expect(json['aiReport'], secondReport);
+      final restoredLog = VisitLog.fromJson(json);
+      expect(restoredLog.aiReport, secondReport);
+    });
   });
 }
 

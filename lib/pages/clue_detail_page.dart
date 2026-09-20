@@ -948,13 +948,36 @@ class _TimelineSection extends StatelessWidget {
           ...logs.asMap().entries.map((e) {
             final log = e.value;
             final isLast = e.key == logs.length - 1;
+            final isAiLog = (log.aiReport != null && log.aiReport!.isNotEmpty) ||
+                log.visitContent.contains('【AI') ||
+                log.visitContent.contains('AI大模型') ||
+                log.visitContent.contains('AI智能跟进策略');
             return _TimelineItem(
               date: DateFormat('yyyy.MM.dd HH:mm').format(log.createTime),
               title: log.visitResult.label,
               subtitle: log.visitContent,
-              color: _getResultColor(log.visitResult),
+              color: isAiLog ? const Color(0xFF7B1FA2) : _getResultColor(log.visitResult),
               dotFilled: false,
               isLast: isLast,
+              isAiLog: isAiLog,
+              onTap: isAiLog
+                  ? () {
+                      final report = (log.aiReport != null && log.aiReport!.isNotEmpty)
+                          ? log.aiReport
+                          : clue.aiAnalysisReport;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => AiAnalysisPage(
+                            clue: clue,
+                            initialReport: report,
+                            reportSubtitle:
+                                '${DateFormat('yyyy.MM.dd HH:mm').format(log.createTime)} 诊断存档',
+                          ),
+                        ),
+                      );
+                    }
+                  : null,
             );
           }),
 
@@ -995,6 +1018,8 @@ class _TimelineItem extends StatelessWidget {
   final Color color;
   final bool dotFilled;
   final bool isLast;
+  final bool isAiLog;
+  final VoidCallback? onTap;
 
   const _TimelineItem({
     required this.date,
@@ -1003,6 +1028,8 @@ class _TimelineItem extends StatelessWidget {
     required this.color,
     required this.dotFilled,
     required this.isLast,
+    this.isAiLog = false,
+    this.onTap,
   });
 
   @override
@@ -1053,37 +1080,99 @@ class _TimelineItem extends StatelessWidget {
                   ),
                   const SizedBox(height: 5),
                   // 内容卡片
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.07),
+                  Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                    child: InkWell(
+                      onTap: onTap,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: color.withValues(alpha: 0.22)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.bold,
-                            color: color,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: isAiLog
+                              ? const Color(0xFF7B1FA2).withValues(alpha: 0.08)
+                              : color.withValues(alpha: 0.07),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isAiLog
+                                ? const Color(0xFF7B1FA2).withValues(alpha: 0.35)
+                                : color.withValues(alpha: 0.22),
+                            width: isAiLog ? 1.2 : 1.0,
                           ),
                         ),
-                        if (subtitle.isNotEmpty) ...[
-                          const SizedBox(height: 5),
-                          Text(
-                            subtitle,
-                            style: const TextStyle(
-                              fontSize: 13.5,
-                              color: Color(0xFF37474F),
-                              height: 1.55,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  title,
+                                  style: TextStyle(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: color,
+                                  ),
+                                ),
+                                if (isAiLog) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF7B1FA2).withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.auto_awesome, size: 11, color: Color(0xFF7B1FA2)),
+                                        SizedBox(width: 3),
+                                        Text(
+                                          'AI诊断',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF7B1FA2),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
-                          ),
-                        ],
-                      ],
+                            if (subtitle.isNotEmpty) ...[
+                              const SizedBox(height: 5),
+                              Text(
+                                subtitle,
+                                style: const TextStyle(
+                                  fontSize: 13.5,
+                                  color: Color(0xFF37474F),
+                                  height: 1.55,
+                                ),
+                              ),
+                            ],
+                            if (isAiLog) ...[
+                              const SizedBox(height: 8),
+                              const Row(
+                                children: [
+                                  Text(
+                                    '点击查看完整AI分析报告',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF7B1FA2),
+                                    ),
+                                  ),
+                                  SizedBox(width: 4),
+                                  Icon(Icons.arrow_forward_ios_rounded,
+                                      size: 11, color: Color(0xFF7B1FA2)),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ],

@@ -133,7 +133,9 @@ class _UploadChatPageState extends State<UploadChatPage> {
     if (thenOpenAi) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => AiAnalysisPage(clue: clue)),
+        MaterialPageRoute(
+          builder: (_) => AiAnalysisPage(clue: clue, forceRefresh: true),
+        ),
       );
     } else {
       Navigator.pop(context);
