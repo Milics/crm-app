@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../models/clue.dart';
 import '../providers/app_provider.dart';
 import 'ai_analysis_page.dart';
+import '../utils/platform_init.dart';
 
 /// 上传聊天截图页面（真实相册多选 + 对话核心要点提炼 + 客户档案沉淀）
 class UploadChatPage extends StatefulWidget {
@@ -41,6 +42,7 @@ class _UploadChatPageState extends State<UploadChatPage> {
 
   Future<void> _pickImages(ImageSource source) async {
     try {
+      ensurePlatformPluginsInitialized();
       setState(() => _isProcessing = true);
       final picker = ImagePicker();
 

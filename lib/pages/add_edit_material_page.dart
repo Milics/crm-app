@@ -6,6 +6,7 @@ import '../providers/app_provider.dart';
 import '../models/material_item.dart';
 import '../models/material_type.dart';
 import '../data/default_materials.dart';
+import '../utils/platform_init.dart';
 
 /// 添加/编辑物料页面
 class AddEditMaterialPage extends StatefulWidget {
@@ -84,6 +85,7 @@ class _AddEditMaterialPageState extends State<AddEditMaterialPage> {
 
   Future<void> _pickImage(ImageSource source) async {
     try {
+      ensurePlatformPluginsInitialized();
       setState(() => _isPickingImage = true);
       final picker = ImagePicker();
       final picked = await picker.pickImage(

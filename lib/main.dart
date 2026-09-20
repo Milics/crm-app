@@ -7,9 +7,11 @@ import 'pages/main_tab_page.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'utils/platform_init.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  ensurePlatformPluginsInitialized();
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,

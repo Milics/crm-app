@@ -7,6 +7,7 @@ import '../providers/app_provider.dart';
 import '../models/clue.dart';
 import '../services/ocr_service.dart';
 import '../utils/clue_text_parser.dart';
+import '../utils/platform_init.dart';
 
 /// 新建线索独立页面（手动录入 / 截图导入 Tab）
 class AddCluePage extends StatefulWidget {
@@ -806,6 +807,7 @@ class _OcrFormState extends State<_OcrForm> {
 
   Future<void> _pickImage(ImageSource source) async {
     try {
+      ensurePlatformPluginsInitialized();
       final picked = await _picker.pickImage(
         source: source,
         maxWidth: 1600,
