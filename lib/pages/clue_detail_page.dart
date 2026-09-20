@@ -892,7 +892,9 @@ class _TimelineSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final logs = clue.visitLogs.reversed.toList();
+    // 除了顶部的“线索创建”固定置顶外，其余回访记录始终按时间倒序排列（最新的记录在最上方）
+    final logs = List<VisitLog>.from(clue.visitLogs)
+      ..sort((a, b) => b.createTime.compareTo(a.createTime));
     final totalCount = logs.length + 1;
 
     return Container(

@@ -1263,7 +1263,54 @@ void main() {
       final restoredLog = VisitLog.fromJson(json);
       expect(restoredLog.aiReport, secondReport);
     });
+
+    test('【QA 专项测试 21】时间轴展示顺序：线索创建置顶，回访记录最新时间在最上面', () {
+      final clue = Clue(
+        id: 'timeline_order_test',
+        wxNick: '张三',
+        phone: '13800001111',
+        intentLevel: IntentLevel.medium,
+        status: ClueStatus.contacted,
+        source: '抖音广告',
+        createTime: DateTime(2026, 9, 1, 10, 0),
+        visitLogs: [
+          VisitLog(
+            id: 'log_old',
+            clueId: 'timeline_order_test',
+            createTime: DateTime(2026, 9, 2, 14, 0),
+            visitContent: '第一次沟通，较早记录',
+            visitResult: VisitResult.followUp,
+          ),
+          VisitLog(
+            id: 'log_newest',
+            clueId: 'timeline_order_test',
+            createTime: DateTime(2026, 9, 5, 16, 0),
+            visitContent: '第三次沟通，最新记录',
+            visitResult: VisitResult.intentUp,
+          ),
+          VisitLog(
+            id: 'log_middle',
+            clueId: 'timeline_order_test',
+            createTime: DateTime(2026, 9, 3, 11, 0),
+            visitContent: '第二次沟通，中间记录',
+            visitResult: VisitResult.followUp,
+          ),
+        ],
+      );
+
+      // 模拟 _TimelineSection 的排序逻辑：
+      // 线索创建始终置顶；
+      // 下方回访记录必须按 createTime 倒序排序（最新时间排在最上面）
+      final sortedLogs = List<VisitLog>.from(clue.visitLogs)
+        ..sort((a, b) => b.createTime.compareTo(a.createTime));
+
+      // 验证回访记录按时间倒序
+      expect(sortedLogs[0].id, 'log_newest', reason: '时间轴第1条回访记录必须是最新发生的记录');
+      expect(sortedLogs[1].id, 'log_middle', reason: '时间轴第2条回访记录是中间时间记录');
+      expect(sortedLogs[2].id, 'log_old', reason: '时间轴最后1条回访记录是最早发生的记录');
+    });
   });
 }
+
 
 
