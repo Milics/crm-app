@@ -986,6 +986,73 @@ void main() {
       // 必须被识别为 needsUpload，以便自动推回云端修复云端旧数据
       expect(needsUpload.any((c) => c.id == clueId), true);
     });
+
+    test('【QA 专项测试 17】线索删除与云端刷新防复活测试：删除后刷新页面线索绝不复生', () async {
+      final provider = AppProvider();
+      while (!provider.isLoaded) {
+        await Future.delayed(const Duration(milliseconds: 10));
+      }
+
+      final now = DateTime.now();
+      final deleteTargetId = 'c_delete_test_001';
+      final survivorId = 'c_survivor_test_002';
+
+      // 1. 本地初始化两条真实线索
+      final clueToDelete = Clue(
+        id: deleteTargetId,
+        wxNick: '王丽华',
+        status: ClueStatus.following,
+        ownerName: '超级管理员',
+        createTime: now.subtract(const Duration(days: 2)),
+      );
+      final survivorClue = Clue(
+        id: survivorId,
+        wxNick: '赵志刚',
+        status: ClueStatus.following,
+        ownerName: '超级管理员',
+        createTime: now.subtract(const Duration(days: 1)),
+      );
+      provider.addClue(clueToDelete);
+      provider.addClue(survivorClue);
+
+      expect(provider.getClueById(deleteTargetId), isNotNull);
+      expect(provider.getClueById(survivorId), isNotNull);
+
+      // 2. 用户执行删除线索操作
+      await provider.deleteClue(deleteTargetId);
+
+      // 验证本地立即删除，且记录了墓碑
+      expect(provider.getClueById(deleteTargetId), isNull);
+      expect(provider.deletedClueIds.contains(deleteTargetId), true);
+      expect(provider.getClueById(survivorId), isNotNull);
+
+      // 3. 模拟用户刷新页面（云端拉取时，云端因时差依然回传了刚刚被删除的 clueToDelete）
+      final staleRemotes = [
+        Clue(
+          id: deleteTargetId,
+          wxNick: '王丽华',
+          status: ClueStatus.following,
+          ownerName: '超级管理员',
+          createTime: now.subtract(const Duration(days: 2)),
+        ),
+        Clue(
+          id: survivorId,
+          wxNick: '赵志刚',
+          status: ClueStatus.following,
+          ownerName: '超级管理员',
+          createTime: now.subtract(const Duration(days: 1)),
+        ),
+      ];
+
+      // 触发合并
+      await provider.mergeAndApplyRemoteCluesForTesting(staleRemotes);
+
+      // 4. 核心断言：刷新后已被删除的线索绝对不会复活！正常线索依然存在！
+      expect(provider.getClueById(deleteTargetId), isNull);
+      expect(provider.getClueById(survivorId), isNotNull);
+      expect(provider.clues.any((c) => c.id == deleteTargetId), false);
+      expect(provider.clues.any((c) => c.id == survivorId), true);
+    });
   });
 }
 

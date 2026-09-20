@@ -116,6 +116,10 @@ class AppProvider extends ChangeNotifier {
   final List<Clue> _clues = [];
   List<Clue> get clues => List.unmodifiable(_clues);
 
+  // 已删除线索的ID集合（墓碑机制：防止云端拉取刷新时已删线索复活）
+  Set<String> _deletedClueIds = {};
+  Set<String> get deletedClueIds => Set.unmodifiable(_deletedClueIds);
+
   // 搜索关键词
   String _searchKeyword = '';
   String get searchKeyword => _searchKeyword;
@@ -142,9 +146,30 @@ class AppProvider extends ChangeNotifier {
     super.dispose();
   }
 
+  /// 保存已删除的线索ID集合（持久化墓碑）
+  Future<void> _saveDeletedClueIdsLocal() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = _deletedClueIds.toList();
+      if (list.length > 500) {
+        list.removeRange(0, list.length - 500);
+        _deletedClueIds = list.toSet();
+      }
+      await prefs.setStringList('crm_deleted_clue_ids', list);
+    } catch (e) {
+      debugPrint('⚠️ [_saveDeletedClueIdsLocal] 墓碑持久化异常: $e');
+    }
+  }
+
   /// 初始化：加载本地用户、线索、物料并建立同步
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
+
+    // 加载已删除线索的墓碑记录
+    final deletedList = prefs.getStringList('crm_deleted_clue_ids');
+    if (deletedList != null) {
+      _deletedClueIds = deletedList.toSet();
+    }
 
     // 1. 初始化用户列表与权限
     final usersJson = prefs.getString('crm_users');
@@ -186,11 +211,13 @@ class AppProvider extends ChangeNotifier {
 
     if (cluesJson != null) {
       final list = jsonDecode(cluesJson) as List<dynamic>;
-      _clues.addAll(list.map((e) => Clue.fromJson(e)).where((c) => !_isMockClue(c)));
+      _clues.addAll(list
+          .map((e) => Clue.fromJson(e))
+          .where((c) => !_isMockClue(c) && !_deletedClueIds.contains(c.id)));
     }
 
     // 全量清洗并彻底丢弃历史测试线索与演示线索
-    _clues.removeWhere(_isMockClue);
+    _clues.removeWhere((c) => _isMockClue(c) || _deletedClueIds.contains(c.id));
     await _saveCluesLocalOnly();
 
     if (textJson != null) {
@@ -609,6 +636,11 @@ class AppProvider extends ChangeNotifier {
     return _mergeClue(local, remote, needsUpload: needsUpload);
   }
 
+  @visibleForTesting
+  Future<void> mergeAndApplyRemoteCluesForTesting(List<Clue> remoteClues) {
+    return _mergeAndApplyRemoteClues(remoteClues);
+  }
+
   /// 智能合并并应用远端线索列表（双向无损对齐，新回访永不被冲刷）
   Future<void> _mergeAndApplyRemoteClues(List<Clue> remoteClues) async {
     // 自动剿灭云端测试残留线索
@@ -617,10 +649,21 @@ class AppProvider extends ChangeNotifier {
       unawaited(_crmSyncService.deleteClue(mc.id));
     }
 
-    final validRemotes = remoteClues.where((c) => !_isMockClue(c)).toList();
+    // 0. 过滤已在本地明确删除的线索，并顺手同步剿灭云端残留（防复活）
+    final validRemotes = remoteClues.where((c) {
+      if (_isMockClue(c)) return false;
+      if (_deletedClueIds.contains(c.id)) {
+        unawaited(_crmSyncService.deleteClue(c.id));
+        return false;
+      }
+      return true;
+    }).toList();
+
     final remoteMap = {for (var rc in validRemotes) rc.id: rc};
     final localMap = {
-      for (var lc in _clues.where((c) => !_isMockClue(c))) lc.id: lc
+      for (var lc in _clues.where((c) =>
+          !_isMockClue(c) && !_deletedClueIds.contains(c.id)))
+        lc.id: lc
     };
 
     final List<Clue> mergedResult = [];
@@ -639,6 +682,7 @@ class AppProvider extends ChangeNotifier {
 
     // 2. 遍历本地独有线索（未上云的自建真实线索）：保留并加入上云队列
     for (final lc in localMap.values) {
+      if (_deletedClueIds.contains(lc.id)) continue;
       if (!remoteMap.containsKey(lc.id)) {
         mergedResult.add(lc);
         needsUpload.add(lc);
@@ -1524,6 +1568,10 @@ class AppProvider extends ChangeNotifier {
 
   // 新增线索（自动填充当前登录顾问为归属人）
   void addClue(Clue clue) {
+    if (_deletedClueIds.contains(clue.id)) {
+      _deletedClueIds.remove(clue.id);
+      unawaited(_saveDeletedClueIdsLocal());
+    }
     if (clue.ownerName.isEmpty && currentUser.isNotEmpty) {
       clue.ownerName = currentUser;
     }
@@ -1534,10 +1582,18 @@ class AppProvider extends ChangeNotifier {
 
   // 批量新增线索（支持 Excel/CSV 批量导入并全端同步）
   Future<void> batchAddClues(List<Clue> newClues) async {
+    bool hasDeleted = false;
     for (final clue in newClues) {
+      if (_deletedClueIds.contains(clue.id)) {
+        _deletedClueIds.remove(clue.id);
+        hasDeleted = true;
+      }
       if (clue.ownerName.isEmpty && currentUser.isNotEmpty) {
         clue.ownerName = currentUser;
       }
+    }
+    if (hasDeleted) {
+      unawaited(_saveDeletedClueIdsLocal());
     }
     _clues.insertAll(0, newClues);
     notifyListeners();
@@ -1553,13 +1609,33 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  // 删除线索
-  void deleteClue(String clueId) {
+  // 删除线索（强保证：本地立即原子记录墓碑并移除，云端中枢彻底同步删除）
+  Future<void> deleteClue(String clueId) async {
+    // 1. 记入墓碑黑名单，防止网络时差或刷新拉取导致已删线索复活
+    _deletedClueIds.add(clueId);
+    unawaited(_saveDeletedClueIdsLocal());
+
+    // 2. 立即从本地内存与持久化存储中移除
     _clues.removeWhere((c) => c.id == clueId);
     notifyListeners();
-    _saveCluesLocalOnly();
-    _tencentService.deleteClue(clueId);
-    _firestoreService.deleteClue(clueId);
+    await _saveCluesLocalOnly();
+
+    // 3. 云端同步中枢执行物理删除（优先等待 3 秒内确认）
+    try {
+      await _crmSyncService
+          .deleteClue(clueId)
+          .timeout(const Duration(seconds: 3));
+    } catch (e) {
+      debugPrint('⚠️ [CrmSync] 删除线索云端同步稍有延迟，已受墓碑机制保护: $e');
+    }
+
+    // 4. 辅助通道同步删除
+    try {
+      _tencentService.deleteClue(clueId);
+    } catch (_) {}
+    try {
+      _firestoreService.deleteClue(clueId);
+    } catch (_) {}
   }
 
   // 更新线索基本信息
