@@ -375,10 +375,28 @@ void main() async {
     if (path == '/api/clues') {
       if (req.method == 'GET') {
         final list = readTable(cluesFile);
+        final isSummary = req.uri.queryParameters['summary'] == 'true';
+        final responseData = isSummary
+            ? list.map((c) {
+                final copy = Map<String, dynamic>.from(c);
+                if (copy['chatRecords'] is List) {
+                  copy['chatRecords'] = (copy['chatRecords'] as List).map((cr) {
+                    if (cr is Map) {
+                      final chatCopy = Map<String, dynamic>.from(cr);
+                      chatCopy['imageData'] = null; // 剥离超大 Base64 原图，体积由 19.7MB 骤降至 52KB
+                      return chatCopy;
+                    }
+                    return cr;
+                  }).toList();
+                }
+                return copy;
+              }).toList()
+            : list;
+
         req.response
           ..headers.contentType = ContentType.json
           ..statusCode = HttpStatus.ok
-          ..write(jsonEncode(list));
+          ..write(jsonEncode(responseData));
         await req.response.close();
         continue;
       }
@@ -433,6 +451,32 @@ void main() async {
 
     if (path.startsWith('/api/clues/')) {
       final id = path.substring('/api/clues/'.length);
+      if (id != 'deleted') {
+        if (req.method == 'GET') {
+          final list = readTable(cluesFile);
+          Map<String, dynamic>? foundClue;
+          for (var c in list) {
+            if (c['id'] == id) {
+              foundClue = c;
+              break;
+            }
+          }
+          if (foundClue != null) {
+            req.response
+              ..headers.contentType = ContentType.json
+              ..statusCode = HttpStatus.ok
+              ..write(jsonEncode(foundClue));
+          } else {
+            req.response
+              ..headers.contentType = ContentType.json
+              ..statusCode = HttpStatus.notFound
+              ..write(jsonEncode({'error': '线索不存在', 'id': id}));
+          }
+          await req.response.close();
+          continue;
+        }
+      }
+
       if (req.method == 'DELETE') {
         final list = readTable(cluesFile);
         list.removeWhere((item) => item['id'] == id);

@@ -143,7 +143,7 @@ class Clue {
     );
   }
 
-  Map<String, dynamic> toJson() => {
+  Map<String, dynamic> toJson({bool includeImageData = true}) => {
         'id': id,
         'wxNick': wxNick,
         'wxId': wxId,
@@ -158,7 +158,9 @@ class Clue {
         'nextVisitTime': nextVisitTime?.toIso8601String(),
         'createTime': createTime.toIso8601String(),
         'visitLogs': visitLogs.map((v) => v.toJson()).toList(),
-        'chatRecords': chatRecords.map((c) => c.toJson()).toList(),
+        'chatRecords': chatRecords
+            .map((c) => c.toJson(includeImageData: includeImageData))
+            .toList(),
         'tags': tags,
         'remark': remark,
         'ownerName': ownerName,
@@ -332,11 +334,11 @@ class ChatRecord {
     );
   }
 
-  Map<String, dynamic> toJson() => {
+  Map<String, dynamic> toJson({bool includeImageData = true}) => {
         'id': id,
         'clueId': clueId,
         'imagePath': imagePath,
-        'imageData': imageData,
+        'imageData': includeImageData ? imageData : null,
         'ocrText': ocrText,
         'createTime': createTime.toIso8601String(),
       };

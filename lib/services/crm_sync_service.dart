@@ -162,25 +162,46 @@ class CrmSyncService {
   // 2. 线索同步 (Clues)
   // ─────────────────────────────────────
 
-  /// 获取云端全部线索
-  Future<List<Clue>?> fetchAllClues() async {
+  /// 获取云端全部线索（支持 summary=true 过滤超大图片二进制，极速秒级拉取）
+  Future<List<Clue>?> fetchAllClues({bool summary = false}) async {
     final baseUrl = _activeBaseUrl ?? 'https://crm-app-ojs3.onrender.com';
 
     try {
+      final url = summary ? '$baseUrl/api/clues?summary=true' : '$baseUrl/api/clues';
       final res = await http
-          .get(Uri.parse('$baseUrl/api/clues'))
+          .get(Uri.parse(url))
           .timeout(const Duration(seconds: 45));
       if (res.statusCode == 200) {
         final list = jsonDecode(res.body) as List<dynamic>;
         final clues = list.map((e) => Clue.fromJson(e)).toList();
         _activeBaseUrl = baseUrl;
         lastError = null;
-        debugPrint('🟢 [CrmSync] 成功从同步服务器拉取 ${clues.length} 条线索');
+        debugPrint('🟢 [CrmSync] 成功从同步服务器拉取 ${clues.length} 条线索 (模式: ${summary ? '轻量模式' : '全量模式'})');
         return clues;
       }
     } catch (e) {
       debugPrint('⚠️ [CrmSync] 拉取数据异常: $e');
       lastError = e.toString();
+    }
+    return null;
+  }
+
+  /// 获取单个学员的完整详情（含微信聊天记录的高清原图）
+  Future<Clue?> fetchClueDetail(String clueId) async {
+    final baseUrl = _activeBaseUrl ?? 'https://crm-app-ojs3.onrender.com';
+
+    try {
+      final res = await http
+          .get(Uri.parse('$baseUrl/api/clues/$clueId'))
+          .timeout(const Duration(seconds: 30));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        _activeBaseUrl = baseUrl;
+        lastError = null;
+        return Clue.fromJson(data);
+      }
+    } catch (e) {
+      debugPrint('⚠️ [CrmSync] 获取学员详情异常(ID: $clueId): $e');
     }
     return null;
   }

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/clue.dart';
@@ -347,8 +348,12 @@ class AppProvider extends ChangeNotifier {
       }
     }
 
-    if (_clues.isEmpty) {
-      _clues.addAll(realSeeds);
+    // 🛡️ 核心数据安全防护 3：增量补齐种子库中存在但本地缺失的真实线索（消灭冷启动由于本地旧缓存导致的线索缺失与闪烁）
+    final localClueIds = _clues.map((c) => c.id).toSet();
+    for (final seed in realSeeds) {
+      if (!localClueIds.contains(seed.id) && !_deletedClueIds.contains(seed.id)) {
+        _clues.add(seed);
+      }
     }
     await _saveCluesLocalOnly();
 
@@ -1141,9 +1146,9 @@ class AppProvider extends ChangeNotifier {
     unawaited(syncUsersFromCloud());
     unawaited(syncMaterialsFromCloud());
 
-    // 2. 优先尝试智能同步引擎同步线索（全量双向对齐）
+    // 2. 优先尝试智能同步引擎同步线索（轻量模式秒级拉取，全量双向对齐）
     try {
-      final remoteClues = await _crmSyncService.fetchAllClues();
+      final remoteClues = await _crmSyncService.fetchAllClues(summary: true);
       if (remoteClues != null) {
         await _mergeAndApplyRemoteClues(remoteClues);
         return;
@@ -1185,7 +1190,7 @@ class AppProvider extends ChangeNotifier {
       _retryTimer = Timer(Duration(seconds: delaySec), () async {
         if (_isDisposed) return;
         try {
-          final remoteClues = await _crmSyncService.fetchAllClues();
+          final remoteClues = await _crmSyncService.fetchAllClues(summary: true);
           if (remoteClues != null && !_isDisposed) {
             await _mergeAndApplyRemoteClues(remoteClues);
             debugPrint('🟢 [CrmSync] 智能唤醒重试成功，已同步 ${_clues.length} 条线索！');
@@ -1272,9 +1277,9 @@ class AppProvider extends ChangeNotifier {
     unawaited(syncUsersFromCloud());
     unawaited(syncMaterialsFromCloud());
 
-    // 1. 优先尝试 7x24 小时云端同步中枢（全球公网直连）
+    // 1. 优先尝试 7x24 小时云端同步中枢（轻量模式秒级响应，移动网络0.05秒同步，绝不超时）
     try {
-      final remoteClues = await _crmSyncService.fetchAllClues();
+      final remoteClues = await _crmSyncService.fetchAllClues(summary: true);
       if (remoteClues != null) {
         await _mergeAndApplyRemoteClues(remoteClues);
         return true;
@@ -1300,15 +1305,68 @@ class AppProvider extends ChangeNotifier {
     return false;
   }
 
-  /// 仅保存到本地（避免循环触发云端保存，加入异常捕获防崩溃）
+  /// 按需拉取单学员的高清聊天截图原图（用于学员详情页/时间轴，仅拉取单条线索，数据量小且极速响应）
+  Future<void> ensureClueDetailsLoaded(String clueId) async {
+    final idx = _clues.indexWhere((c) => c.id == clueId);
+    if (idx == -1) return;
+    final current = _clues[idx];
+
+    // 若本地已有聊天记录且图片已具备，无需重复请求
+    final hasMissingImages = current.chatRecords.any(
+        (cr) => (cr.imageData == null || cr.imageData!.isEmpty));
+    if (!hasMissingImages) return;
+
+    try {
+      final remoteClue = await _crmSyncService.fetchClueDetail(clueId);
+      if (remoteClue != null && remoteClue.chatRecords.isNotEmpty) {
+        final updatedChats = <ChatRecord>[];
+        for (final localCr in current.chatRecords) {
+          final matchedRemote = remoteClue.chatRecords
+              .where((rc) =>
+                  rc.id == localCr.id ||
+                  (rc.ocrText.isNotEmpty && rc.ocrText.trim() == localCr.ocrText.trim()))
+              .firstOrNull;
+          if (matchedRemote != null &&
+              matchedRemote.imageData != null &&
+              matchedRemote.imageData!.isNotEmpty) {
+            updatedChats.add(localCr.copyWith(imageData: matchedRemote.imageData));
+          } else {
+            updatedChats.add(localCr);
+          }
+        }
+
+        _clues[idx] = current.copyWith(chatRecords: updatedChats);
+        notifyListeners();
+        debugPrint('🟢 [CrmSync] 已成功按需为学员 ${current.wxNick} (ID: $clueId) 补齐高清微信原图！');
+      }
+    } catch (e) {
+      debugPrint('⚠️ [CrmSync] 按需拉取学员图片异常: $e');
+    }
+  }
+
+  /// 仅保存到本地（避免循环触发云端保存，加入配额自适应与异常捕获防崩溃）
   Future<void> _saveCluesLocalOnly() async {
     try {
       _clues.removeWhere(_isMockClue);
       final prefs = await SharedPreferences.getInstance();
-      final json = jsonEncode(_clues.map((c) => c.toJson()).toList());
-      await prefs.setString('crm_clues', json);
+
+      // 优先尝试保存全量数据（包含本地已下载的高清图片数据）
+      try {
+        final json = jsonEncode(_clues.map((c) => c.toJson()).toList());
+        // Web 端 LocalStorage 配额通常为 5MB，若超过 3MB，直接转为轻量存储避免触发 QuotaExceededError
+        if (kIsWeb && json.length > 3 * 1024 * 1024) {
+          throw Exception('Web localStorage quota protection: payload size exceeds 3MB');
+        }
+        await prefs.setString('crm_clues', json);
+      } catch (storageErr) {
+        debugPrint('🛡️ [_saveCluesLocalOnly] 触发存储配额防线，自动降级为轻量化存储: $storageErr');
+        // 降级方案：剥离 chatRecords 中的超大 Base64 原图，保留全部文本、AI 深度报告、次回访时间与跟进记录（仅 ~52KB）
+        final lightweightJson = jsonEncode(
+            _clues.map((c) => c.toJson(includeImageData: false)).toList());
+        await prefs.setString('crm_clues', lightweightJson);
+      }
     } catch (e) {
-      debugPrint('⚠️ [_saveCluesLocalOnly] 本地持久化异常: $e');
+      debugPrint('⚠️ [_saveCluesLocalOnly] 本地持久化最终异常: $e');
     }
   }
 

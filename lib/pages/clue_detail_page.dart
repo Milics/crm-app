@@ -31,6 +31,13 @@ class ClueDetailPage extends StatelessWidget {
           );
         }
 
+        // 🛡️ 智能按需加载：若聊天记录原图未在本地缓存，首帧后自动静默拉取该学员高清原图
+        if (clue.chatRecords.any((cr) => cr.imageData == null || cr.imageData!.isEmpty)) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            provider.ensureClueDetailsLoaded(clueId);
+          });
+        }
+
         return PopScope(
           canPop: true,
           child: Scaffold(
