@@ -56,6 +56,177 @@ void main() async {
     file.writeAsStringSync(const JsonEncoder.withIndent('  ').convert(list));
   }
 
+  /// 服务端线索深度智能增量合并（非空绝对保全，严防客户端残缺数据抹杀AI报告与次回访时间）
+  Map<String, dynamic> mergeServerClue(
+      Map<String, dynamic> existing, Map<String, dynamic> incoming) {
+    final merged = Map<String, dynamic>.from(existing);
+
+    // 1. 回访记录 (visitLogs) 增量去重合并
+    final existingLogs = (existing['visitLogs'] as List<dynamic>?) ?? [];
+    final incomingLogs = (incoming['visitLogs'] as List<dynamic>?) ?? [];
+    final logMap = <String, Map<String, dynamic>>{};
+    for (var l in existingLogs) {
+      if (l is Map) {
+        final m = Map<String, dynamic>.from(l);
+        if (m['id'] != null) logMap[m['id'].toString()] = m;
+      }
+    }
+    for (var l in incomingLogs) {
+      if (l is Map) {
+        final m = Map<String, dynamic>.from(l);
+        if (m['id'] != null) {
+          final idStr = m['id'].toString();
+          final oldLog = logMap[idStr];
+          if (oldLog != null) {
+            // 保留历史回访中可能已有的 AI 诊断报告
+            final incomingAi = m['aiReport']?.toString().trim();
+            final oldAi = oldLog['aiReport']?.toString().trim();
+            if ((incomingAi == null || incomingAi.isEmpty) &&
+                (oldAi != null && oldAi.isNotEmpty)) {
+              m['aiReport'] = oldLog['aiReport'];
+            }
+          }
+          logMap[idStr] = m;
+        }
+      }
+    }
+    final mergedLogs = logMap.values.toList()
+      ..sort((a, b) {
+        final ta = a['createTime']?.toString() ?? '';
+        final tb = b['createTime']?.toString() ?? '';
+        return tb.compareTo(ta);
+      });
+    merged['visitLogs'] = mergedLogs;
+
+    // 2. 聊天记录 (chatRecords) 增量去重合并，确保图片数据不丢失
+    final existingChats = (existing['chatRecords'] as List<dynamic>?) ?? [];
+    final incomingChats = (incoming['chatRecords'] as List<dynamic>?) ?? [];
+    final chatMap = <String, Map<String, dynamic>>{};
+    for (var c in existingChats) {
+      if (c is Map) {
+        final m = Map<String, dynamic>.from(c);
+        if (m['id'] != null) chatMap[m['id'].toString()] = m;
+      }
+    }
+    for (var c in incomingChats) {
+      if (c is Map) {
+        final m = Map<String, dynamic>.from(c);
+        if (m['id'] != null) {
+          final idStr = m['id'].toString();
+          final oldChat = chatMap[idStr];
+          if (oldChat != null) {
+            final incomingImg = m['imageData']?.toString();
+            final oldImg = oldChat['imageData']?.toString();
+            if ((incomingImg == null || incomingImg.isEmpty) &&
+                (oldImg != null && oldImg.isNotEmpty)) {
+              m['imageData'] = oldChat['imageData'];
+            }
+          }
+          chatMap[idStr] = m;
+        }
+      }
+    }
+    final mergedChats = chatMap.values.toList()
+      ..sort((a, b) {
+        final ta = a['createTime']?.toString() ?? '';
+        final tb = b['createTime']?.toString() ?? '';
+        return tb.compareTo(ta);
+      });
+    merged['chatRecords'] = mergedChats;
+
+    // 3. 标签 (tags) 集合合并
+    final existingTags = (existing['tags'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toSet() ??
+        {};
+    final incomingTags = (incoming['tags'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toSet() ??
+        {};
+    merged['tags'] = {...existingTags, ...incomingTags}.toList();
+
+    // 4. 下次回访时间 (nextVisitTime) 非空绝对保全
+    final incomingNext = incoming['nextVisitTime']?.toString();
+    final existingNext = existing['nextVisitTime']?.toString();
+    if (incomingNext != null &&
+        incomingNext.trim().isNotEmpty &&
+        incomingNext != 'null') {
+      merged['nextVisitTime'] = incomingNext;
+    } else if (existingNext != null &&
+        existingNext.trim().isNotEmpty &&
+        existingNext != 'null') {
+      merged['nextVisitTime'] = existingNext;
+    } else {
+      merged['nextVisitTime'] = null;
+    }
+
+    // 5. AI 分析报告 (aiAnalysisReport) 与时间 (aiAnalysisTime) 保全
+    final incomingReport = incoming['aiAnalysisReport']?.toString().trim();
+    final existingReport = existing['aiAnalysisReport']?.toString().trim();
+    final bool incomingHasReport =
+        incomingReport != null && incomingReport.isNotEmpty && incomingReport != 'null';
+    final bool existingHasReport =
+        existingReport != null && existingReport.isNotEmpty && existingReport != 'null';
+
+    if (incomingHasReport && !existingHasReport) {
+      merged['aiAnalysisReport'] = incoming['aiAnalysisReport'];
+      merged['aiAnalysisTime'] =
+          incoming['aiAnalysisTime'] ?? DateTime.now().toIso8601String();
+    } else if (!incomingHasReport && existingHasReport) {
+      merged['aiAnalysisReport'] = existing['aiAnalysisReport'];
+      merged['aiAnalysisTime'] = existing['aiAnalysisTime'];
+    } else if (incomingHasReport && existingHasReport) {
+      final inTimeStr = incoming['aiAnalysisTime']?.toString();
+      final exTimeStr = existing['aiAnalysisTime']?.toString();
+      if (inTimeStr != null && exTimeStr != null) {
+        final inTime = DateTime.tryParse(inTimeStr);
+        final exTime = DateTime.tryParse(exTimeStr);
+        if (inTime != null && exTime != null && inTime.isAfter(exTime)) {
+          merged['aiAnalysisReport'] = incoming['aiAnalysisReport'];
+          merged['aiAnalysisTime'] = incoming['aiAnalysisTime'];
+        } else {
+          merged['aiAnalysisReport'] = existing['aiAnalysisReport'];
+          merged['aiAnalysisTime'] = existing['aiAnalysisTime'];
+        }
+      } else {
+        merged['aiAnalysisReport'] = incoming['aiAnalysisReport'];
+        merged['aiAnalysisTime'] =
+            incoming['aiAnalysisTime'] ?? existing['aiAnalysisTime'];
+      }
+    }
+
+    // 6. 其他基础字段：非空优先覆写
+    for (var key in [
+      'wxNick',
+      'wxId',
+      'phone',
+      'grade',
+      'school',
+      'subject',
+      'source',
+      'classType',
+      'ownerName',
+      'status',
+      'intentLevel',
+      'remark',
+      'enrollAmount'
+    ]) {
+      if (incoming.containsKey(key) && incoming[key] != null) {
+        if (incoming[key] is String &&
+            (incoming[key] as String).trim().isEmpty) {
+          if (existing.containsKey(key) &&
+              existing[key] is String &&
+              (existing[key] as String).trim().isNotEmpty) {
+            continue; // 保留服务端的已有非空字符串
+          }
+        }
+        merged[key] = incoming[key];
+      }
+    }
+
+    return merged;
+  }
+
   await for (HttpRequest req in server) {
     req.response.headers.set('Access-Control-Allow-Origin', '*');
     req.response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -190,18 +361,24 @@ void main() async {
         final deletedList = readTable(deletedCluesFile);
         final deletedIds = {for (var d in deletedList) d['id']};
 
+        void saveOneClue(Map<String, dynamic> item) {
+          final id = item['id']?.toString();
+          if (id == null || id.isEmpty || deletedIds.contains(id)) return;
+          if (map.containsKey(id)) {
+            map[id] = mergeServerClue(map[id]!, item);
+          } else {
+            map[id] = item;
+          }
+        }
+
         if (body is List) {
           for (var item in body) {
-            final m = Map<String, dynamic>.from(item);
-            if (m['id'] != null && !deletedIds.contains(m['id'])) {
-              map[m['id']] = m;
+            if (item is Map) {
+              saveOneClue(Map<String, dynamic>.from(item));
             }
           }
         } else if (body is Map) {
-          final m = Map<String, dynamic>.from(body);
-          if (m['id'] != null && !deletedIds.contains(m['id'])) {
-            map[m['id']] = m;
-          }
+          saveOneClue(Map<String, dynamic>.from(body));
         }
 
         final resultList = map.values.toList();

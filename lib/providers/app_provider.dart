@@ -257,10 +257,10 @@ class AppProvider extends ChangeNotifier {
     // 全量清洗并彻底丢弃历史测试线索与演示线索
     _clues.removeWhere((c) => _isMockClue(c) || _deletedClueIds.contains(c.id));
 
-    // 🛡️ 核心数据安全防护 2：若本地线索池为空，自动装载 11 条真实核心学员线索并持久化
+    // 🛡️ 核心数据安全防护 2：若本地线索池为空，自动装载 11 条真实核心学员线索本地持久化兜底展示
+    // 🚨 严禁向云端反向上传静态初始种子数据！防止冲刷云端真实存在的 AI 分析报告、下次回访时间及其他端自建线索
     if (_clues.isEmpty) {
       _clues.addAll(realSeeds);
-      unawaited(_crmSyncService.saveClues(_clues));
     }
     await _saveCluesLocalOnly();
 
@@ -589,7 +589,16 @@ class AppProvider extends ChangeNotifier {
       if (!logMap.containsKey(l.id)) {
         localHasNewLogs = true;
       }
-      logMap[l.id] = l;
+      final existing = logMap[l.id];
+      if (existing != null) {
+        // 保留回访中更有价值的 AI 诊断报告
+        if ((l.aiReport != null && l.aiReport!.isNotEmpty) &&
+            (existing.aiReport == null || existing.aiReport!.isEmpty)) {
+          logMap[l.id] = l;
+        }
+      } else {
+        logMap[l.id] = l;
+      }
     }
     final mergedLogs = logMap.values.toList()
       ..sort((a, b) => b.createTime.compareTo(a.createTime));
@@ -604,7 +613,15 @@ class AppProvider extends ChangeNotifier {
       if (!chatMap.containsKey(r.id)) {
         localHasNewChats = true;
       }
-      chatMap[r.id] = r;
+      final existing = chatMap[r.id];
+      // 如果本地有 imageData，而远端没有，必须保留本地带图像数据的记录
+      if (existing != null &&
+          (existing.imageData == null || existing.imageData!.isEmpty) &&
+          (r.imageData != null && r.imageData!.isNotEmpty)) {
+        chatMap[r.id] = r;
+      } else if (existing == null) {
+        chatMap[r.id] = r;
+      }
     }
     final mergedChats = chatMap.values.toList()
       ..sort((a, b) => b.createTime.compareTo(a.createTime));
@@ -622,6 +639,53 @@ class AppProvider extends ChangeNotifier {
         (localLatestLogTime != null &&
             (remoteLatestLogTime == null ||
                 localLatestLogTime.isAfter(remoteLatestLogTime)));
+
+    // 🛡️ 核心保全规则 1：下次回访时间 (nextVisitTime) 非空绝对保全，严禁被 null 清空！
+    DateTime? mergedNextVisitTime;
+    if (local.nextVisitTime != null && remote.nextVisitTime == null) {
+      mergedNextVisitTime = local.nextVisitTime;
+    } else if (local.nextVisitTime == null && remote.nextVisitTime != null) {
+      mergedNextVisitTime = remote.nextVisitTime;
+    } else if (local.nextVisitTime != null && remote.nextVisitTime != null) {
+      mergedNextVisitTime =
+          preferLocal ? local.nextVisitTime : remote.nextVisitTime;
+    } else {
+      mergedNextVisitTime = null;
+    }
+
+    // 🛡️ 核心保全规则 2：AI 深度分析报告 (aiAnalysisReport) 非空绝对保全与最新时间戳竞争
+    String? mergedAiReport;
+    DateTime? mergedAiTime;
+    final bool localHasAi = local.aiAnalysisReport != null &&
+        local.aiAnalysisReport!.trim().isNotEmpty;
+    final bool remoteHasAi = remote.aiAnalysisReport != null &&
+        remote.aiAnalysisReport!.trim().isNotEmpty;
+
+    if (localHasAi && !remoteHasAi) {
+      mergedAiReport = local.aiAnalysisReport;
+      mergedAiTime = local.aiAnalysisTime ?? DateTime.now();
+    } else if (!localHasAi && remoteHasAi) {
+      mergedAiReport = remote.aiAnalysisReport;
+      mergedAiTime = remote.aiAnalysisTime ?? DateTime.now();
+    } else if (localHasAi && remoteHasAi) {
+      if (local.aiAnalysisTime != null && remote.aiAnalysisTime != null) {
+        if (local.aiAnalysisTime!.isAfter(remote.aiAnalysisTime!)) {
+          mergedAiReport = local.aiAnalysisReport;
+          mergedAiTime = local.aiAnalysisTime;
+        } else {
+          mergedAiReport = remote.aiAnalysisReport;
+          mergedAiTime = remote.aiAnalysisTime;
+        }
+      } else {
+        mergedAiReport =
+            preferLocal ? local.aiAnalysisReport : remote.aiAnalysisReport;
+        mergedAiTime =
+            preferLocal ? local.aiAnalysisTime : remote.aiAnalysisTime;
+      }
+    } else {
+      mergedAiReport = null;
+      mergedAiTime = null;
+    }
 
     final mergedClue = Clue(
       id: local.id,
@@ -654,13 +718,13 @@ class AppProvider extends ChangeNotifier {
           : (remote.ownerName.isNotEmpty ? remote.ownerName : local.ownerName),
       status: preferLocal ? local.status : remote.status,
       intentLevel: preferLocal ? local.intentLevel : remote.intentLevel,
-      nextVisitTime: preferLocal ? local.nextVisitTime : remote.nextVisitTime,
+      nextVisitTime: mergedNextVisitTime,
       remark: preferLocal
           ? (local.remark.isNotEmpty ? local.remark : remote.remark)
           : (remote.remark.isNotEmpty ? remote.remark : local.remark),
       enrollAmount: local.enrollAmount ?? remote.enrollAmount,
-      aiAnalysisReport: local.aiAnalysisReport ?? remote.aiAnalysisReport,
-      aiAnalysisTime: local.aiAnalysisTime ?? remote.aiAnalysisTime,
+      aiAnalysisReport: mergedAiReport,
+      aiAnalysisTime: mergedAiTime,
       createTime: local.createTime.isBefore(remote.createTime)
           ? local.createTime
           : remote.createTime,
@@ -669,9 +733,24 @@ class AppProvider extends ChangeNotifier {
       tags: mergedTags,
     );
 
+    // 🛡️ 核心保全规则 3：若本地具备更新的 AI 报告、更新的次回访时间或更多记录，必须触发 needsUpload 双向同步推向云端
+    final bool hasNewAiForRemote = (localHasAi && !remoteHasAi) ||
+        (localHasAi &&
+            remoteHasAi &&
+            local.aiAnalysisTime != null &&
+            remote.aiAnalysisTime != null &&
+            local.aiAnalysisTime!.isAfter(remote.aiAnalysisTime!));
+    final bool hasNewNextVisitForRemote =
+        local.nextVisitTime != null && remote.nextVisitTime == null;
+    final bool hasMoreLogs = mergedLogs.length > remote.visitLogs.length;
+    final bool hasMoreChats = mergedChats.length > remote.chatRecords.length;
+
     if (preferLocal ||
         localHasNewChats ||
-        mergedLogs.length > remote.visitLogs.length) {
+        hasNewAiForRemote ||
+        hasNewNextVisitForRemote ||
+        hasMoreLogs ||
+        hasMoreChats) {
       needsUpload.add(mergedClue);
     }
 
@@ -693,8 +772,22 @@ class AppProvider extends ChangeNotifier {
     _pendingCreationClueIds.remove(clueId);
   }
 
+  @visibleForTesting
+  void recordDeletedClueIdForTesting(String id) {
+    _deletedClueIds.add(id);
+  }
+
   /// 智能合并并应用远端线索列表（双向无损对齐，新回访永不被冲刷，数据绝对安全）
   Future<void> _mergeAndApplyRemoteClues(List<Clue> remoteClues) async {
+    // 0. 优先同步对齐云端墓碑表（确保在其他设备真正被删除的线索不被误复活）
+    try {
+      final cloudDeleted = await _crmSyncService.fetchDeletedClueIds();
+      if (cloudDeleted != null && cloudDeleted.isNotEmpty) {
+        _deletedClueIds.addAll(cloudDeleted);
+        unawaited(_saveDeletedClueIdsLocal());
+      }
+    } catch (_) {}
+
     // 🛡️ 核心安全防线：若远端返回 0 条线索（如服务重启、冷启动或网络响应空），
     // 绝对禁止认定全员被删，必须无条件保全本地已有真实数据，并将本地真实线索反向上报至云端！
     if (remoteClues.isEmpty) {
@@ -716,7 +809,7 @@ class AppProvider extends ChangeNotifier {
       unawaited(_crmSyncService.deleteClue(mc.id));
     }
 
-    // 0. 过滤已在本地明确删除的线索，并顺手同步剿灭云端残留（防复活）
+    // 1. 过滤已在本地明确删除的线索，并顺手同步剿灭云端残留（防复活）
     final validRemotes = remoteClues.where((c) {
       if (_isMockClue(c)) return false;
       if (_deletedClueIds.contains(c.id)) {
@@ -736,7 +829,7 @@ class AppProvider extends ChangeNotifier {
     final List<Clue> mergedResult = [];
     final List<Clue> needsUpload = [];
 
-    // 1. 遍历远端线索：若本地已存在同名线索，执行智能融合；若不存在，直接采纳
+    // 2. 遍历远端线索：若本地已存在同名线索，执行智能融合；若不存在，直接采纳
     for (final rc in validRemotes) {
       if (localMap.containsKey(rc.id)) {
         final merged =
@@ -747,21 +840,17 @@ class AppProvider extends ChangeNotifier {
       }
     }
 
-    // 2. 遍历本地独有线索（检查是否属于本设备尚未上报的新增线索）
+    // 3. 遍历本地独有线索（本地存在但远端不存在）
+    // 🛡️ 核心数据安全防线：判定线索是否已被删除，必须且仅能以明确的墓碑名单（_deletedClueIds）为准！
+    // 严禁因为远端缺失（如容器休眠重启、数据未落盘、网络丢包等）误将本地存活的真实线索自杀删除！
+    // 只要本地线索不在墓碑名单中，必须 100% 保全，并加入 needsUpload 自动自愈补推修复云端！
     for (final lc in localMap.values) {
       if (_deletedClueIds.contains(lc.id)) continue;
       if (!remoteMap.containsKey(lc.id)) {
-        if (_pendingCreationClueIds.contains(lc.id)) {
-          // 确系本设备新增但尚未推上云端的自建线索
-          mergedResult.add(lc);
-          needsUpload.add(lc);
-        } else {
-          // 云端已经没有此线索，且不是本设备刚才新增的 -> 说明在其他设备或服务端已被删除！
-          // 本设备同步跟随删除，记录墓碑，绝不擅自复活已删线索！
-          debugPrint(
-              '🗑️ [CrmSync] 检测到线索 ${lc.wxNick} (ID: ${lc.id}) 在云端已被删除，本地同步移除！');
-          _deletedClueIds.add(lc.id);
-        }
+        debugPrint(
+            '🛡️ [CrmSync] 发现本地存活线索 ${lc.wxNick} (ID: ${lc.id}) 在云端缺失，启动分布式自愈补推！');
+        mergedResult.add(lc);
+        needsUpload.add(lc);
       }
     }
 

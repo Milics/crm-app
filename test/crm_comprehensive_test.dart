@@ -1089,7 +1089,8 @@ void main() {
       provider.clearPendingCreationForTesting(normalClueId);
       expect(provider.getClueById(historicClueId), isNotNull);
 
-      // 模拟设备A在手机上删除了张帅，云端返回的最新列表里已经没有张帅，只有林建
+      // 模拟设备A在手机上删除了张帅，云端返回的最新列表里已经没有张帅，只有林建，且云端墓碑记录了张帅的ID
+      provider.recordDeletedClueIdForTesting(historicClueId);
       final cloudRemotesWithoutZhangshuai = [
         Clue(
           id: normalClueId,
@@ -1308,6 +1309,172 @@ void main() {
       expect(sortedLogs[0].id, 'log_newest', reason: '时间轴第1条回访记录必须是最新发生的记录');
       expect(sortedLogs[1].id, 'log_middle', reason: '时间轴第2条回访记录是中间时间记录');
       expect(sortedLogs[2].id, 'log_old', reason: '时间轴最后1条回访记录是最早发生的记录');
+    });
+
+    test('【QA 专项测试 22】多端合并字段级非空保全、AI分析不冲刷与分布式自愈补推测试', () async {
+      SharedPreferences.setMockInitialValues({});
+      final provider = AppProvider();
+      while (!provider.isLoaded) {
+        await Future.delayed(const Duration(milliseconds: 10));
+      }
+
+      final now = DateTime.now();
+      final targetDate = now.add(const Duration(days: 3));
+
+      // ──────────────────────────────────────────────
+      // 22.1 下次回访时间 (nextVisitTime) 非空绝对保全
+      // ──────────────────────────────────────────────
+      final localClueWithNext = Clue(
+        id: 'c_non_null_01',
+        wxNick: '刘同学',
+        nextVisitTime: targetDate,
+        status: ClueStatus.following,
+        ownerName: '超级管理员',
+        createTime: now.subtract(const Duration(days: 1)),
+      );
+      // 远端回传的数据中，nextVisitTime 为 null（例如服务端重置或种子线索）
+      final remoteClueNullNext = Clue(
+        id: 'c_non_null_01',
+        wxNick: '刘同学',
+        nextVisitTime: null,
+        status: ClueStatus.following,
+        ownerName: '超级管理员',
+        createTime: now.subtract(const Duration(days: 1)),
+      );
+
+      final uploadList1 = <Clue>[];
+      final merged1 = provider.mergeClueForTesting(localClueWithNext, remoteClueNullNext, needsUpload: uploadList1);
+      // 核心断言：本地真实的次回访时间 100% 得到保全，绝不被远端的 null 冲刷！
+      expect(merged1.nextVisitTime, targetDate);
+      // 必须触发 needsUpload 以修复远端缺失
+      expect(uploadList1.any((c) => c.id == 'c_non_null_01'), true);
+
+      // ──────────────────────────────────────────────
+      // 22.2 AI 分析报告 (aiAnalysisReport) 非空保全与最新时间戳竞争
+      // ──────────────────────────────────────────────
+      final localClueWithAi = Clue(
+        id: 'c_ai_protect_02',
+        wxNick: '孙同学',
+        aiAnalysisReport: '### 本地最新深度AI诊断报告\n推荐高数提分冲刺班',
+        aiAnalysisTime: now,
+        status: ClueStatus.contacted,
+        ownerName: '超级管理员',
+        createTime: now.subtract(const Duration(days: 2)),
+      );
+      final remoteClueNullAi = Clue(
+        id: 'c_ai_protect_02',
+        wxNick: '孙同学',
+        aiAnalysisReport: null,
+        aiAnalysisTime: null,
+        status: ClueStatus.contacted,
+        ownerName: '超级管理员',
+        createTime: now.subtract(const Duration(days: 2)),
+      );
+
+      final uploadList2 = <Clue>[];
+      final merged2 = provider.mergeClueForTesting(localClueWithAi, remoteClueNullAi, needsUpload: uploadList2);
+      // 核心断言：本地宝贵的 AI 报告绝对不会被冲刷为 null！
+      expect(merged2.aiAnalysisReport, '### 本地最新深度AI诊断报告\n推荐高数提分冲刺班');
+      expect(merged2.aiAnalysisTime, now);
+      expect(uploadList2.any((c) => c.id == 'c_ai_protect_02'), true);
+
+      // 双方均有报告时：比较时间戳，保留更新的一方
+      final localStaleAi = Clue(
+        id: 'c_ai_compete_03',
+        wxNick: '钱同学',
+        aiAnalysisReport: '昨天旧分析',
+        aiAnalysisTime: now.subtract(const Duration(days: 1)),
+        status: ClueStatus.following,
+        ownerName: '超级管理员',
+        createTime: now.subtract(const Duration(days: 3)),
+      );
+      final remoteFreshAi = Clue(
+        id: 'c_ai_compete_03',
+        wxNick: '钱同学',
+        aiAnalysisReport: '今天最新分析',
+        aiAnalysisTime: now,
+        status: ClueStatus.following,
+        ownerName: '超级管理员',
+        createTime: now.subtract(const Duration(days: 3)),
+      );
+      final uploadList3 = <Clue>[];
+      final merged3 = provider.mergeClueForTesting(localStaleAi, remoteFreshAi, needsUpload: uploadList3);
+      // 核心断言：采纳时间更新的远端报告
+      expect(merged3.aiAnalysisReport, '今天最新分析');
+
+      // ──────────────────────────────────────────────
+      // 22.3 云端容器重启缺失线索时，端侧本地真实线索绝对不自杀误删，且自动补推自愈
+      // ──────────────────────────────────────────────
+      final localUserCreatedClue = Clue(
+        id: 'c_user_created_survivor_999',
+        wxNick: '最新自建学员',
+        phone: '13988889999',
+        status: ClueStatus.following,
+        ownerName: '超级管理员',
+        createTime: now,
+      );
+      provider.addClue(localUserCreatedClue);
+      expect(provider.getClueById('c_user_created_survivor_999'), isNotNull);
+
+      // 模拟从云端拉取（云端因容器休眠重启，返回的列表里缺失了这条新线索）
+      final staleCloudListWithoutNewClue = [
+        Clue(
+          id: 'c_existing_old_01',
+          wxNick: '老学员',
+          status: ClueStatus.following,
+          ownerName: '超级管理员',
+          createTime: now.subtract(const Duration(days: 5)),
+        ),
+      ];
+
+      // 执行合并
+      await provider.mergeAndApplyRemoteCluesForTesting(staleCloudListWithoutNewClue);
+
+      // 核心断言：本地自建的新线索绝不可被误判删除！100% 存活在本地！
+      final survivor = provider.getClueById('c_user_created_survivor_999');
+      expect(survivor, isNotNull, reason: '本地存活真实线索在云端缺失时绝对不能自杀删除！');
+      expect(provider.deletedClueIds.contains('c_user_created_survivor_999'), false, reason: '绝不可被写入墓碑表！');
+
+      // ──────────────────────────────────────────────
+      // 22.4 聊天记录带图片数据优先保全
+      // ──────────────────────────────────────────────
+      final localChatWithImg = Clue(
+        id: 'c_chat_img_01',
+        wxNick: '陈同学',
+        status: ClueStatus.following,
+        ownerName: '超级管理员',
+        createTime: now,
+        chatRecords: [
+          ChatRecord(
+            id: 'cr_01',
+            clueId: 'c_chat_img_01',
+            imagePath: 'path1',
+            imageData: 'data:image/png;base64,iVBORw0KGgo...',
+            ocrText: '学员说想了解英语课',
+            createTime: now,
+          ),
+        ],
+      );
+      final remoteChatWithoutImg = Clue(
+        id: 'c_chat_img_01',
+        wxNick: '陈同学',
+        status: ClueStatus.following,
+        ownerName: '超级管理员',
+        createTime: now,
+        chatRecords: [
+          ChatRecord(
+            id: 'cr_01',
+            clueId: 'c_chat_img_01',
+            imagePath: 'path1',
+            imageData: null, // 远端丢失了图片 Base64
+            ocrText: '学员说想了解英语课',
+            createTime: now,
+          ),
+        ],
+      );
+      final uploadList4 = <Clue>[];
+      final merged4 = provider.mergeClueForTesting(localChatWithImg, remoteChatWithoutImg, needsUpload: uploadList4);
+      expect(merged4.chatRecords.first.imageData, 'data:image/png;base64,iVBORw0KGgo...');
     });
   });
 }
