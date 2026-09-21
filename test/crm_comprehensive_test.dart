@@ -1475,6 +1475,62 @@ void main() {
       final uploadList4 = <Clue>[];
       final merged4 = provider.mergeClueForTesting(localChatWithImg, remoteChatWithoutImg, needsUpload: uploadList4);
       expect(merged4.chatRecords.first.imageData, 'data:image/png;base64,iVBORw0KGgo...');
+
+      // ──────────────────────────────────────────────
+      // 22.5 来源渠道 (source) 绝对防兜底自招冲刷
+      // ──────────────────────────────────────────────
+      final localClueDefaultSource = Clue(
+        id: 'c_source_protect_05',
+        wxNick: '周同学',
+        source: '自招', // 本地曾被默认兜底值污染
+        status: ClueStatus.following,
+        ownerName: '超级管理员',
+        createTime: now,
+      );
+      final remoteClueRealSource = Clue(
+        id: 'c_source_protect_05',
+        wxNick: '周同学',
+        source: '微信', // 远端为真实具体渠道
+        status: ClueStatus.following,
+        ownerName: '超级管理员',
+        createTime: now,
+      );
+      final uploadList5 = <Clue>[];
+      final merged5 = provider.mergeClueForTesting(localClueDefaultSource, remoteClueRealSource, needsUpload: uploadList5);
+      expect(merged5.source, '微信', reason: '远端真实渠道微信绝不能被本地默认兜底自招冲刷');
+
+      // 反向测试：本地为具体渠道(小红书)，远端为自招
+      final localClueXhs = localClueDefaultSource.copyWith(source: '小红书');
+      final remoteClueZz = remoteClueRealSource.copyWith(source: '自招');
+      final merged5Rev = provider.mergeClueForTesting(localClueXhs, remoteClueZz, needsUpload: uploadList5);
+      expect(merged5Rev.source, '小红书', reason: '本地具体渠道小红书绝不能被远端自招冲刷');
+
+      // ──────────────────────────────────────────────
+      // 22.6 业务标签 (tags) 集合保全与高意向 (intentLevel) 防冲刷
+      // ──────────────────────────────────────────────
+      final localClueTags = Clue(
+        id: 'c_tags_protect_06',
+        wxNick: '吴同学',
+        intentLevel: IntentLevel.medium,
+        tags: const ['林州老乡'],
+        status: ClueStatus.following,
+        ownerName: '超级管理员',
+        createTime: now,
+      );
+      final remoteClueTags = Clue(
+        id: 'c_tags_protect_06',
+        wxNick: '吴同学',
+        intentLevel: IntentLevel.high,
+        tags: const ['需要实习'],
+        status: ClueStatus.following,
+        ownerName: '超级管理员',
+        createTime: now,
+      );
+      final uploadList6 = <Clue>[];
+      final merged6 = provider.mergeClueForTesting(localClueTags, remoteClueTags, needsUpload: uploadList6);
+      expect(merged6.tags.contains('林州老乡'), true);
+      expect(merged6.tags.contains('需要实习'), true);
+      expect(merged6.intentLevel, IntentLevel.high, reason: '高意向学员极具业务价值，绝不被默认中意向冲刷');
     });
   });
 }

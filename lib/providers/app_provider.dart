@@ -257,8 +257,48 @@ class AppProvider extends ChangeNotifier {
     // 全量清洗并彻底丢弃历史测试线索与演示线索
     _clues.removeWhere((c) => _isMockClue(c) || _deletedClueIds.contains(c.id));
 
-    // 🛡️ 核心数据安全防护 2：若本地线索池为空，自动装载 11 条真实核心学员线索本地持久化兜底展示
-    // 🚨 严禁向云端反向上传静态初始种子数据！防止冲刷云端真实存在的 AI 分析报告、下次回访时间及其他端自建线索
+    // 🛡️ 核心数据安全防护 2：若本地旧缓存中的来源为自招或标签为空，与真实种子比对并安全补齐
+    final realSeedMap = {for (var s in realSeeds) s.id: s};
+    for (int i = 0; i < _clues.length; i++) {
+      final localClue = _clues[i];
+      final seed = realSeedMap[localClue.id];
+      if (seed != null) {
+        final bool shouldFixSource =
+            (localClue.source.isEmpty || localClue.source == '自招') &&
+                seed.source != '自招';
+        final bool shouldFixTags =
+            localClue.tags.isEmpty && seed.tags.isNotEmpty;
+        final bool shouldFixIntent = (localClue.intentLevel == IntentLevel.medium ||
+                localClue.intentLevel == IntentLevel.none) &&
+            seed.intentLevel == IntentLevel.high &&
+            localClue.visitLogs.isEmpty;
+        final bool shouldFixNext =
+            localClue.nextVisitTime == null && seed.nextVisitTime != null;
+        final bool shouldFixAi = (localClue.aiAnalysisReport == null ||
+                localClue.aiAnalysisReport!.isEmpty) &&
+            seed.aiAnalysisReport != null;
+
+        if (shouldFixSource ||
+            shouldFixTags ||
+            shouldFixIntent ||
+            shouldFixNext ||
+            shouldFixAi) {
+          _clues[i] = localClue.copyWith(
+            source: shouldFixSource ? seed.source : localClue.source,
+            tags: shouldFixTags ? seed.tags : localClue.tags,
+            intentLevel:
+                shouldFixIntent ? seed.intentLevel : localClue.intentLevel,
+            nextVisitTime:
+                shouldFixNext ? seed.nextVisitTime : localClue.nextVisitTime,
+            aiAnalysisReport:
+                shouldFixAi ? seed.aiAnalysisReport : localClue.aiAnalysisReport,
+            aiAnalysisTime:
+                shouldFixAi ? seed.aiAnalysisTime : localClue.aiAnalysisTime,
+          );
+        }
+      }
+    }
+
     if (_clues.isEmpty) {
       _clues.addAll(realSeeds);
     }
@@ -626,8 +666,11 @@ class AppProvider extends ChangeNotifier {
     final mergedChats = chatMap.values.toList()
       ..sort((a, b) => b.createTime.compareTo(a.createTime));
 
-    // 3. 合并标签 (tags)
-    final mergedTags = {...local.tags, ...remote.tags}.toList();
+    // 3. 合并标签 (tags)：集合去重且过滤空白
+    final mergedTags = <String>{...local.tags, ...remote.tags}
+        .map((t) => t.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
 
     // 4. 决定状态、意向与次回访时间
     DateTime? localLatestLogTime =
@@ -687,37 +730,87 @@ class AppProvider extends ChangeNotifier {
       mergedAiTime = null;
     }
 
+    // 🛡️ 核心保全规则 3：来源渠道 (source) 绝对防冲刷！
+    // 微信、小红书、抖音、老带新、转介绍、电话打入等明确引流渠道，绝不被兜底默认值 '自招' 冲刷！
+    String mergedSource;
+    final lSource = local.source.trim();
+    final rSource = remote.source.trim();
+    final bool lIsDefaultSource = lSource.isEmpty || lSource == '自招';
+    final bool rIsDefaultSource = rSource.isEmpty || rSource == '自招';
+    if (lIsDefaultSource && !rIsDefaultSource) {
+      mergedSource = rSource; // 远端为具体渠道，绝对保全
+    } else if (!lIsDefaultSource && rIsDefaultSource) {
+      mergedSource = lSource; // 本地为具体渠道，绝对保全
+    } else {
+      mergedSource = preferLocal
+          ? (lSource.isNotEmpty ? lSource : rSource)
+          : (rSource.isNotEmpty ? rSource : lSource);
+    }
+    if (mergedSource.isEmpty) mergedSource = '自招';
+
+    // 🛡️ 核心保全规则 4：班型 (classType) 非空非默认保全
+    String mergedClassType;
+    final lClass = local.classType.trim();
+    final rClass = remote.classType.trim();
+    final bool lIsDefaultClass = lClass.isEmpty || lClass == '无';
+    final bool rIsDefaultClass = rClass.isEmpty || rClass == '无';
+    if (lIsDefaultClass && !rIsDefaultClass) {
+      mergedClassType = rClass;
+    } else if (!lIsDefaultClass && rIsDefaultClass) {
+      mergedClassType = lClass;
+    } else {
+      mergedClassType = preferLocal
+          ? (lClass.isNotEmpty ? lClass : rClass)
+          : (rClass.isNotEmpty ? rClass : lClass);
+    }
+
+    // 🛡️ 核心保全规则 5：普通文本非空优先，绝不用空串覆盖非空值！
+    String mergeText(String l, String r) {
+      final lt = l.trim();
+      final rt = r.trim();
+      if (lt.isEmpty) return rt;
+      if (rt.isEmpty) return lt;
+      return preferLocal ? lt : rt;
+    }
+
+    // 🛡️ 核心保全规则 6：意向级别 (intentLevel) 保全
+    // 高意向 (high) 极具业务价值，若一方是 high 且另一方仅为默认中意向 (medium) 且未显式下调，优先保全 high
+    IntentLevel mergedIntentLevel;
+    if (local.intentLevel == IntentLevel.none &&
+        remote.intentLevel != IntentLevel.none) {
+      mergedIntentLevel = remote.intentLevel;
+    } else if (local.intentLevel != IntentLevel.none &&
+        remote.intentLevel == IntentLevel.none) {
+      mergedIntentLevel = local.intentLevel;
+    } else if (local.intentLevel != remote.intentLevel) {
+      if (remote.intentLevel == IntentLevel.high &&
+          local.intentLevel == IntentLevel.medium &&
+          !localHasNewLogs) {
+        mergedIntentLevel = IntentLevel.high;
+      } else if (local.intentLevel == IntentLevel.high &&
+          remote.intentLevel == IntentLevel.medium) {
+        mergedIntentLevel = IntentLevel.high;
+      } else {
+        mergedIntentLevel =
+            preferLocal ? local.intentLevel : remote.intentLevel;
+      }
+    } else {
+      mergedIntentLevel = local.intentLevel;
+    }
+
     final mergedClue = Clue(
       id: local.id,
-      wxNick: preferLocal
-          ? local.wxNick
-          : (remote.wxNick.isNotEmpty ? remote.wxNick : local.wxNick),
-      wxId: preferLocal
-          ? local.wxId
-          : (remote.wxId.isNotEmpty ? remote.wxId : local.wxId),
-      phone: preferLocal
-          ? local.phone
-          : (remote.phone.isNotEmpty ? remote.phone : local.phone),
-      grade: preferLocal
-          ? local.grade
-          : (remote.grade.isNotEmpty ? remote.grade : local.grade),
-      school: preferLocal
-          ? local.school
-          : (remote.school.isNotEmpty ? remote.school : local.school),
-      subject: preferLocal
-          ? local.subject
-          : (remote.subject.isNotEmpty ? remote.subject : local.subject),
-      source: preferLocal
-          ? local.source
-          : (remote.source.isNotEmpty ? remote.source : local.source),
-      classType: preferLocal
-          ? local.classType
-          : (remote.classType.isNotEmpty ? remote.classType : local.classType),
-      ownerName: preferLocal
-          ? local.ownerName
-          : (remote.ownerName.isNotEmpty ? remote.ownerName : local.ownerName),
+      wxNick: mergeText(local.wxNick, remote.wxNick),
+      wxId: mergeText(local.wxId, remote.wxId),
+      phone: mergeText(local.phone, remote.phone),
+      grade: mergeText(local.grade, remote.grade),
+      school: mergeText(local.school, remote.school),
+      subject: mergeText(local.subject, remote.subject),
+      source: mergedSource,
+      classType: mergedClassType,
+      ownerName: mergeText(local.ownerName, remote.ownerName),
       status: preferLocal ? local.status : remote.status,
-      intentLevel: preferLocal ? local.intentLevel : remote.intentLevel,
+      intentLevel: mergedIntentLevel,
       nextVisitTime: mergedNextVisitTime,
       remark: preferLocal
           ? (local.remark.isNotEmpty ? local.remark : remote.remark)
@@ -733,7 +826,7 @@ class AppProvider extends ChangeNotifier {
       tags: mergedTags,
     );
 
-    // 🛡️ 核心保全规则 3：若本地具备更新的 AI 报告、更新的次回访时间或更多记录，必须触发 needsUpload 双向同步推向云端
+    // 🛡️ 核心保全规则 7：自愈补推（若合并后字段比云端更丰富，自动加入上传队列自愈修复云端）
     final bool hasNewAiForRemote = (localHasAi && !remoteHasAi) ||
         (localHasAi &&
             remoteHasAi &&
@@ -744,13 +837,24 @@ class AppProvider extends ChangeNotifier {
         local.nextVisitTime != null && remote.nextVisitTime == null;
     final bool hasMoreLogs = mergedLogs.length > remote.visitLogs.length;
     final bool hasMoreChats = mergedChats.length > remote.chatRecords.length;
+    final bool sourceEnriched = mergedSource != remote.source;
+    final bool tagsEnriched = mergedTags.length > remote.tags.length ||
+        !mergedTags.every((t) => remote.tags.contains(t));
+    final bool intentEnriched = mergedIntentLevel != remote.intentLevel &&
+        mergedIntentLevel == IntentLevel.high;
+    final bool schoolEnriched =
+        mergedClue.school.isNotEmpty && remote.school.isEmpty;
 
     if (preferLocal ||
         localHasNewChats ||
         hasNewAiForRemote ||
         hasNewNextVisitForRemote ||
         hasMoreLogs ||
-        hasMoreChats) {
+        hasMoreChats ||
+        sourceEnriched ||
+        tagsEnriched ||
+        intentEnriched ||
+        schoolEnriched) {
       needsUpload.add(mergedClue);
     }
 
