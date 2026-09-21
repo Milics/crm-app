@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="/crm-app/">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="description" content="专升本招生CRM - 招生顾问专用">
+
+  <!-- iOS PWA 体验优化 -->
+  <meta name="theme-color" content="#1976D2">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="招生CRM">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- 极速预加载核心资源 (Preload Pipeline) -->
+  <link rel="preload" href="flutter_bootstrap.js" as="script">
+  <link rel="preload" href="main.dart.js" as="script">
+  <link rel="preload" href="canvaskit/canvaskit.wasm" as="fetch" type="application/wasm" crossorigin="anonymous">
+  <link rel="preload" href="canvaskit/canvaskit.js" as="script">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <!-- 云端中枢首屏静默预热探针：在启动页展示期间提前激活 Render 休眠实例 -->
+  <script>
+    (function() {
+      try {
+        fetch('https://crm-app-ojs3.onrender.com/api/health', { mode: 'no-cors', cache: 'no-cache' }).catch(function(){});
+      } catch(e) {}
+    })();
+  </script>
+
+  <title>专升本招生CRM</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #1976D2;
+      overflow: hidden;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+      overscroll-behavior: none;
+      overscroll-behavior-x: none;
+      overscroll-behavior-y: none;
+      touch-action: pan-y pinch-zoom;
+      -webkit-overflow-scrolling: touch;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    }
+
+    #loading-splash {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(145deg, #1565C0 0%, #1976D2 45%, #0D47A1 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 999999;
+      transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: auto;
+    }
+
+    .splash-card {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.32);
+      border-radius: 28px;
+      padding: 38px 26px 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.25);
+      max-width: 300px;
+      width: 84%;
+    }
+
+    .splash-logo {
+      width: 72px;
+      height: 72px;
+      background: linear-gradient(135deg, #FFFFFF 0%, #E3F2FD 100%);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    .splash-logo svg {
+      width: 40px;
+      height: 40px;
+      fill: #1976D2;
+    }
+
+    .splash-title {
+      color: #FFFFFF;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      margin-bottom: 6px;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.12);
+    }
+
+    .splash-subtitle {
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 13px;
+      margin-bottom: 22px;
+      text-align: center;
+      line-height: 1.4;
+      min-height: 20px;
+      transition: color 0.3s ease;
+    }
+
+    /* 实时平滑进度条 */
+    .progress-bar-container {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.22);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 12px;
+      position: relative;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 15%;
+      background: linear-gradient(90deg, #64B5F6 0%, #FFFFFF 100%);
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+      transition: width 0.28s cubic-bezier(0.2, 0.8, 0.4, 1);
+    }
+
+    .progress-percent {
+      color: rgba(255, 255, 255, 0.95);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    #error-display {
+      display: none;
+      margin-top: 14px;
+      padding: 10px;
+      background: rgba(255, 60, 60, 0.25);
+      border: 1px solid rgba(255, 120, 120, 0.5);
+      border-radius: 10px;
+      color: #FFF;
+      font-size: 11px;
+      max-height: 90px;
+      overflow-y: auto;
+      text-align: left;
+      word-break: break-all;
+    }
+
+    #slow-network-tip {
+      display: none;
+      margin-top: 16px;
+      text-align: center;
+    }
+
+    .reload-btn {
+      background: rgba(255, 255, 255, 0.92);
+      color: #1565C0;
+      border: none;
+      padding: 7px 18px;
+      border-radius: 16px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.16);
+      transition: transform 0.1s ease;
+    }
+
+    .reload-btn:active {
+      transform: scale(0.96);
+    }
+  </style>
+</head>
+<body>
+  <!-- 极速启动屏 -->
+  <div id="loading-splash">
+    <div class="splash-card">
+      <div class="splash-logo">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/>
+        </svg>
+      </div>
+      <div class="splash-title">专升本招生 CRM</div>
+      <div class="splash-subtitle" id="status-text">正在载入系统组件...</div>
+      
+      <!-- 动态进度条 -->
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="progress-bar-fill"></div>
+      </div>
+      <div class="progress-percent" id="progress-percent">15%</div>
+
+      <div id="error-display"></div>
+      <div id="slow-network-tip">
+        <div style="font-size: 11.5px; color: rgba(255,255,255,0.75); margin-bottom: 8px;">首次加载资源较多，正在全力下载中...</div>
+        <button class="reload-btn" onclick="location.reload()">重新连接</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 捕获异常
+    window.onerror = function(msg, url, lineNo, columnNo, error) {
+      var errBox = document.getElementById('error-display');
+      if (errBox) {
+        errBox.style.display = 'block';
+        errBox.innerText = '运行提示: ' + msg;
+      }
+    };
+
+    var statusText = document.getElementById('status-text');
+    var progressFill = document.getElementById('progress-bar-fill');
+    var progressPercent = document.getElementById('progress-percent');
+    var currentProgress = 15;
+    var splashDismissed = false;
+
+    function setProgress(val, text) {
+      if (splashDismissed) return;
+      if (val > currentProgress) {
+        currentProgress = val;
+        if (progressFill) progressFill.style.width = currentProgress + '%';
+        if (progressPercent) progressPercent.innerText = currentProgress + '%';
+      }
+      if (text && statusText) {
+        statusText.innerText = text;
+      }
+    }
+
+    // 智能步进模拟（配合实际静态资源下载）
+    var stepTimer = setInterval(function() {
+      if (splashDismissed) {
+        clearInterval(stepTimer);
+        return;
+      }
+      if (currentProgress < 40) {
+        setProgress(currentProgress + 8, "正在载入轻量化渲染引擎...");
+      } else if (currentProgress < 75) {
+        setProgress(currentProgress + 6, "正在初始化专升本 AI 智囊系统...");
+      } else if (currentProgress < 92) {
+        setProgress(currentProgress + 3, "正在同步 80 条官方招对话术库...");
+      } else if (currentProgress < 98) {
+        setProgress(98, "即将进入招生管理系统...");
+      }
+    }, 450);
+
+    // 超过 20 秒若还未加载完毕，提示用户网络稍慢但继续等待，不强制关闭
+    setTimeout(function() {
+      if (!splashDismissed) {
+        var slowTip = document.getElementById('slow-network-tip');
+        if (slowTip) slowTip.style.display = 'block';
+      }
+    }, 20000);
+
+    function hideSplash() {
+      if (splashDismissed) return;
+      splashDismissed = true;
+      clearInterval(stepTimer);
+      setProgress(100, "加载完成，正在进入...");
+
+      var splash = document.getElementById('loading-splash');
+      if (splash) {
+        setTimeout(function() {
+          splash.style.opacity = '0';
+          splash.style.pointerEvents = 'none';
+          setTimeout(function() {
+            if (splash.parentNode) splash.parentNode.removeChild(splash);
+          }, 350);
+        }, 120);
+      }
+    }
+
+    // 监听 Flutter 首帧就绪信号
+    window.addEventListener('flutter-first-frame', hideSplash);
+
+    // DOM 感知检测轮询（极速响应，每 50ms 检查一次）
+    var domCheck = setInterval(function() {
+      if (
+        document.querySelector('flutter-view') ||
+        document.querySelector('flt-glass-pane') ||
+        document.querySelector('flt-scene-host') ||
+        document.querySelector('canvas') ||
+        document.body.getAttribute('flt-renderer')
+      ) {
+        clearInterval(domCheck);
+        hideSplash();
+      }
+    }, 50);
+
+    // ══════════════════════════════════════════════════════════════
+    // 🛡️ iOS Safari / Android PWA 边缘滑动手势与历史栈多重安全盾
+    // 彻底杜绝手势滑动返回触发浏览器系统级页面卸载（Unload / Reload）
+    // ══════════════════════════════════════════════════════════════
+    var _edgeStartX = 0;
+    var _edgeStartY = 0;
+    var _isEdgeTouch = false;
+
+    window.addEventListener('touchstart', function(e) {
+      if (e.touches && e.touches.length === 1) {
+        var x = e.touches[0].clientX;
+        var screenW = window.innerWidth || document.documentElement.clientWidth || 375;
+        // 检测左右边缘 50px 危险手势触发区（覆盖全面屏防误触区）
+        if (x <= 50 || x >= screenW - 50) {
+          _isEdgeTouch = true;
+          _edgeStartX = x;
+          _edgeStartY = e.touches[0].clientY;
+          return;
+        }
+      }
+      _isEdgeTouch = false;
+    }, { passive: true });
+
+    window.addEventListener('touchmove', function(e) {
+      if (_isEdgeTouch && e.touches && e.touches.length === 1) {
+        var currentX = e.touches[0].clientX;
+        var currentY = e.touches[0].clientY;
+        var diffX = Math.abs(currentX - _edgeStartX);
+        var diffY = Math.abs(currentY - _edgeStartY);
+
+        // 如果用户手指呈现横向滑动趋势（试图触发浏览器边缘翻页/后退）
+        if (diffX > 6 && diffX > diffY) {
+          // 拦截系统级跨页面后退/前进手势，防止 PWA 页面被浏览器刷新清空
+          if (e.cancelable) {
+            e.preventDefault();
+          }
+        }
+      }
+    }, { passive: false });
+
+    // 历史栈平稳哨兵：在 PWA 根部设立一个缓冲锚点，防止退到空白页或触发容器关闭
+    try {
+      if (window.history && window.history.pushState) {
+        window.history.pushState({ pwaRoot: true }, '', window.location.href);
+      }
+    } catch(e) {}
+
+    // ══════════════════════════════════════════════════════════════
+    // 🛡️ iOS Safari PWA 虚拟视口与触控热区对齐校准器（彻底消除点击需要往上偏移的问题）
+    // ══════════════════════════════════════════════════════════════
+    var _resetViewportTimer = null;
+    function _resetViewportOffset() {
+      if (_resetViewportTimer) return;
+      _resetViewportTimer = setTimeout(function() {
+        _resetViewportTimer = null;
+        if (window.scrollY !== 0 || (document.body && document.body.scrollTop !== 0) || (document.documentElement && document.documentElement.scrollTop !== 0)) {
+          window.scrollTo(0, 0);
+          if (document.body) document.body.scrollTop = 0;
+          if (document.documentElement) document.documentElement.scrollTop = 0;
+        }
+      }, 60);
+    }
+
+    // 1. 当输入框失焦软键盘收起后，强制校正 HitTest 坐标系与视觉层严格重合
+    window.addEventListener('focusout', function() {
+      setTimeout(_resetViewportOffset, 80);
+    });
+
+    // 2. 监听 visualViewport 变动，自动归位
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', _resetViewportOffset);
+      window.visualViewport.addEventListener('scroll', _resetViewportOffset);
+    }
+
+    // 3. 页面全局滚动兜底拦截（节流防暴击）
+    window.addEventListener('scroll', _resetViewportOffset, { passive: true });
+  </script>
+
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
