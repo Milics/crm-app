@@ -893,8 +893,20 @@ class _TimelineSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // 除了顶部的“线索创建”固定置顶外，其余回访记录始终按时间倒序排列（最新的记录在最上方）
-    final logs = List<VisitLog>.from(clue.visitLogs)
+    // 🛡️ 防御性语义去重：同一内容且时间相差在60秒以内的重复记录仅保留一条
+    final rawLogs = List<VisitLog>.from(clue.visitLogs)
       ..sort((a, b) => b.createTime.compareTo(a.createTime));
+    final logs = <VisitLog>[];
+    for (final l in rawLogs) {
+      final isDup = logs.any((ex) {
+        final sameContent = ex.visitContent.trim() == l.visitContent.trim();
+        final timeDiff = ex.createTime.difference(l.createTime).inSeconds.abs();
+        return sameContent && timeDiff <= 60;
+      });
+      if (!isDup) {
+        logs.add(l);
+      }
+    }
     final totalCount = logs.length + 1;
 
     return Container(
@@ -1233,7 +1245,7 @@ class _ChatRecordsSection extends StatelessWidget {
                   child: record.imageData != null && record.imageData!.isNotEmpty
                       ? InteractiveViewer(
                           child: Image.memory(
-                            base64Decode(record.imageData!),
+                            _safeBase64Decode(record.imageData!),
                             fit: BoxFit.contain,
                           ),
                         )
@@ -1380,7 +1392,7 @@ class _ChatRecordsSection extends StatelessWidget {
                               width: double.infinity,
                               child: hasImage
                                   ? Image.memory(
-                                      base64Decode(rec.imageData!),
+                                      _safeBase64Decode(rec.imageData!),
                                       fit: BoxFit.cover,
                                     )
                                   : Center(
@@ -1415,4 +1427,13 @@ class _ChatRecordsSection extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 安全解码 Base64 字符串（自动兼容纯 Base64 或带有 dataURI 前缀的格式）
+Uint8List _safeBase64Decode(String raw) {
+  var b64 = raw.trim();
+  if (b64.contains(',')) {
+    b64 = b64.split(',').last.trim();
+  }
+  return base64Decode(b64);
 }

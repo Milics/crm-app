@@ -314,6 +314,24 @@ class ChatRecord {
     required this.createTime,
   });
 
+  ChatRecord copyWith({
+    String? id,
+    String? clueId,
+    String? imagePath,
+    String? imageData,
+    String? ocrText,
+    DateTime? createTime,
+  }) {
+    return ChatRecord(
+      id: id ?? this.id,
+      clueId: clueId ?? this.clueId,
+      imagePath: imagePath ?? this.imagePath,
+      imageData: imageData ?? this.imageData,
+      ocrText: ocrText ?? this.ocrText,
+      createTime: createTime ?? this.createTime,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'clueId': clueId,

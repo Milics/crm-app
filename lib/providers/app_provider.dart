@@ -257,7 +257,7 @@ class AppProvider extends ChangeNotifier {
     // 全量清洗并彻底丢弃历史测试线索与演示线索
     _clues.removeWhere((c) => _isMockClue(c) || _deletedClueIds.contains(c.id));
 
-    // 🛡️ 核心数据安全防护 2：若本地旧缓存中的来源为自招或标签为空，与真实种子比对并安全补齐
+    // 🛡️ 核心数据安全防护 2：若本地旧缓存中的来源为自招、标签为空或缺少聊天截图，与真实种子比对并安全补齐
     final realSeedMap = {for (var s in realSeeds) s.id: s};
     for (int i = 0; i < _clues.length; i++) {
       final localClue = _clues[i];
@@ -278,11 +278,52 @@ class AppProvider extends ChangeNotifier {
                 localClue.aiAnalysisReport!.isEmpty) &&
             seed.aiAnalysisReport != null;
 
+        // 🛡️ 补全聊天截图图片二进制数据
+        List<ChatRecord> fixedChats = localClue.chatRecords;
+        if (seed.chatRecords.isNotEmpty) {
+          final seedChatMap = {for (var c in seed.chatRecords) c.id: c};
+          bool chatsFixed = false;
+          final updatedChats = <ChatRecord>[];
+          for (final lc in localClue.chatRecords) {
+            final sc = seedChatMap[lc.id];
+            if (sc != null &&
+                (lc.imageData == null || lc.imageData!.isEmpty) &&
+                (sc.imageData != null && sc.imageData!.isNotEmpty)) {
+              updatedChats.add(lc.copyWith(imageData: sc.imageData));
+              chatsFixed = true;
+            } else {
+              updatedChats.add(lc);
+            }
+          }
+          if (localClue.chatRecords.isEmpty && seed.chatRecords.isNotEmpty) {
+            updatedChats.addAll(seed.chatRecords);
+            chatsFixed = true;
+          }
+          if (chatsFixed) {
+            fixedChats = updatedChats;
+          }
+        }
+
+        // 🛡️ 本地回访记录业务语义幂等去重（彻底清理差几毫秒的双胞胎重复记录）
+        final dedupLogs = <VisitLog>[];
+        for (final l in localClue.visitLogs) {
+          final isDup = dedupLogs.any((ex) {
+            final sameContent = ex.visitContent.trim() == l.visitContent.trim();
+            final timeDiff = ex.createTime.difference(l.createTime).inSeconds.abs();
+            return sameContent && timeDiff <= 60;
+          });
+          if (!isDup) {
+            dedupLogs.add(l);
+          }
+        }
+
         if (shouldFixSource ||
             shouldFixTags ||
             shouldFixIntent ||
             shouldFixNext ||
-            shouldFixAi) {
+            shouldFixAi ||
+            fixedChats.length != localClue.chatRecords.length ||
+            dedupLogs.length != localClue.visitLogs.length) {
           _clues[i] = localClue.copyWith(
             source: shouldFixSource ? seed.source : localClue.source,
             tags: shouldFixTags ? seed.tags : localClue.tags,
@@ -294,6 +335,8 @@ class AppProvider extends ChangeNotifier {
                 shouldFixAi ? seed.aiAnalysisReport : localClue.aiAnalysisReport,
             aiAnalysisTime:
                 shouldFixAi ? seed.aiAnalysisTime : localClue.aiAnalysisTime,
+            chatRecords: fixedChats,
+            visitLogs: dedupLogs,
           );
         }
       }
@@ -619,31 +662,67 @@ class AppProvider extends ChangeNotifier {
 
   /// 智能合并本地与云端同一线索的数据（保证任何一端的新回访与状态更新均不丢失）
   Clue _mergeClue(Clue local, Clue remote, {required List<Clue> needsUpload}) {
-    // 1. 合并回访记录 (visitLogs)
-    final logMap = <String, VisitLog>{};
-    for (final l in remote.visitLogs) {
-      logMap[l.id] = l;
-    }
+    // 1. 合并回访记录 (visitLogs) - 智能业务语义幂等去重
+    // 不仅按 ID 去重，更按 (visitContent + createTime分钟级) 识别同一次跟进，彻底消灭差几毫秒的双胞胎重复记录
+    final allLogs = <VisitLog>[...remote.visitLogs, ...local.visitLogs];
+    final deduplicatedLogs = <VisitLog>[];
     bool localHasNewLogs = false;
-    for (final l in local.visitLogs) {
-      if (!logMap.containsKey(l.id)) {
-        localHasNewLogs = true;
-      }
-      final existing = logMap[l.id];
-      if (existing != null) {
-        // 保留回访中更有价值的 AI 诊断报告
-        if ((l.aiReport != null && l.aiReport!.isNotEmpty) &&
-            (existing.aiReport == null || existing.aiReport!.isEmpty)) {
-          logMap[l.id] = l;
-        }
+
+    bool isSameVisit(VisitLog a, VisitLog b) {
+      if (a.id == b.id) return true;
+      final sameContent = a.visitContent.trim() == b.visitContent.trim();
+      final timeDiffSec = a.createTime.difference(b.createTime).inSeconds.abs();
+      return sameContent && timeDiffSec <= 60;
+    }
+
+    VisitLog mergeTwoLogs(VisitLog existing, VisitLog incoming) {
+      final hasAiIncoming =
+          incoming.aiReport != null && incoming.aiReport!.trim().isNotEmpty;
+      final bestAi = hasAiIncoming ? incoming.aiReport : existing.aiReport;
+      final bestNext = incoming.nextVisitTime ?? existing.nextVisitTime;
+      final bestConcerns =
+          {...existing.concerns, ...incoming.concerns}.toList();
+      return VisitLog(
+        id: existing.id.compareTo(incoming.id) < 0
+            ? existing.id
+            : incoming.id,
+        clueId: existing.clueId,
+        contactMethod: incoming.contactMethod,
+        visitResult: incoming.visitResult,
+        visitContent: incoming.visitContent.isNotEmpty
+            ? incoming.visitContent
+            : existing.visitContent,
+        concerns: bestConcerns,
+        nextVisitTime: bestNext,
+        createTime: existing.createTime.isBefore(incoming.createTime)
+            ? existing.createTime
+            : incoming.createTime,
+        aiReport: bestAi,
+      );
+    }
+
+    for (final incoming in allLogs) {
+      final existingIdx = deduplicatedLogs
+          .indexWhere((item) => isSameVisit(item, incoming));
+      if (existingIdx >= 0) {
+        deduplicatedLogs[existingIdx] =
+            mergeTwoLogs(deduplicatedLogs[existingIdx], incoming);
       } else {
-        logMap[l.id] = l;
+        deduplicatedLogs.add(incoming);
       }
     }
-    final mergedLogs = logMap.values.toList()
+
+    for (final l in local.visitLogs) {
+      if (!remote.visitLogs.any((r) => isSameVisit(r, l))) {
+        localHasNewLogs = true;
+        break;
+      }
+    }
+
+    final mergedLogs = deduplicatedLogs
       ..sort((a, b) => b.createTime.compareTo(a.createTime));
 
-    // 2. 合并聊天记录 (chatRecords)
+    // 2. 合并聊天记录 (chatRecords) - 图像二进制数据双向绝对保全
     final chatMap = <String, ChatRecord>{};
     for (final r in remote.chatRecords) {
       chatMap[r.id] = r;
@@ -654,12 +733,13 @@ class AppProvider extends ChangeNotifier {
         localHasNewChats = true;
       }
       final existing = chatMap[r.id];
-      // 如果本地有 imageData，而远端没有，必须保留本地带图像数据的记录
-      if (existing != null &&
-          (existing.imageData == null || existing.imageData!.isEmpty) &&
-          (r.imageData != null && r.imageData!.isNotEmpty)) {
-        chatMap[r.id] = r;
-      } else if (existing == null) {
+      if (existing != null) {
+        // 如果本地有 imageData，而远端没有，必须保留本地带图像数据的记录
+        if ((existing.imageData == null || existing.imageData!.isEmpty) &&
+            (r.imageData != null && r.imageData!.isNotEmpty)) {
+          chatMap[r.id] = r;
+        }
+      } else {
         chatMap[r.id] = r;
       }
     }
