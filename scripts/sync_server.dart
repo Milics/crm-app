@@ -38,6 +38,38 @@ void main() async {
     deletedCluesFile.writeAsStringSync('[]');
   }
 
+  // 5. 🛡️ 企业级历史快照备份目录 (保留最近 100 份不可逆快照)
+  final backupsDir = Directory('data/backups');
+  if (!backupsDir.existsSync()) {
+    backupsDir.createSync(recursive: true);
+  }
+
+  void makeBackup(List<Map<String, dynamic>> clues, String reason) {
+    try {
+      if (clues.isEmpty) return;
+      final now = DateTime.now();
+      final stamp =
+          '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
+      final file = File('data/backups/crm_backup_$stamp.json');
+      file.writeAsStringSync(const JsonEncoder.withIndent('  ').convert(clues));
+      print('🛡️ [AutoBackup] 已自动生成时间戳快照: ${file.path} (原因: $reason, 条数: ${clues.length})');
+
+      final allBackups = backupsDir
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.json'))
+          .toList()
+        ..sort((a, b) => b.path.compareTo(a.path));
+      if (allBackups.length > 100) {
+        for (var old in allBackups.sublist(100)) {
+          old.deleteSync();
+        }
+      }
+    } catch (e) {
+      print('⚠️ [AutoBackup] 备份异常: $e');
+    }
+  }
+
   final server = await HttpServer.bind(InternetAddress.anyIPv4, port);
   print('🚀 [CRM Sync Server] 全量多端数据同步服务已在端口 $port 启动成功！');
   print('🌐 访问地址: http://0.0.0.0:$port');
@@ -388,6 +420,7 @@ void main() async {
           return tb.compareTo(ta);
         });
         writeTable(cluesFile, resultList);
+        makeBackup(resultList, '线索增量更新');
 
         req.response
           ..headers.contentType = ContentType.json
@@ -404,6 +437,7 @@ void main() async {
         final list = readTable(cluesFile);
         list.removeWhere((item) => item['id'] == id);
         writeTable(cluesFile, list);
+        makeBackup(list, '线索删除(ID: $id)');
 
         // 记入云端墓碑表，严密防止任何客户端再次复活
         final deletedList = readTable(deletedCluesFile);
@@ -420,6 +454,34 @@ void main() async {
           ..headers.contentType = ContentType.json
           ..statusCode = HttpStatus.ok
           ..write(jsonEncode({'success': true, 'deleted': id}));
+        await req.response.close();
+        continue;
+      }
+    }
+
+    // ─────────────────────────────────────
+    // 备份快照管理接口 (/api/backups)
+    // ─────────────────────────────────────
+    if (path == '/api/backups') {
+      if (req.method == 'GET') {
+        final allBackups = backupsDir
+            .listSync()
+            .whereType<File>()
+            .where((f) => f.path.endsWith('.json'))
+            .toList()
+          ..sort((a, b) => b.path.compareTo(a.path));
+        final list = allBackups.map((f) {
+          final stat = f.statSync();
+          return {
+            'filename': f.uri.pathSegments.last,
+            'modified': stat.modified.toIso8601String(),
+            'size': stat.size,
+          };
+        }).toList();
+        req.response
+          ..headers.contentType = ContentType.json
+          ..statusCode = HttpStatus.ok
+          ..write(jsonEncode({'success': true, 'total': list.length, 'backups': list}));
         await req.response.close();
         continue;
       }

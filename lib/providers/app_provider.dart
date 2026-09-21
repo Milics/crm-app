@@ -281,11 +281,16 @@ class AppProvider extends ChangeNotifier {
         // 🛡️ 补全聊天截图图片二进制数据
         List<ChatRecord> fixedChats = localClue.chatRecords;
         if (seed.chatRecords.isNotEmpty) {
-          final seedChatMap = {for (var c in seed.chatRecords) c.id: c};
           bool chatsFixed = false;
           final updatedChats = <ChatRecord>[];
           for (final lc in localClue.chatRecords) {
-            final sc = seedChatMap[lc.id];
+            // 优先按 ID 匹配，找不到则按 OCR 文本匹配
+            final sc = seed.chatRecords.where((s) => s.id == lc.id).firstOrNull ??
+                seed.chatRecords
+                    .where((s) =>
+                        s.ocrText.trim().isNotEmpty &&
+                        s.ocrText.trim() == lc.ocrText.trim())
+                    .firstOrNull;
             if (sc != null &&
                 (lc.imageData == null || lc.imageData!.isEmpty) &&
                 (sc.imageData != null && sc.imageData!.isNotEmpty)) {
@@ -722,28 +727,67 @@ class AppProvider extends ChangeNotifier {
     final mergedLogs = deduplicatedLogs
       ..sort((a, b) => b.createTime.compareTo(a.createTime));
 
-    // 2. 合并聊天记录 (chatRecords) - 图像二进制数据双向绝对保全
-    final chatMap = <String, ChatRecord>{};
-    for (final r in remote.chatRecords) {
-      chatMap[r.id] = r;
-    }
+    // 2. 合并聊天记录 (chatRecords) - 图像二进制数据与语义内容双向绝对保全
+    final allChats = <ChatRecord>[...remote.chatRecords, ...local.chatRecords];
+    final deduplicatedChats = <ChatRecord>[];
     bool localHasNewChats = false;
-    for (final r in local.chatRecords) {
-      if (!chatMap.containsKey(r.id)) {
+
+    bool isSameChat(ChatRecord a, ChatRecord b) {
+      if (a.id == b.id) return true;
+      if (a.ocrText.trim().isNotEmpty && b.ocrText.trim().isNotEmpty) {
+        return a.ocrText.trim() == b.ocrText.trim();
+      }
+      return false;
+    }
+
+    ChatRecord mergeTwoChats(ChatRecord existing, ChatRecord incoming) {
+      final existingHasImg =
+          existing.imageData != null && existing.imageData!.trim().isNotEmpty;
+      final incomingHasImg =
+          incoming.imageData != null && incoming.imageData!.trim().isNotEmpty;
+      final bestImg = existingHasImg
+          ? existing.imageData
+          : (incomingHasImg ? incoming.imageData : null);
+      final bestPath =
+          existing.imagePath.isNotEmpty ? existing.imagePath : incoming.imagePath;
+      final bestOcr =
+          existing.ocrText.isNotEmpty ? existing.ocrText : incoming.ocrText;
+      return existing.copyWith(
+        imageData: bestImg,
+        imagePath: bestPath,
+        ocrText: bestOcr,
+      );
+    }
+
+    for (final incoming in allChats) {
+      final idx =
+          deduplicatedChats.indexWhere((item) => isSameChat(item, incoming));
+      if (idx >= 0) {
+        deduplicatedChats[idx] =
+            mergeTwoChats(deduplicatedChats[idx], incoming);
+      } else {
+        deduplicatedChats.add(incoming);
+      }
+    }
+
+    for (final lc in local.chatRecords) {
+      if (!remote.chatRecords.any((rc) => isSameChat(rc, lc))) {
+        localHasNewChats = true;
+        break;
+      }
+    }
+    for (final mc in deduplicatedChats) {
+      final remoteMatch =
+          remote.chatRecords.where((rc) => isSameChat(rc, mc)).firstOrNull;
+      if (remoteMatch == null ||
+          ((remoteMatch.imageData == null || remoteMatch.imageData!.isEmpty) &&
+              mc.imageData != null &&
+              mc.imageData!.isNotEmpty)) {
         localHasNewChats = true;
       }
-      final existing = chatMap[r.id];
-      if (existing != null) {
-        // 如果本地有 imageData，而远端没有，必须保留本地带图像数据的记录
-        if ((existing.imageData == null || existing.imageData!.isEmpty) &&
-            (r.imageData != null && r.imageData!.isNotEmpty)) {
-          chatMap[r.id] = r;
-        }
-      } else {
-        chatMap[r.id] = r;
-      }
     }
-    final mergedChats = chatMap.values.toList()
+
+    final mergedChats = deduplicatedChats
       ..sort((a, b) => b.createTime.compareTo(a.createTime));
 
     // 3. 合并标签 (tags)：集合去重且过滤空白
@@ -2607,4 +2651,76 @@ class AppProvider extends ChangeNotifier {
     _textMaterials.addAll(DefaultMaterials.getDefaultTextMaterials());
     _imageMaterials.clear();
   }
+
+  // ─────────────────────────────────────
+  // 🛡️ 企业级客户端数据备份与灾难恢复中心
+  // ─────────────────────────────────────
+
+  /// 导出完整系统备份数据（包含学员档案、沟通截图Base64、AI诊断长文、时间轴等全量字段）
+  String exportBackupJson() {
+    final exportData = {
+      'backupVersion': '2.0',
+      'system': '专升本招生CRM',
+      'exportTime': DateTime.now().toIso8601String(),
+      'exportedBy': currentUser,
+      'totalClues': _clues.length,
+      'clues': _clues.map((c) => c.toJson()).toList(),
+    };
+    return const JsonEncoder.withIndent('  ').convert(exportData);
+  }
+
+  /// 从备份 JSON 数据进行灾难恢复（深度合并保全现有数据，实图优先，AI优先）
+  Future<int> restoreFromBackupJson(String jsonStr) async {
+    try {
+      final dynamic decoded = jsonDecode(jsonStr);
+      List<dynamic> rawClues = [];
+      if (decoded is Map<String, dynamic>) {
+        if (decoded.containsKey('clues') && decoded['clues'] is List) {
+          rawClues = decoded['clues'] as List<dynamic>;
+        } else if (decoded.containsKey('data') && decoded['data'] is List) {
+          rawClues = decoded['data'] as List<dynamic>;
+        }
+      } else if (decoded is List) {
+        rawClues = decoded;
+      }
+
+      if (rawClues.isEmpty) {
+        throw Exception('备份文件中未发现有效学员线索数据');
+      }
+
+      int restoredCount = 0;
+      final incomingClues = rawClues
+          .map((e) => Clue.fromJson(Map<String, dynamic>.from(e as Map)))
+          .where((c) => !_isMockClue(c))
+          .toList();
+
+      final needsUpload = <Clue>[];
+      for (final incoming in incomingClues) {
+        final existingIdx = _clues.indexWhere((c) => c.id == incoming.id);
+        if (existingIdx >= 0) {
+          final merged = _mergeClue(_clues[existingIdx], incoming, needsUpload: needsUpload);
+          _clues[existingIdx] = merged;
+          needsUpload.add(merged);
+        } else {
+          _clues.add(incoming);
+          needsUpload.add(incoming);
+        }
+        restoredCount++;
+      }
+
+      // 保存本地与云端广播同步
+      await _saveCluesLocalOnly();
+      notifyListeners();
+
+      if (needsUpload.isNotEmpty) {
+        unawaited(_crmSyncService.saveClues(needsUpload));
+      }
+
+      return restoredCount;
+    } catch (e) {
+      debugPrint('⚠️ [restoreFromBackupJson] 备份恢复异常: $e');
+      rethrow;
+    }
+  }
 }
+

@@ -51,8 +51,8 @@ class MinePage extends StatelessWidget {
                   const SizedBox(height: 16),
                 ],
 
-                // 云端备份状态区
-                _SectionTitle(title: '数据安全与云端'),
+                // 数据安全与云端备份专区
+                _SectionTitle(title: '企业级数据安全与备份'),
                 _MenuItem(
                   icon: Icons.cloud_done_rounded,
                   title: '云端同步状态',
@@ -72,6 +72,20 @@ class MinePage extends StatelessWidget {
                       ),
                     );
                   },
+                ),
+                _MenuItem(
+                  icon: Icons.save_alt_rounded,
+                  title: '一键导出完整备份 (JSON)',
+                  subtitle: '导出包含学员档案、微信截图、AI诊断的完整快照，防丢防故障',
+                  iconColor: const Color(0xFF1565C0),
+                  onTap: () => _showExportJsonBackupDialog(context, provider),
+                ),
+                _MenuItem(
+                  icon: Icons.settings_backup_restore_rounded,
+                  title: '从备份文件导入/恢复 (灾难恢复)',
+                  subtitle: '粘贴或导入历史备份，安全自愈合并，绝不丢失任何现有数据',
+                  iconColor: const Color(0xFF6A1B9A),
+                  onTap: () => _showRestoreBackupDialog(context, provider),
                 ),
 
                 const SizedBox(height: 16),
@@ -297,6 +311,210 @@ class MinePage extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// 弹出完整 JSON 备份导出对话框
+  void _showExportJsonBackupDialog(BuildContext context, AppProvider provider) {
+    final jsonStr = provider.exportBackupJson();
+    final jsonBytes = utf8.encode(jsonStr).length;
+    final kbSize = (jsonBytes / 1024).toStringAsFixed(1);
+    final nowStr = DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now());
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.shield_outlined, color: Color(0xFF1565C0)),
+            SizedBox(width: 8),
+            Text('全量系统数据备份', style: TextStyle(fontSize: 17)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE3F2FD),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF90CAF9)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.check_circle_rounded,
+                          color: Color(0xFF1565C0), size: 18),
+                      const SizedBox(width: 6),
+                      Text('已成功打包 ${provider.clues.length} 位学员全部档案',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: Color(0xFF0D47A1))),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text('• 导出时间：$nowStr\n• 数据体积：${kbSize} KB\n• 包含内容：基础档案、微信截图Base64、AI诊断报告长文、时间轴全量日志',
+                      style: const TextStyle(fontSize: 11.5, color: Color(0xFF1565C0), height: 1.4)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text('备份数据预览 (JSON)：',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            Container(
+              height: 110,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFCBD5E1)),
+              ),
+              child: SingleChildScrollView(
+                child: SelectableText(
+                  jsonStr,
+                  style: const TextStyle(
+                      fontSize: 10, fontFamily: 'monospace', color: Colors.black87),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('关闭'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: jsonStr));
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('✅ 完整备份已复制到剪贴板！可粘贴保存在手机备忘录、微信或电脑文件中。'),
+                  backgroundColor: Color(0xFF1565C0),
+                  duration: Duration(seconds: 4),
+                ),
+              );
+            },
+            icon: const Icon(Icons.copy_rounded, size: 16),
+            label: const Text('复制完整备份'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1565C0),
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 弹出灾难恢复对话框（粘贴历史备份一键自愈合并）
+  void _showRestoreBackupDialog(BuildContext context, AppProvider provider) {
+    final textCtrl = TextEditingController();
+    bool isRestoring = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.settings_backup_restore_rounded, color: Color(0xFF6A1B9A)),
+              SizedBox(width: 8),
+              Text('从备份文件恢复数据', style: TextStyle(fontSize: 17)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '🛡️ 安全自愈合并保障：\n恢复过程采用“实图优先、AI报告优先、非空保全”的智能合并算法，绝不会覆盖或破坏当前已有的更新数据。',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF6A1B9A), height: 1.4),
+                ),
+                const SizedBox(height: 12),
+                const Text('请将备份 JSON 内容粘贴到下方：',
+                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: textCtrl,
+                  maxLines: 6,
+                  decoration: InputDecoration(
+                    hintText: '在此粘贴导出的备份文本 {"backupVersion": "2.0", ...}',
+                    hintStyle: const TextStyle(fontSize: 11),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    contentPadding: const EdgeInsets.all(10),
+                  ),
+                  style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('取消'),
+            ),
+            ElevatedButton.icon(
+              onPressed: isRestoring
+                  ? null
+                  : () async {
+                      final input = textCtrl.text.trim();
+                      if (input.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('⚠️ 请先粘贴备份文本内容')),
+                        );
+                        return;
+                      }
+
+                      setDialogState(() => isRestoring = true);
+                      try {
+                        final count = await provider.restoreFromBackupJson(input);
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('🎉 成功自愈恢复 $count 条学员档案，已自动同步到云端！'),
+                              backgroundColor: const Color(0xFF2E7D32),
+                              duration: const Duration(seconds: 4),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        setDialogState(() => isRestoring = false);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('❌ 恢复失败：$e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              icon: isRestoring
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check_circle_outline, size: 16),
+              label: Text(isRestoring ? '正在合并恢复...' : '确认安全恢复'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6A1B9A),
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
