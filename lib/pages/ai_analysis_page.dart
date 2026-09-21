@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../models/clue.dart';
 import '../providers/app_provider.dart';
 import '../services/ai_service.dart';
+import '../services/smart_script_engine.dart';
 
 /// AI 智能分析页面（支持 DeepSeek / 智谱大模型实时诊断 + 专业启发式规则双引擎）
 class AiAnalysisPage extends StatefulWidget {
@@ -33,6 +34,7 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
   bool _saved = false;
   bool _usingLlm = false;
   String? _llmOutput;
+  int _selectedScenarioIndex = 0;
   String? _errorMessage;
   _AnalysisResult? _result;
 
@@ -204,9 +206,8 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
               '分享同专业已成功上岸学长学姐的备考案例与复习笔记',
               '推进确认报名或到访校区参加全真模考',
             ],
-      script: visitCount == 0
-          ? '同学你好呀！看到你关注了 $subject 专升本，目前复习准备得怎么样啦？我们教研团队刚整理了一份最新的《$subject 核心考点与升本避坑指南》，包含近5年真题剖析，方便发你一份参考了解下吗？'
-          : '${clue.wxNick} 同学，上次咱们沟通后我一直记着你的情况～${allConcerns.contains("价格敏感") || allConcerns.contains("学费") ? "针对学费方面，我今天专门帮你向教务主管申请了免息分期和早鸟助学金，月供仅需几百元；" : "咱们针对 $subject 的 $classType 名师定制班刚好这周有名额开放；"}你看今天下午或晚上方便语音聊 3 分钟详细说说吗？',
+      script: SmartScriptEngine.generate(clue, reportOverride: _llmOutput).first.content,
+      scenarios: SmartScriptEngine.generate(clue, reportOverride: _llmOutput),
     );
   }
 
@@ -623,51 +624,154 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
                         ),
                         const SizedBox(height: 14),
 
-                        // 3. 专属定制话术
-                        _AnalysisCard(
-                          number: '3',
-                          title: '专属推荐沟通话术',
-                          icon: Icons.chat_outlined,
-                          color: const Color(0xFF2E7D32),
-                          action: ElevatedButton.icon(
-                            onPressed: () {
-                              Clipboard.setData(
-                                  ClipboardData(text: _result!.script));
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('已复制推荐话术到剪贴板！'),
-                                  backgroundColor: Color(0xFF2E7D32),
-                                  duration: Duration(seconds: 2),
+                        // 3. 专属实战沟通话术 (口头化/破冰开口话题/多场景胶囊)
+                        Builder(
+                          builder: (context) {
+                            final currentScenario = (_result!.scenarios.isNotEmpty &&
+                                    _selectedScenarioIndex < _result!.scenarios.length)
+                                ? _result!.scenarios[_selectedScenarioIndex]
+                                : null;
+                            final scriptText =
+                                currentScenario?.content ?? _result!.script;
+
+                            return _AnalysisCard(
+                              number: '3',
+                              title: '专属实战沟通话术',
+                              icon: Icons.chat_outlined,
+                              color: const Color(0xFF2E7D32),
+                              action: ElevatedButton.icon(
+                                onPressed: () {
+                                  Clipboard.setData(
+                                      ClipboardData(text: scriptText));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                          '已复制【${currentScenario?.shortLabel ?? "推荐"}】话术到剪贴板，可直接粘贴发给学生！'),
+                                      backgroundColor: const Color(0xFF2E7D32),
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.copy, size: 14),
+                                label: const Text('一键复制'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF2E7D32),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 6),
+                                  textStyle: const TextStyle(fontSize: 12),
                                 ),
-                              );
-                            },
-                            icon: const Icon(Icons.copy, size: 14),
-                            label: const Text('一键复制'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF2E7D32),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 6),
-                              textStyle: const TextStyle(fontSize: 12),
-                            ),
-                          ),
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE8F5E9),
-                              borderRadius: BorderRadius.circular(8),
-                              border:
-                                  Border.all(color: const Color(0xFFC8E6C9)),
-                            ),
-                            child: Text(
-                              _result!.script,
-                              style: const TextStyle(
-                                fontSize: 13.5,
-                                color: Color(0xFF1B5E20),
-                                height: 1.5,
                               ),
-                            ),
-                          ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // 场景切换胶囊
+                                  if (_result!.scenarios.length > 1) ...[
+                                    SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: Row(
+                                        children: List.generate(
+                                          _result!.scenarios.length,
+                                          (idx) {
+                                            final sc = _result!.scenarios[idx];
+                                            final isSel =
+                                                _selectedScenarioIndex == idx;
+                                            return Padding(
+                                              padding: const EdgeInsets.only(
+                                                  right: 8),
+                                              child: ChoiceChip(
+                                                label: Text(sc.label),
+                                                selected: isSel,
+                                                onSelected: (_) {
+                                                  setState(() {
+                                                    _selectedScenarioIndex =
+                                                        idx;
+                                                  });
+                                                },
+                                                selectedColor:
+                                                    const Color(0xFFC8E6C9),
+                                                backgroundColor:
+                                                    const Color(0xFFF1F8E9),
+                                                labelStyle: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: isSel
+                                                      ? FontWeight.bold
+                                                      : FontWeight.normal,
+                                                  color: isSel
+                                                      ? const Color(0xFF1B5E20)
+                                                      : Colors.grey.shade700,
+                                                ),
+                                                side: BorderSide(
+                                                  color: isSel
+                                                      ? const Color(0xFF2E7D32)
+                                                      : const Color(0xFFE0E0E0),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                    if (currentScenario != null &&
+                                        currentScenario.tip.isNotEmpty) ...[
+                                      const SizedBox(height: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF9FBE7),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                          border: Border.all(
+                                              color: const Color(0xFFDCEDC8)),
+                                        ),
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Icon(
+                                                Icons.lightbulb_outline_rounded,
+                                                size: 14,
+                                                color: Color(0xFF558B2F)),
+                                            const SizedBox(width: 5),
+                                            Expanded(
+                                              child: Text(
+                                                currentScenario.tip,
+                                                style: const TextStyle(
+                                                  fontSize: 11.5,
+                                                  color: Color(0xFF33691E),
+                                                  height: 1.35,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                    const SizedBox(height: 10),
+                                  ],
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFE8F5E9),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                          color: const Color(0xFFC8E6C9)),
+                                    ),
+                                    child: Text(
+                                      scriptText,
+                                      style: const TextStyle(
+                                        fontSize: 13.5,
+                                        color: Color(0xFF1B5E20),
+                                        height: 1.55,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                         const SizedBox(height: 20),
                       ],
@@ -1005,6 +1109,7 @@ class _AnalysisResult {
   final List<String> concerns;
   final List<String> topics;
   final String script;
+  final List<ScriptScenario> scenarios;
 
   _AnalysisResult({
     required this.score,
@@ -1013,5 +1118,6 @@ class _AnalysisResult {
     required this.concerns,
     required this.topics,
     required this.script,
+    required this.scenarios,
   });
 }

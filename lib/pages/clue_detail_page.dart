@@ -12,6 +12,7 @@ import 'enroll_page.dart';
 import 'edit_clue_page.dart';
 import 'materials_page.dart';
 import '../services/launcher_service.dart';
+import '../services/smart_script_engine.dart';
 
 /// 线索详情页（包含信息区、推荐话术、4按钮操作区及时间轴）
 class ClueDetailPage extends StatelessWidget {
@@ -601,53 +602,26 @@ class _InfoChip extends StatelessWidget {
   }
 }
 
-/// 推荐沟通话术卡片组件
-class _RecommendScriptCard extends StatelessWidget {
+/// 智能口头化实战沟通话术卡片组件 (支持破冰开口/打消顾虑/促成逼单场景胶囊切换)
+class _RecommendScriptCard extends StatefulWidget {
   final Clue clue;
   const _RecommendScriptCard({required this.clue});
 
-  String _getRecommendTag() {
-    switch (clue.status) {
-      case ClueStatus.following:
-        return '【待跟进】首次破冰话术';
-      case ClueStatus.contacted:
-        return '【联系中】试听邀约话术';
-      case ClueStatus.invited:
-        return '【已邀约】出席确认提醒';
-      case ClueStatus.attended:
-        return '【已试听】促成报名话术';
-      case ClueStatus.enrolled:
-        return '【已报名】老带新转介绍';
-      case ClueStatus.paused:
-        return '【暂搁置】复活关怀话术';
-    }
-  }
+  @override
+  State<_RecommendScriptCard> createState() => _RecommendScriptCardState();
+}
 
-  String _getRecommendContent() {
-    final name = clue.wxNick.isNotEmpty ? clue.wxNick : '同学';
-    final subject = clue.subject.isNotEmpty ? clue.subject : '专升本';
-    final classType = clue.classType.isNotEmpty ? clue.classType : '集训班';
-
-    switch (clue.status) {
-      case ClueStatus.following:
-        return '同学你好呀！看到你关注了 $subject 专升本，目前准备得怎么样了呢？我们针对 $subject 整理了一份最新的备考真题与升本指南，方便发你一份了解下吗？';
-      case ClueStatus.contacted:
-        return '$name 同学，我们本周六刚好有专门针对 $subject 的 $classType 试听讲座，由名师带学讲解考点，名额有限，需要帮你预留一个试听席位吗？';
-      case ClueStatus.invited:
-        return '$name 同学，温馨提醒一下：您预约的 $subject 试听课程将于明天正式开始。地址已发您，期待您的到来，有任何路线问题随时联系我哦！';
-      case ClueStatus.attended:
-        return '$name 同学，上次的 $classType 试听课感受怎么样？老师讲的知识点都能消化吗？本周前报名可以享受早鸟优惠和赠送全套教材，有需要我帮你申请一下名额吗？';
-      case ClueStatus.enrolled:
-        return '$name 同学，恭喜成功报名 $classType！如果有认识同校想一起备考 $subject 的同学，推荐过来可以各获得 200 元图书卡哦！';
-      case ClueStatus.paused:
-        return '$name 同学好久不见！最近 $subject 专升本出台了最新的招生政策，顺便关怀一下你目前的复习进度，方便抽空聊聊吗？';
-    }
-  }
+class _RecommendScriptCardState extends State<_RecommendScriptCard> {
+  int _selectedIndex = 0;
 
   @override
   Widget build(BuildContext context) {
-    final content = _getRecommendContent();
-    final tag = _getRecommendTag();
+    final scenarios = SmartScriptEngine.generate(widget.clue);
+    final currentScenario = (scenarios.isNotEmpty && _selectedIndex < scenarios.length)
+        ? scenarios[_selectedIndex]
+        : scenarios.first;
+    final bool hasAi = widget.clue.aiAnalysisReport != null &&
+        widget.clue.aiAnalysisReport!.trim().isNotEmpty;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12),
@@ -667,23 +641,28 @@ class _RecommendScriptCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 头部：场景标签 + AI 定制标志 + 物料库入口
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1976D2).withValues(alpha: 0.1),
+                  color: const Color(0xFF1976D2).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.auto_awesome, size: 15, color: Color(0xFF1976D2)),
+                    Icon(
+                      hasAi ? Icons.psychology_outlined : Icons.auto_awesome,
+                      size: 15,
+                      color: const Color(0xFF1976D2),
+                    ),
                     const SizedBox(width: 5),
                     Text(
-                      tag,
+                      hasAi ? 'AI 深度定制话术' : '专属推荐沟通话术',
                       style: const TextStyle(
-                        fontSize: 13.5,
+                        fontSize: 13,
                         color: Color(0xFF1976D2),
                         fontWeight: FontWeight.bold,
                       ),
@@ -712,6 +691,76 @@ class _RecommendScriptCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
+
+          // 场景胶囊切换
+          if (scenarios.length > 1) ...[
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: List.generate(
+                  scenarios.length,
+                  (idx) {
+                    final sc = scenarios[idx];
+                    final isSel = _selectedIndex == idx;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(sc.label),
+                        selected: isSel,
+                        onSelected: (_) {
+                          setState(() {
+                            _selectedIndex = idx;
+                          });
+                        },
+                        selectedColor: const Color(0xFFE3F2FD),
+                        backgroundColor: const Color(0xFFF5F5F5),
+                        labelStyle: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                          color: isSel ? const Color(0xFF1976D2) : Colors.grey.shade700,
+                        ),
+                        side: BorderSide(
+                          color: isSel ? const Color(0xFF1976D2) : const Color(0xFFE0E0E0),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            if (currentScenario.tip.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0F7FF),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFD0E3F7)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.lightbulb_outline_rounded,
+                        size: 14, color: Color(0xFF1976D2)),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        currentScenario.tip,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: Color(0xFF0D47A1),
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 10),
+          ],
+
+          // 话术内容框
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(12),
@@ -721,39 +770,73 @@ class _RecommendScriptCard extends StatelessWidget {
               border: Border.all(color: const Color(0xFFEEEEEE)),
             ),
             child: Text(
-              content,
+              currentScenario.content,
               style: const TextStyle(
-                fontSize: 14.5,
+                fontSize: 14,
                 color: Color(0xFF2C3E50),
                 height: 1.55,
               ),
             ),
           ),
           const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: content));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('话术已复制到剪贴板，可直接粘贴发给学生！'),
-                    backgroundColor: Color(0xFF1976D2),
-                    duration: Duration(seconds: 2),
+
+          // 底部操作区
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              if (!hasAi)
+                InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AiAnalysisPage(clue: widget.clue),
+                      ),
+                    );
+                  },
+                  child: const Row(
+                    children: [
+                      Icon(Icons.auto_awesome, size: 13, color: Color(0xFF7B1FA2)),
+                      SizedBox(width: 4),
+                      Text(
+                        '获取 AI 深度策略 >',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF7B1FA2),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
-                );
-              },
-              icon: const Icon(Icons.copy_rounded, size: 15, color: Colors.white),
-              label: const Text('复制推荐话术',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1976D2),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18)),
+                )
+              else
+                const SizedBox.shrink(),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: currentScenario.content));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                          '已复制【${currentScenario.shortLabel}】话术到剪贴板，可直接粘贴发给学生！'),
+                      backgroundColor: const Color(0xFF1976D2),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.copy_rounded, size: 14, color: Colors.white),
+                label: Text(
+                  '复制【${currentScenario.shortLabel}】话术',
+                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1976D2),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                ),
               ),
-            ),
+            ],
           ),
         ],
       ),
