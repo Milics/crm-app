@@ -31,8 +31,10 @@ class ClueDetailPage extends StatelessWidget {
           );
         }
 
-        // 🛡️ 智能按需加载：若聊天记录原图未在本地缓存，首帧后自动静默拉取该学员高清原图
-        if (clue.chatRecords.any((cr) => cr.imageData == null || cr.imageData!.isEmpty)) {
+        // 🛡️ 智能按需加载：若学员有有效记录但未在本地缓存原图，首帧后自动静默拉取该学员高清原图
+        final needsImageFetch = clue.chatRecords
+            .any((cr) => cr.isValid && (cr.imageData == null || cr.imageData!.isEmpty));
+        if (needsImageFetch) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             provider.ensureClueDetailsLoaded(clueId);
           });
@@ -75,8 +77,8 @@ class ClueDetailPage extends StatelessWidget {
 
                   const SizedBox(height: 12),
 
-                  // 沟通截图档案区域 (真实微信聊天记录)
-                  if (clue.chatRecords.isNotEmpty) ...[
+                  // 沟通截图档案区域 (仅当存在有效图片或沟通文本时展示)
+                  if (clue.chatRecords.any((cr) => cr.isValid)) ...[
                     _ChatRecordsSection(clue: clue),
                     const SizedBox(height: 12),
                   ],
@@ -1532,7 +1534,45 @@ class _ChatRecordsSection extends StatelessWidget {
   final Clue clue;
   const _ChatRecordsSection({required this.clue});
 
+  Future<void> _confirmDelete(BuildContext context, ChatRecord record) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('删除沟通记录'),
+        content: const Text('确定要删除这条沟通记录吗？删除后多端将自动同步移除。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      context.read<AppProvider>().deleteChatRecord(clue.id, record.id);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('已删除该条沟通记录'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   void _showFullImage(BuildContext context, ChatRecord record) {
+    final hasImg = record.imageData != null && record.imageData!.trim().isNotEmpty;
+    final imgBytes = hasImg ? _safeBase64Decode(record.imageData!) : null;
+
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -1550,15 +1590,31 @@ class _ChatRecordsSection extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 12, 12, 8),
                 child: Row(
                   children: [
-                    const Icon(Icons.chat_bubble_outline,
-                        color: Color(0xFF00897B), size: 18),
-                    const SizedBox(width: 6),
-                    Text(
-                      '聊天记录 (${DateFormat('yyyy.MM.dd HH:mm').format(record.createTime)})',
-                      style: const TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.bold),
+                    Icon(
+                      hasImg ? Icons.image_outlined : Icons.description_outlined,
+                      color: const Color(0xFF00897B),
+                      size: 20,
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        hasImg
+                            ? '沟通截图 (${DateFormat('yyyy.MM.dd HH:mm').format(record.createTime)})'
+                            : '沟通备忘便签 (${DateFormat('yyyy.MM.dd HH:mm').format(record.createTime)})',
+                        style: const TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline,
+                          size: 20, color: Colors.redAccent),
+                      tooltip: '删除此记录',
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        await _confirmDelete(context, record);
+                      },
+                    ),
                     IconButton(
                       icon: const Icon(Icons.close, size: 20),
                       onPressed: () => Navigator.pop(ctx),
@@ -1566,26 +1622,33 @@ class _ChatRecordsSection extends StatelessWidget {
                   ],
                 ),
               ),
-              Flexible(
-                child: Container(
-                  constraints: const BoxConstraints(maxHeight: 400),
-                  color: Colors.black12,
-                  child: record.imageData != null && record.imageData!.isNotEmpty
-                      ? InteractiveViewer(
-                          child: Image.memory(
-                            _safeBase64Decode(record.imageData!),
-                            fit: BoxFit.contain,
+              if (hasImg)
+                Flexible(
+                  child: Container(
+                    constraints: const BoxConstraints(maxHeight: 420),
+                    color: Colors.black12,
+                    child: imgBytes != null
+                        ? InteractiveViewer(
+                            child: Image.memory(
+                              imgBytes,
+                              fit: BoxFit.contain,
+                            ),
+                          )
+                        : const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(24),
+                              child: Text('图片格式异常或损坏，无法解码',
+                                  style: TextStyle(color: Colors.grey)),
+                            ),
                           ),
-                        )
-                      : const Center(child: Text('无图片数据')),
+                  ),
                 ),
-              ),
               if (record.ocrText.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.all(14),
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF1F8E9),
                       borderRadius: BorderRadius.circular(8),
@@ -1594,31 +1657,84 @@ class _ChatRecordsSection extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('提炼要点 / 沟通备注：',
-                            style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF33691E))),
-                        const SizedBox(height: 4),
-                        Text(record.ocrText,
-                            style: const TextStyle(
-                                fontSize: 13, color: Color(0xFF1B5E20))),
+                        Row(
+                          children: [
+                            const Text('提炼要点 / 沟通备注：',
+                                style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF33691E))),
+                            const Spacer(),
+                            InkWell(
+                              onTap: () {
+                                Clipboard.setData(
+                                    ClipboardData(text: record.ocrText));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('已复制沟通文字到剪贴板'),
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                              },
+                              child: const Row(
+                                children: [
+                                  Icon(Icons.copy,
+                                      size: 13, color: Color(0xFF33691E)),
+                                  SizedBox(width: 2),
+                                  Text('复制',
+                                      style: TextStyle(
+                                          fontSize: 11.5,
+                                          color: Color(0xFF33691E))),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        SelectableText(
+                          record.ocrText,
+                          style: const TextStyle(
+                              fontSize: 13.5,
+                              color: Color(0xFF1B5E20),
+                              height: 1.45),
+                        ),
                       ],
                     ),
                   ),
                 ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00897B),
-                      foregroundColor: Colors.white,
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          Navigator.pop(ctx);
+                          await _confirmDelete(context, record);
+                        },
+                        icon: const Icon(Icons.delete_outline,
+                            size: 16, color: Colors.red),
+                        label: const Text('删除记录',
+                            style: TextStyle(color: Colors.red)),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFFFFCDD2)),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                        ),
+                      ),
                     ),
-                    child: const Text('关 闭'),
-                  ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF00897B),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                        ),
+                        child: const Text('关 闭'),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -1630,6 +1746,20 @@ class _ChatRecordsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final validRecords = clue.chatRecords.where((cr) => cr.isValid).toList();
+    if (validRecords.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final imgCount = validRecords.where((cr) => cr.hasImage).length;
+    final noteCount = validRecords.length - imgCount;
+    String countLabel = '${validRecords.length}条';
+    if (imgCount > 0 && noteCount == 0) {
+      countLabel = '$imgCount张';
+    } else if (imgCount > 0 && noteCount > 0) {
+      countLabel = '$imgCount张图 + $noteCount条便签';
+    }
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
@@ -1662,7 +1792,7 @@ class _ChatRecordsSection extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Text(
-                '(${clue.chatRecords.length}张)',
+                '($countLabel)',
                 style: const TextStyle(color: Colors.grey, fontSize: 12.5),
               ),
               const Spacer(),
@@ -1693,11 +1823,12 @@ class _ChatRecordsSection extends StatelessWidget {
             height: 130,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              itemCount: clue.chatRecords.length,
+              itemCount: validRecords.length,
               itemBuilder: (context, idx) {
-                final rec = clue.chatRecords[idx];
-                final hasImage =
-                    rec.imageData != null && rec.imageData!.isNotEmpty;
+                final rec = validRecords[idx];
+                final hasImg = rec.hasImage;
+                final imgBytes =
+                    hasImg ? _safeBase64Decode(rec.imageData!) : null;
 
                 return GestureDetector(
                   onTap: () => _showFullImage(context, rec),
@@ -1706,8 +1837,12 @@ class _ChatRecordsSection extends StatelessWidget {
                     margin: const EdgeInsets.only(right: 10),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.grey[200]!),
-                      color: Colors.grey[50],
+                      border: Border.all(
+                        color: hasImg
+                            ? Colors.grey[200]!
+                            : const Color(0xFFC8E6C9),
+                      ),
+                      color: hasImg ? Colors.grey[50] : const Color(0xFFF1F8E9),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1718,22 +1853,60 @@ class _ChatRecordsSection extends StatelessWidget {
                                 top: Radius.circular(9)),
                             child: SizedBox(
                               width: double.infinity,
-                              child: hasImage
-                                  ? Image.memory(
-                                      _safeBase64Decode(rec.imageData!),
-                                      fit: BoxFit.cover,
-                                    )
-                                  : Center(
-                                      child: Icon(Icons.image,
-                                          color: Colors.grey[400]),
+                              child: hasImg
+                                  ? (imgBytes != null
+                                      ? Image.memory(
+                                          imgBytes,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : Center(
+                                          child: Icon(Icons.broken_image,
+                                              color: Colors.grey[400]),
+                                        ))
+                                  : Container(
+                                      color: const Color(0xFFE8F5E9),
+                                      padding: const EdgeInsets.all(8),
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          const Icon(
+                                              Icons.sticky_note_2_outlined,
+                                              color: Color(0xFF388E3C),
+                                              size: 28),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            rec.ocrText.isNotEmpty
+                                                ? rec.ocrText
+                                                : '文字便签',
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              color: Color(0xFF2E7D32),
+                                              height: 1.2,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ],
+                                      ),
                                     ),
                             ),
                           ),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.all(5),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 4),
+                          color:
+                              hasImg ? Colors.white : const Color(0xFFE8F5E9),
                           child: Text(
-                            rec.ocrText.isNotEmpty ? rec.ocrText : '点击放大查看',
+                            hasImg
+                                ? (rec.ocrText.isNotEmpty
+                                    ? rec.ocrText
+                                    : '点击放大查看')
+                                : DateFormat('MM-dd HH:mm')
+                                    .format(rec.createTime),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -1757,11 +1930,21 @@ class _ChatRecordsSection extends StatelessWidget {
   }
 }
 
-/// 安全解码 Base64 字符串（自动兼容纯 Base64 或带有 dataURI 前缀的格式）
-Uint8List _safeBase64Decode(String raw) {
-  var b64 = raw.trim();
-  if (b64.contains(',')) {
-    b64 = b64.split(',').last.trim();
+/// 安全解码 Base64 字符串（自动兼容纯 Base64 或带有 dataURI 前缀的格式，并补齐 padding 及容错）
+Uint8List? _safeBase64Decode(String raw) {
+  try {
+    var b64 = raw.trim();
+    if (b64.contains(',')) {
+      b64 = b64.split(',').last.trim();
+    }
+    b64 = b64.replaceAll(RegExp(r'\s+'), '');
+    final pad = b64.length % 4;
+    if (pad > 0) {
+      b64 += '=' * (4 - pad);
+    }
+    return base64Decode(b64);
+  } catch (e) {
+    debugPrint('Base64 decode error: $e');
+    return null;
   }
-  return base64Decode(b64);
 }

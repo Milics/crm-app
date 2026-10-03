@@ -348,6 +348,15 @@ class AppProvider extends ChangeNotifier {
       }
     }
 
+    // 🛡️ 核心数据安全防护 2.5：全量清洗剔除无图无文字的“三无空聊天记录占位符”
+    for (int i = 0; i < _clues.length; i++) {
+      final c = _clues[i];
+      if (c.chatRecords.any((cr) => !cr.isValid)) {
+        final cleanedChats = c.chatRecords.where((cr) => cr.isValid).toList();
+        _clues[i] = c.copyWith(chatRecords: cleanedChats);
+      }
+    }
+
     // 🛡️ 核心数据安全防护 3：增量补齐种子库中存在但本地缺失的真实线索（消灭冷启动由于本地旧缓存导致的线索缺失与闪烁）
     final localClueIds = _clues.map((c) => c.id).toSet();
     for (final seed in realSeeds) {
@@ -746,8 +755,14 @@ class AppProvider extends ChangeNotifier {
     final mergedLogs = deduplicatedLogs
       ..sort((a, b) => b.createTime.compareTo(a.createTime));
 
-    // 2. 合并聊天记录 (chatRecords) - 图像二进制数据与语义内容双向绝对保全
-    final allChats = <ChatRecord>[...remote.chatRecords, ...local.chatRecords];
+    // 2. 合并聊天记录 (chatRecords) - 图像二进制数据与语义内容双向绝对保全 + 墓碑防复活与空记录清洗
+    final allDeletedChatRecordIds = <String>{
+      ...local.deletedChatRecordIds,
+      ...remote.deletedChatRecordIds,
+    };
+    final allChats = <ChatRecord>[...remote.chatRecords, ...local.chatRecords]
+        .where((cr) => !allDeletedChatRecordIds.contains(cr.id) && cr.isValid)
+        .toList();
     final deduplicatedChats = <ChatRecord>[];
     bool localHasNewChats = false;
 
@@ -968,6 +983,7 @@ class AppProvider extends ChangeNotifier {
       chatRecords: mergedChats,
       tags: mergedTags,
       deletedVisitLogIds: allDeletedVisitLogIds.toList(),
+      deletedChatRecordIds: allDeletedChatRecordIds.toList(),
     );
 
     // 🛡️ 核心保全规则 7：自愈补推（若合并后字段比云端更丰富，自动加入上传队列自愈修复云端）
@@ -2366,10 +2382,36 @@ class AppProvider extends ChangeNotifier {
   Future<void> addChatRecords(String clueId, List<ChatRecord> records) async {
     final clue = getClueById(clueId);
     if (clue != null) {
-      clue.chatRecords.addAll(records);
+      // 仅追加具备真实内容（有图或有文本）的有效记录
+      final validRecords = records.where((r) => r.isValid).toList();
+      if (validRecords.isEmpty) return;
+      clue.chatRecords.addAll(validRecords);
       notifyListeners();
       await _saveClues(changedClue: clue);
     }
+  }
+
+  /// 物理删除单条聊天截图记录，记入墓碑并双向同步至云端与本地
+  Future<bool> deleteChatRecord(String clueId, String chatRecordId) async {
+    final idx = _clues.indexWhere((c) => c.id == clueId);
+    if (idx == -1) return false;
+    final current = _clues[idx];
+
+    final updatedChats =
+        current.chatRecords.where((cr) => cr.id != chatRecordId).toList();
+    final updatedDeletedChats = <String>{
+      ...current.deletedChatRecordIds,
+      chatRecordId,
+    }.toList();
+
+    _clues[idx] = current.copyWith(
+      chatRecords: updatedChats,
+      deletedChatRecordIds: updatedDeletedChats,
+    );
+
+    await _saveClues(changedClue: _clues[idx]);
+    notifyListeners();
+    return true;
   }
 
   // 保存最新的 AI 大模型分析报告，并自动推送到云端同步

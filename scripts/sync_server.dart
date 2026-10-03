@@ -145,21 +145,44 @@ void main() async {
       });
     merged['visitLogs'] = mergedLogs;
 
-    // 2. 聊天记录 (chatRecords) 增量去重合并，确保图片数据不丢失
+    // 0.5 聊天记录删除墓碑 (deletedChatRecordIds) 并集合并
+    final existingDeletedChats =
+        ((existing['deletedChatRecordIds'] as List<dynamic>?) ?? [])
+            .map((e) => e.toString())
+            .toSet();
+    final incomingDeletedChats =
+        ((incoming['deletedChatRecordIds'] as List<dynamic>?) ?? [])
+            .map((e) => e.toString())
+            .toSet();
+    final allDeletedChatRecordIds = {...existingDeletedChats, ...incomingDeletedChats};
+    merged['deletedChatRecordIds'] = allDeletedChatRecordIds.toList();
+
+    // 2. 聊天记录 (chatRecords) 增量去重合并，确保图片数据不丢失 + 墓碑防复活与空记录清洗
     final existingChats = (existing['chatRecords'] as List<dynamic>?) ?? [];
     final incomingChats = (incoming['chatRecords'] as List<dynamic>?) ?? [];
+
+    bool isValidChat(Map m) {
+      final img = m['imageData']?.toString().trim() ?? '';
+      final path = m['imagePath']?.toString().trim() ?? '';
+      final ocr = m['ocrText']?.toString().trim() ?? '';
+      return img.isNotEmpty || path.isNotEmpty || ocr.isNotEmpty;
+    }
+
     final chatMap = <String, Map<String, dynamic>>{};
     for (var c in existingChats) {
-      if (c is Map) {
+      if (c is Map && isValidChat(c)) {
         final m = Map<String, dynamic>.from(c);
-        if (m['id'] != null) chatMap[m['id'].toString()] = m;
+        final idStr = m['id']?.toString();
+        if (idStr != null && !allDeletedChatRecordIds.contains(idStr)) {
+          chatMap[idStr] = m;
+        }
       }
     }
     for (var c in incomingChats) {
-      if (c is Map) {
+      if (c is Map && isValidChat(c)) {
         final m = Map<String, dynamic>.from(c);
-        if (m['id'] != null) {
-          final idStr = m['id'].toString();
+        final idStr = m['id']?.toString();
+        if (idStr != null && !allDeletedChatRecordIds.contains(idStr)) {
           final oldChat = chatMap[idStr];
           if (oldChat != null) {
             final incomingImg = m['imageData']?.toString();

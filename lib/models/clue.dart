@@ -64,6 +64,7 @@ class Clue {
   List<ChatRecord> chatRecords;
   List<String> tags;
   List<String> deletedVisitLogIds; // 回访记录删除墓碑集合，确保多端同步永不复活
+  List<String> deletedChatRecordIds; // 沟通记录删除墓碑集合，确保多端同步永不复活
   String remark;
   String ownerName; // 归属老师姓名
   String? aiAnalysisReport; // 最新保存的 AI 大模型深度分析报告
@@ -88,6 +89,7 @@ class Clue {
     List<ChatRecord>? chatRecords,
     List<String>? tags,
     List<String>? deletedVisitLogIds,
+    List<String>? deletedChatRecordIds,
     this.remark = '',
     this.ownerName = '',
     this.aiAnalysisReport,
@@ -96,7 +98,8 @@ class Clue {
   })  : visitLogs = visitLogs ?? [],
         chatRecords = chatRecords ?? [],
         tags = tags ?? [],
-        deletedVisitLogIds = deletedVisitLogIds ?? [];
+        deletedVisitLogIds = deletedVisitLogIds ?? [],
+        deletedChatRecordIds = deletedChatRecordIds ?? [];
 
   Clue copyWith({
     String? id,
@@ -116,6 +119,7 @@ class Clue {
     List<ChatRecord>? chatRecords,
     List<String>? tags,
     List<String>? deletedVisitLogIds,
+    List<String>? deletedChatRecordIds,
     String? remark,
     String? ownerName,
     String? aiAnalysisReport,
@@ -141,6 +145,8 @@ class Clue {
       tags: tags ?? List.from(this.tags),
       deletedVisitLogIds:
           deletedVisitLogIds ?? List.from(this.deletedVisitLogIds),
+      deletedChatRecordIds:
+          deletedChatRecordIds ?? List.from(this.deletedChatRecordIds),
       remark: remark ?? this.remark,
       ownerName: ownerName ?? this.ownerName,
       aiAnalysisReport: aiAnalysisReport ?? this.aiAnalysisReport,
@@ -169,6 +175,7 @@ class Clue {
             .toList(),
         'tags': tags,
         'deletedVisitLogIds': deletedVisitLogIds,
+        'deletedChatRecordIds': deletedChatRecordIds,
         'remark': remark,
         'ownerName': ownerName,
         'aiAnalysisReport': aiAnalysisReport,
@@ -209,6 +216,10 @@ class Clue {
                 .toList() ??
             [],
         deletedVisitLogIds: (json['deletedVisitLogIds'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            [],
+        deletedChatRecordIds: (json['deletedChatRecordIds'] as List<dynamic>?)
                 ?.map((e) => e.toString())
                 .toList() ??
             [],
@@ -392,6 +403,17 @@ class ChatRecord {
         ocrText: json['ocrText'] ?? '',
         createTime: _safeParseDatetime(json['createTime']) ?? DateTime.now(),
       );
+
+  /// 判断该聊天记录是否具备真实有效的信息（包含图片 Base64、本地图片路径或 OCR 沟通文本中的至少一项）
+  bool get isValid =>
+      (imageData != null && imageData!.trim().isNotEmpty) ||
+      imagePath.trim().isNotEmpty ||
+      ocrText.trim().isNotEmpty;
+
+  /// 是否包含实际图片数据
+  bool get hasImage =>
+      (imageData != null && imageData!.trim().isNotEmpty) ||
+      imagePath.trim().isNotEmpty;
 }
 
 
