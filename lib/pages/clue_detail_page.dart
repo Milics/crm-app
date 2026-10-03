@@ -1632,12 +1632,20 @@ class _ChatRecordsSection extends StatelessWidget {
                             child: Image.memory(
                               imgBytes,
                               fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(24),
+                                  child: Text('图片格式异常或渲染失败',
+                                      style: TextStyle(color: Colors.grey)),
+                                ),
+                              ),
                             ),
                           )
                         : const Center(
                             child: Padding(
                               padding: EdgeInsets.all(24),
-                              child: Text('图片格式异常或损坏，无法解码',
+                              child: Text('图片数据未完全加载或格式异常',
                                   style: TextStyle(color: Colors.grey)),
                             ),
                           ),
@@ -1858,6 +1866,12 @@ class _ChatRecordsSection extends StatelessWidget {
                                       ? Image.memory(
                                           imgBytes,
                                           fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  Center(
+                                            child: Icon(Icons.broken_image,
+                                                color: Colors.grey[400]),
+                                          ),
                                         )
                                       : Center(
                                           child: Icon(Icons.broken_image,

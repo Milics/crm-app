@@ -97,29 +97,48 @@ class SmartScriptEngine {
           label: '🌱 破冰开口 (首选推荐)',
           shortLabel: '破冰开口',
           tip: '适合学员防备心重或微信冷场未回，通过降压、送资料或轻量提问让其先开口回复',
-          content: step1 ??
-              '$name同学，这两天看你没回微信，估计在忙学校上课或作业，不用有压力哈！老师先整理了一份干货资料发你一份，你平时在宿舍顺手就能参考看～',
+          content: _alignWithProfile(
+              step1 ??
+                  '$name同学，这两天看你没回微信，估计在忙学校上课或作业，不用有压力哈！老师先整理了一份干货资料发你一份，你平时在宿舍顺手就能参考看～',
+              clue),
         ),
         ScriptScenario(
           key: 'reassure',
           label: '🛡️ 打消顾虑 · 定心丸',
           shortLabel: '打消顾虑',
           tip: '直击 AI 诊断出的核心卡点与担忧（如学费分期、全程陪伴保障、基础薄弱等），给予定心丸',
-          content: step2 ??
-              '$name同学你放心！咱们课程中途绝不会有任何二次收费，全程名师持续陪伴辅导直到考前。',
+          content: _alignWithProfile(
+              step2 ??
+                  '$name同学你放心！咱们课程中途绝不会有任何二次收费，全程名师持续陪伴辅导直到考前。',
+              clue),
         ),
         ScriptScenario(
           key: 'close',
           label: '🔥 促成逼单 · 锁定名额',
           shortLabel: '促成逼单',
           tip: '限时名额或福利建档逼单，适合在学员打消疑虑后快速锁定定金或进班名额',
-          content: step3 ??
-              '今天正好是本月学员建档的最后节点，老师先帮你申请特批锁定名额与大礼包，你看把收件地址发我一下好吗？',
+          content: _alignWithProfile(
+              step3 ??
+                  '今天正好是本月学员建档的最后节点，老师先帮你申请特批锁定名额与大礼包，你看把收件地址发我一下好吗？',
+              clue),
         ),
       ];
     }
 
     return null;
+  }
+
+  /// 智能对齐学员真实班型与学习形式（防话术与实际班型张冠李戴）
+  static String _alignWithProfile(String text, Clue clue) {
+    var result = text;
+    // 1. 如果学员实际班型是非协议班，但 AI 文本中误提协议班，自动精准校正班型标签
+    if (clue.classType.isNotEmpty) {
+      if (clue.classType.contains('非协议') && result.contains('协议班')) {
+        result = result.replaceAll('【全程早鸟直通协议班】', '【${clue.classType}】')
+                       .replaceAll('直通协议班', '直通非协议班');
+      }
+    }
+    return result;
   }
 
   /// 清理 Markdown 引用块中的 `>`、多余首尾引号和括号说明
