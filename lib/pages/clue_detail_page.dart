@@ -1037,7 +1037,7 @@ class _TimelineSection extends StatelessWidget {
           ),
           const SizedBox(height: 14),
 
-          // 线索创建节点（始终在顶部）
+          // 线索创建节点（始终在顶部，支持点击编辑基础信息）
           _TimelineItem(
             date: DateFormat('yyyy.MM.dd').format(clue.createTime),
             title: '线索创建',
@@ -1046,29 +1046,42 @@ class _TimelineSection extends StatelessWidget {
             color: const Color(0xFF1976D2),
             dotFilled: true,
             isLast: logs.isEmpty,
+            onEdit: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => EditCluePage(clue: clue)),
+            ),
           ),
 
-          // 回访记录
+          // 回访记录（支持修改内容、次回访时间与删除写错记录）
           ...logs.asMap().entries.map((e) {
             final log = e.value;
             final isLast = e.key == logs.length - 1;
-            final isAiLog = (log.aiReport != null && log.aiReport!.isNotEmpty) ||
-                log.visitContent.contains('【AI') ||
-                log.visitContent.contains('AI大模型') ||
-                log.visitContent.contains('AI智能跟进策略');
+            final isAiLog =
+                (log.aiReport != null && log.aiReport!.isNotEmpty) ||
+                    log.visitContent.contains('【AI') ||
+                    log.visitContent.contains('AI大模型') ||
+                    log.visitContent.contains('AI智能跟进策略');
             return _TimelineItem(
               date: DateFormat('yyyy.MM.dd HH:mm').format(log.createTime),
               title: log.visitResult.label,
               subtitle: log.visitContent,
-              color: isAiLog ? const Color(0xFF7B1FA2) : _getResultColor(log.visitResult),
+              color: isAiLog
+                  ? const Color(0xFF7B1FA2)
+                  : _getResultColor(log.visitResult),
               dotFilled: false,
               isLast: isLast,
               isAiLog: isAiLog,
+              tags: log.concerns,
+              nextVisitTime: log.nextVisitTime,
+              isEdited: log.updatedTime != null,
+              onEdit: () => _editVisitLog(context, log),
+              onDelete: () => _deleteVisitLog(context, log),
               onTap: isAiLog
                   ? () {
-                      final report = (log.aiReport != null && log.aiReport!.isNotEmpty)
-                          ? log.aiReport
-                          : clue.aiAnalysisReport;
+                      final report =
+                          (log.aiReport != null && log.aiReport!.isNotEmpty)
+                              ? log.aiReport
+                              : clue.aiAnalysisReport;
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -1081,7 +1094,7 @@ class _TimelineSection extends StatelessWidget {
                         ),
                       );
                     }
-                  : null,
+                  : () => _editVisitLog(context, log),
             );
           }),
 
@@ -1096,6 +1109,48 @@ class _TimelineSection extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _editVisitLog(BuildContext context, VisitLog log) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddVisitPage(clueId: clue.id, existingLog: log),
+      ),
+    );
+  }
+
+  Future<void> _deleteVisitLog(BuildContext context, VisitLog log) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('删除跟进记录'),
+        content: const Text('确定要删除该条跟进记录吗？删除后将从时间轴中移除，无法恢复。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('确认删除',
+                style:
+                    TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      final success =
+          await context.read<AppProvider>().deleteVisitLog(clue.id, log.id);
+      if (context.mounted && success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('已删除该条跟进记录'), backgroundColor: Colors.orange),
+        );
+      }
+    }
   }
 
   Color _getResultColor(VisitResult result) {
@@ -1114,7 +1169,7 @@ class _TimelineSection extends StatelessWidget {
   }
 }
 
-/// 时间轴单条记录（左侧圆点连线，右侧内容卡片）
+/// 时间轴单条记录（左侧圆点连线，右侧内容卡片，右上角编辑与删除）
 class _TimelineItem extends StatelessWidget {
   final String date;
   final String title;
@@ -1124,6 +1179,11 @@ class _TimelineItem extends StatelessWidget {
   final bool isLast;
   final bool isAiLog;
   final VoidCallback? onTap;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+  final List<String>? tags;
+  final DateTime? nextVisitTime;
+  final bool isEdited;
 
   const _TimelineItem({
     required this.date,
@@ -1134,7 +1194,57 @@ class _TimelineItem extends StatelessWidget {
     required this.isLast,
     this.isAiLog = false,
     this.onTap,
+    this.onEdit,
+    this.onDelete,
+    this.tags,
+    this.nextVisitTime,
+    this.isEdited = false,
   });
+
+  void _showActionSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            if (onEdit != null)
+              ListTile(
+                leading:
+                    const Icon(Icons.edit_outlined, color: Color(0xFF1976D2)),
+                title: const Text('编辑此记录'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  onEdit?.call();
+                },
+              ),
+            if (onDelete != null)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text('删除此记录', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  onDelete?.call();
+                },
+              ),
+            const SizedBox(height: 6),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1189,10 +1299,14 @@ class _TimelineItem extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                     child: InkWell(
                       onTap: onTap,
+                      onLongPress: (onEdit != null || onDelete != null)
+                          ? () => _showActionSheet(context)
+                          : null,
                       borderRadius: BorderRadius.circular(10),
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
                         decoration: BoxDecoration(
                           color: isAiLog
                               ? const Color(0xFF7B1FA2).withValues(alpha: 0.08)
@@ -1200,7 +1314,8 @@ class _TimelineItem extends StatelessWidget {
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
                             color: isAiLog
-                                ? const Color(0xFF7B1FA2).withValues(alpha: 0.35)
+                                ? const Color(0xFF7B1FA2)
+                                    .withValues(alpha: 0.35)
                                 : color.withValues(alpha: 0.22),
                             width: isAiLog ? 1.2 : 1.0,
                           ),
@@ -1221,15 +1336,18 @@ class _TimelineItem extends StatelessWidget {
                                 if (isAiLog) ...[
                                   const SizedBox(width: 8),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF7B1FA2).withValues(alpha: 0.12),
+                                      color: const Color(0xFF7B1FA2)
+                                          .withValues(alpha: 0.12),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: const Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(Icons.auto_awesome, size: 11, color: Color(0xFF7B1FA2)),
+                                        Icon(Icons.auto_awesome,
+                                            size: 11, color: Color(0xFF7B1FA2)),
                                         SizedBox(width: 3),
                                         Text(
                                           'AI诊断',
@@ -1243,6 +1361,69 @@ class _TimelineItem extends StatelessWidget {
                                     ),
                                   ),
                                 ],
+                                if (isEdited) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 5, vertical: 1.5),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[200],
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      '已编辑',
+                                      style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey[600]),
+                                    ),
+                                  ),
+                                ],
+                                const Spacer(),
+                                // ✏️/🗑️ 更多操作菜单
+                                if (onEdit != null || onDelete != null)
+                                  PopupMenuButton<String>(
+                                    icon: Icon(Icons.more_horiz,
+                                        size: 20, color: Colors.grey[600]),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    tooltip: '操作记录',
+                                    onSelected: (val) {
+                                      if (val == 'edit') onEdit?.call();
+                                      if (val == 'delete') onDelete?.call();
+                                    },
+                                    itemBuilder: (ctx) => [
+                                      if (onEdit != null)
+                                        const PopupMenuItem(
+                                          value: 'edit',
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.edit_outlined,
+                                                  size: 16,
+                                                  color: Color(0xFF1976D2)),
+                                              SizedBox(width: 8),
+                                              Text('编辑此记录',
+                                                  style: TextStyle(
+                                                      fontSize: 13.5)),
+                                            ],
+                                          ),
+                                        ),
+                                      if (onDelete != null)
+                                        const PopupMenuItem(
+                                          value: 'delete',
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.delete_outline,
+                                                  size: 16, color: Colors.red),
+                                              SizedBox(width: 8),
+                                              Text('删除此记录',
+                                                  style: TextStyle(
+                                                      fontSize: 13.5,
+                                                      color: Colors.red)),
+                                            ],
+                                          ),
+                                        ),
+                                    ],
+                                  ),
                               ],
                             ),
                             if (subtitle.isNotEmpty) ...[
@@ -1254,6 +1435,63 @@ class _TimelineItem extends StatelessWidget {
                                   color: Color(0xFF37474F),
                                   height: 1.55,
                                 ),
+                              ),
+                            ],
+                            // 下次回访时间标签
+                            if (nextVisitTime != null) ...[
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF8E1),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                      color: const Color(0xFFFFE082),
+                                      width: 0.8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.alarm,
+                                        size: 12, color: Color(0xFFE65100)),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '下次回访：${DateFormat('yyyy-MM-dd HH:mm').format(nextVisitTime!)}',
+                                      style: const TextStyle(
+                                        fontSize: 11.5,
+                                        color: Color(0xFFE65100),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            // 关切点顾虑标签
+                            if (tags != null && tags!.isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 4,
+                                children: tags!
+                                    .map((t) => Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blue
+                                                .withValues(alpha: 0.08),
+                                            borderRadius:
+                                                BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            '#$t',
+                                            style: const TextStyle(
+                                                fontSize: 11,
+                                                color: Color(0xFF1976D2)),
+                                          ),
+                                        ))
+                                    .toList(),
                               ),
                             ],
                             if (isAiLog) ...[

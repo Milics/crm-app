@@ -672,9 +672,15 @@ class AppProvider extends ChangeNotifier {
 
   /// 智能合并本地与云端同一线索的数据（保证任何一端的新回访与状态更新均不丢失）
   Clue _mergeClue(Clue local, Clue remote, {required List<Clue> needsUpload}) {
-    // 1. 合并回访记录 (visitLogs) - 智能业务语义幂等去重
-    // 不仅按 ID 去重，更按 (visitContent + createTime分钟级) 识别同一次跟进，彻底消灭差几毫秒的双胞胎重复记录
-    final allLogs = <VisitLog>[...remote.visitLogs, ...local.visitLogs];
+    // 1. 合并回访记录 (visitLogs) - 智能业务语义幂等去重 + 墓碑防复活
+    // 🛡️ 墓碑防线：合并两端已删除的回访记录ID，被删除的记录直接彻底拦截丢弃
+    final allDeletedVisitLogIds = <String>{
+      ...local.deletedVisitLogIds,
+      ...remote.deletedVisitLogIds,
+    };
+    final allLogs = <VisitLog>[...remote.visitLogs, ...local.visitLogs]
+        .where((l) => !allDeletedVisitLogIds.contains(l.id))
+        .toList();
     final deduplicatedLogs = <VisitLog>[];
     bool localHasNewLogs = false;
 
@@ -686,27 +692,34 @@ class AppProvider extends ChangeNotifier {
     }
 
     VisitLog mergeTwoLogs(VisitLog existing, VisitLog incoming) {
+      // 优先采纳修改时间更新的版本
+      final existingTime = existing.updatedTime ?? existing.createTime;
+      final incomingTime = incoming.updatedTime ?? incoming.createTime;
+      final isIncomingNewer = incomingTime.isAfter(existingTime);
+
+      final primary = isIncomingNewer ? incoming : existing;
+      final secondary = isIncomingNewer ? existing : incoming;
+
       final hasAiIncoming =
-          incoming.aiReport != null && incoming.aiReport!.trim().isNotEmpty;
-      final bestAi = hasAiIncoming ? incoming.aiReport : existing.aiReport;
-      final bestNext = incoming.nextVisitTime ?? existing.nextVisitTime;
+          primary.aiReport != null && primary.aiReport!.trim().isNotEmpty;
+      final bestAi = hasAiIncoming ? primary.aiReport : secondary.aiReport;
+      final bestNext = primary.nextVisitTime ?? secondary.nextVisitTime;
       final bestConcerns =
-          {...existing.concerns, ...incoming.concerns}.toList();
+          {...secondary.concerns, ...primary.concerns}.toList();
       return VisitLog(
-        id: existing.id.compareTo(incoming.id) < 0
-            ? existing.id
-            : incoming.id,
-        clueId: existing.clueId,
-        contactMethod: incoming.contactMethod,
-        visitResult: incoming.visitResult,
-        visitContent: incoming.visitContent.isNotEmpty
-            ? incoming.visitContent
-            : existing.visitContent,
+        id: primary.id,
+        clueId: primary.clueId,
+        contactMethod: primary.contactMethod,
+        visitResult: primary.visitResult,
+        visitContent: primary.visitContent.isNotEmpty
+            ? primary.visitContent
+            : secondary.visitContent,
         concerns: bestConcerns,
         nextVisitTime: bestNext,
         createTime: existing.createTime.isBefore(incoming.createTime)
             ? existing.createTime
             : incoming.createTime,
+        updatedTime: isIncomingNewer ? incoming.updatedTime : existing.updatedTime,
         aiReport: bestAi,
       );
     }
@@ -723,7 +736,8 @@ class AppProvider extends ChangeNotifier {
     }
 
     for (final l in local.visitLogs) {
-      if (!remote.visitLogs.any((r) => isSameVisit(r, l))) {
+      if (!allDeletedVisitLogIds.contains(l.id) &&
+          !remote.visitLogs.any((r) => isSameVisit(r, l))) {
         localHasNewLogs = true;
         break;
       }
@@ -953,6 +967,7 @@ class AppProvider extends ChangeNotifier {
       visitLogs: mergedLogs,
       chatRecords: mergedChats,
       tags: mergedTags,
+      deletedVisitLogIds: allDeletedVisitLogIds.toList(),
     );
 
     // 🛡️ 核心保全规则 7：自愈补推（若合并后字段比云端更丰富，自动加入上传队列自愈修复云端）
@@ -966,6 +981,8 @@ class AppProvider extends ChangeNotifier {
         local.nextVisitTime != null && remote.nextVisitTime == null;
     final bool hasMoreLogs = mergedLogs.length > remote.visitLogs.length;
     final bool hasMoreChats = mergedChats.length > remote.chatRecords.length;
+    final bool deletedLogsEnriched =
+        allDeletedVisitLogIds.length > remote.deletedVisitLogIds.length;
     final bool sourceEnriched = mergedSource != remote.source;
     final bool tagsEnriched = mergedTags.length > remote.tags.length ||
         !mergedTags.every((t) => remote.tags.contains(t));
@@ -980,6 +997,7 @@ class AppProvider extends ChangeNotifier {
         hasNewNextVisitForRemote ||
         hasMoreLogs ||
         hasMoreChats ||
+        deletedLogsEnriched ||
         sourceEnriched ||
         tagsEnriched ||
         intentEnriched ||
@@ -2235,6 +2253,113 @@ class AppProvider extends ChangeNotifier {
       return true;
     }
     return false;
+  }
+
+  /// 修改时间轴回访记录（原子级更新并同步下次回访时间与云端）
+  Future<bool> updateVisitLog(
+    String clueId,
+    VisitLog updatedLog, {
+    ClueStatus? newStatus,
+    IntentLevel? newIntentLevel,
+  }) async {
+    final clue = getClueById(clueId);
+    if (clue == null) return false;
+
+    final index = clue.visitLogs.indexWhere((l) => l.id == updatedLog.id);
+    if (index == -1) return false;
+
+    // 标记修改时间戳
+    final finalLog = updatedLog.copyWith(updatedTime: DateTime.now());
+    clue.visitLogs[index] = finalLog;
+
+    // 重新排序（保持时间倒序）
+    clue.visitLogs.sort((a, b) => b.createTime.compareTo(a.createTime));
+
+    // 智能联动下次回访时间：
+    // 若修改的是最新一条回访记录且指定了下次回访时间，立即同步更新线索的次回访时间
+    if (clue.visitLogs.isNotEmpty && clue.visitLogs.first.id == finalLog.id) {
+      clue.nextVisitTime = finalLog.nextVisitTime;
+    } else {
+      final recentWithNext =
+          clue.visitLogs.where((l) => l.nextVisitTime != null).firstOrNull;
+      if (recentWithNext != null) {
+        clue.nextVisitTime = recentWithNext.nextVisitTime;
+      }
+    }
+
+    if (newStatus != null) {
+      clue.status = newStatus;
+    }
+    if (newIntentLevel != null) {
+      clue.intentLevel = newIntentLevel;
+    }
+
+    notifyListeners();
+    await _saveCluesLocalOnly();
+
+    if (!_isMockClue(clue)) {
+      try {
+        await _crmSyncService
+            .saveClues([clue])
+            .timeout(const Duration(seconds: 3));
+      } catch (e) {
+        debugPrint('⚠️ [CrmSync] 更新回访记录上传云端稍有延迟: $e');
+      }
+      try {
+        _tencentService.saveClue(clue);
+      } catch (_) {}
+      try {
+        _firestoreService.saveClue(clue);
+      } catch (_) {}
+    }
+
+    return true;
+  }
+
+  /// 删除时间轴回访记录（附带墓碑机制防复活，智能重新联动次回访时间）
+  Future<bool> deleteVisitLog(String clueId, String logId) async {
+    final clue = getClueById(clueId);
+    if (clue == null) return false;
+
+    final initialCount = clue.visitLogs.length;
+    clue.visitLogs.removeWhere((l) => l.id == logId);
+    if (clue.visitLogs.length == initialCount) return false;
+
+    // 🛡️ 墓碑机制：记入已删除名单，防止多端同步时死而复生
+    if (!clue.deletedVisitLogIds.contains(logId)) {
+      clue.deletedVisitLogIds.add(logId);
+    }
+
+    // 重新排序并智能联动次回访时间
+    clue.visitLogs.sort((a, b) => b.createTime.compareTo(a.createTime));
+    if (clue.visitLogs.isEmpty) {
+      clue.nextVisitTime = null;
+    } else {
+      final recentWithNext =
+          clue.visitLogs.where((l) => l.nextVisitTime != null).firstOrNull;
+      clue.nextVisitTime = recentWithNext?.nextVisitTime;
+    }
+
+    notifyListeners();
+    await _saveCluesLocalOnly();
+
+    if (!_isMockClue(clue)) {
+      try {
+        await _crmSyncService
+            .saveClues([clue])
+            .timeout(const Duration(seconds: 3));
+      } catch (e) {
+        debugPrint('⚠️ [CrmSync] 删除回访记录上报云端稍有延迟: $e');
+      }
+      try {
+        _tencentService.saveClue(clue);
+      } catch (_) {}
+      try {
+        _firestoreService.saveClue(clue);
+      } catch (_) {}
+    }
+
+    return true;
   }
 
   // 批量追加聊天截图并触发云端与本地双向同步

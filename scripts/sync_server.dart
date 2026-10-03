@@ -93,21 +93,36 @@ void main() async {
       Map<String, dynamic> existing, Map<String, dynamic> incoming) {
     final merged = Map<String, dynamic>.from(existing);
 
-    // 1. 回访记录 (visitLogs) 增量去重合并
+    // 0. 回访记录删除墓碑 (deletedVisitLogIds) 并集合并
+    final existingDeletedLogs =
+        ((existing['deletedVisitLogIds'] as List<dynamic>?) ?? [])
+            .map((e) => e.toString())
+            .toSet();
+    final incomingDeletedLogs =
+        ((incoming['deletedVisitLogIds'] as List<dynamic>?) ?? [])
+            .map((e) => e.toString())
+            .toSet();
+    final allDeletedVisitLogIds = {...existingDeletedLogs, ...incomingDeletedLogs};
+    merged['deletedVisitLogIds'] = allDeletedVisitLogIds.toList();
+
+    // 1. 回访记录 (visitLogs) 增量去重合并 + 墓碑防复活
     final existingLogs = (existing['visitLogs'] as List<dynamic>?) ?? [];
     final incomingLogs = (incoming['visitLogs'] as List<dynamic>?) ?? [];
     final logMap = <String, Map<String, dynamic>>{};
     for (var l in existingLogs) {
       if (l is Map) {
         final m = Map<String, dynamic>.from(l);
-        if (m['id'] != null) logMap[m['id'].toString()] = m;
+        final idStr = m['id']?.toString();
+        if (idStr != null && !allDeletedVisitLogIds.contains(idStr)) {
+          logMap[idStr] = m;
+        }
       }
     }
     for (var l in incomingLogs) {
       if (l is Map) {
         final m = Map<String, dynamic>.from(l);
-        if (m['id'] != null) {
-          final idStr = m['id'].toString();
+        final idStr = m['id']?.toString();
+        if (idStr != null && !allDeletedVisitLogIds.contains(idStr)) {
           final oldLog = logMap[idStr];
           if (oldLog != null) {
             // 保留历史回访中可能已有的 AI 诊断报告

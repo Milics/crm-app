@@ -63,6 +63,7 @@ class Clue {
   List<VisitLog> visitLogs;
   List<ChatRecord> chatRecords;
   List<String> tags;
+  List<String> deletedVisitLogIds; // 回访记录删除墓碑集合，确保多端同步永不复活
   String remark;
   String ownerName; // 归属老师姓名
   String? aiAnalysisReport; // 最新保存的 AI 大模型深度分析报告
@@ -86,6 +87,7 @@ class Clue {
     List<VisitLog>? visitLogs,
     List<ChatRecord>? chatRecords,
     List<String>? tags,
+    List<String>? deletedVisitLogIds,
     this.remark = '',
     this.ownerName = '',
     this.aiAnalysisReport,
@@ -93,7 +95,8 @@ class Clue {
     this.enrollAmount,
   })  : visitLogs = visitLogs ?? [],
         chatRecords = chatRecords ?? [],
-        tags = tags ?? [];
+        tags = tags ?? [],
+        deletedVisitLogIds = deletedVisitLogIds ?? [];
 
   Clue copyWith({
     String? id,
@@ -112,6 +115,7 @@ class Clue {
     List<VisitLog>? visitLogs,
     List<ChatRecord>? chatRecords,
     List<String>? tags,
+    List<String>? deletedVisitLogIds,
     String? remark,
     String? ownerName,
     String? aiAnalysisReport,
@@ -135,6 +139,8 @@ class Clue {
       visitLogs: visitLogs ?? List.from(this.visitLogs),
       chatRecords: chatRecords ?? List.from(this.chatRecords),
       tags: tags ?? List.from(this.tags),
+      deletedVisitLogIds:
+          deletedVisitLogIds ?? List.from(this.deletedVisitLogIds),
       remark: remark ?? this.remark,
       ownerName: ownerName ?? this.ownerName,
       aiAnalysisReport: aiAnalysisReport ?? this.aiAnalysisReport,
@@ -162,6 +168,7 @@ class Clue {
             .map((c) => c.toJson(includeImageData: includeImageData))
             .toList(),
         'tags': tags,
+        'deletedVisitLogIds': deletedVisitLogIds,
         'remark': remark,
         'ownerName': ownerName,
         'aiAnalysisReport': aiAnalysisReport,
@@ -198,6 +205,10 @@ class Clue {
                 .toList() ??
             [],
         tags: (json['tags'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            [],
+        deletedVisitLogIds: (json['deletedVisitLogIds'] as List<dynamic>?)
                 ?.map((e) => e.toString())
                 .toList() ??
             [],
@@ -253,6 +264,7 @@ class VisitLog {
   List<String> concerns;
   DateTime? nextVisitTime;
   final DateTime createTime;
+  DateTime? updatedTime; // 记录最近一次修改的时间戳
   String? aiReport; // 本次回访记录关联的 AI 深度分析报告内容
 
   VisitLog({
@@ -264,8 +276,35 @@ class VisitLog {
     List<String>? concerns,
     this.nextVisitTime,
     required this.createTime,
+    this.updatedTime,
     this.aiReport,
   }) : concerns = concerns ?? [];
+
+  VisitLog copyWith({
+    String? id,
+    String? clueId,
+    ContactMethod? contactMethod,
+    VisitResult? visitResult,
+    String? visitContent,
+    List<String>? concerns,
+    DateTime? nextVisitTime,
+    DateTime? createTime,
+    DateTime? updatedTime,
+    String? aiReport,
+  }) {
+    return VisitLog(
+      id: id ?? this.id,
+      clueId: clueId ?? this.clueId,
+      contactMethod: contactMethod ?? this.contactMethod,
+      visitResult: visitResult ?? this.visitResult,
+      visitContent: visitContent ?? this.visitContent,
+      concerns: concerns ?? List.from(this.concerns),
+      nextVisitTime: nextVisitTime ?? this.nextVisitTime,
+      createTime: createTime ?? this.createTime,
+      updatedTime: updatedTime ?? this.updatedTime,
+      aiReport: aiReport ?? this.aiReport,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -276,6 +315,7 @@ class VisitLog {
         'concerns': concerns,
         'nextVisitTime': nextVisitTime?.toIso8601String(),
         'createTime': createTime.toIso8601String(),
+        'updatedTime': updatedTime?.toIso8601String(),
         'aiReport': aiReport,
       };
 
@@ -294,6 +334,7 @@ class VisitLog {
         concerns: List<String>.from(json['concerns'] ?? []),
         nextVisitTime: _safeParseDatetime(json['nextVisitTime']),
         createTime: _safeParseDatetime(json['createTime']) ?? DateTime.now(),
+        updatedTime: _safeParseDatetime(json['updatedTime']),
         aiReport: json['aiReport'] as String?,
       );
 }

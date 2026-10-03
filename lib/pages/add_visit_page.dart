@@ -3,10 +3,13 @@ import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../models/clue.dart';
 
-/// 新增回访独立页（按原型图：沟通方式/回访结果单选/顾虑标签/天数选择）
+/// 新增/编辑回访独立页（按原型图：沟通方式/回访结果单选/顾虑标签/天数选择）
 class AddVisitPage extends StatefulWidget {
   final String clueId;
-  const AddVisitPage({super.key, required this.clueId});
+  final VisitLog? existingLog; // 若传入则为编辑模式
+  const AddVisitPage({super.key, required this.clueId, this.existingLog});
+
+  bool get isEditing => existingLog != null;
 
   @override
   State<AddVisitPage> createState() => _AddVisitPageState();
@@ -29,6 +32,29 @@ class _AddVisitPageState extends State<AddVisitPage> {
   TimeOfDay _nextVisitTime = const TimeOfDay(hour: 14, minute: 30);
 
   final List<String> _concernOptions = ['学费', '基础', '住宿', '时间', '距离', '效果'];
+
+  @override
+  void initState() {
+    super.initState();
+    // 🛡️ 编辑模式：自动回填已有记录的沟通方式、结果、内容、关切点及下次回访时间
+    if (widget.existingLog != null) {
+      final log = widget.existingLog!;
+      _contactMethod = log.contactMethod;
+      _visitResult = log.visitResult;
+      _contentCtrl.text = log.visitContent;
+      _selectedConcerns.addAll(log.concerns);
+      if (log.nextVisitTime != null) {
+        _enableNextVisit = true;
+        _nextVisitDate = log.nextVisitTime!;
+        _nextVisitTime = TimeOfDay(
+          hour: log.nextVisitTime!.hour,
+          minute: log.nextVisitTime!.minute,
+        );
+      } else {
+        _enableNextVisit = false;
+      }
+    }
+  }
 
   @override
   void didChangeDependencies() {
@@ -82,38 +108,102 @@ class _AddVisitPageState extends State<AddVisitPage> {
       );
     }
 
-    final log = VisitLog(
-      id: provider.generateId(),
-      clueId: widget.clueId,
-      contactMethod: _contactMethod,
-      visitResult: _visitResult,
-      visitContent: _contentCtrl.text.trim(),
-      concerns: _selectedConcerns.toList(),
-      nextVisitTime: finalNextVisitTime,
-      createTime: DateTime.now(),
-    );
-
-    final success = await provider.addVisitLog(
-      widget.clueId,
-      log,
-      newStatus: _status,
-      newIntentLevel: _intentLevel,
-    );
+    bool success = false;
+    if (widget.isEditing) {
+      // ✏️ 编辑模式：原子更新指定记录
+      final updated = widget.existingLog!.copyWith(
+        contactMethod: _contactMethod,
+        visitResult: _visitResult,
+        visitContent: _contentCtrl.text.trim(),
+        concerns: _selectedConcerns.toList(),
+        nextVisitTime: finalNextVisitTime,
+      );
+      success = await provider.updateVisitLog(
+        widget.clueId,
+        updated,
+        newStatus: _status,
+        newIntentLevel: _intentLevel,
+      );
+    } else {
+      // ➕ 新增模式：创建全新回访记录
+      final log = VisitLog(
+        id: provider.generateId(),
+        clueId: widget.clueId,
+        contactMethod: _contactMethod,
+        visitResult: _visitResult,
+        visitContent: _contentCtrl.text.trim(),
+        concerns: _selectedConcerns.toList(),
+        nextVisitTime: finalNextVisitTime,
+        createTime: DateTime.now(),
+      );
+      success = await provider.addVisitLog(
+        widget.clueId,
+        log,
+        newStatus: _status,
+        newIntentLevel: _intentLevel,
+      );
+    }
 
     if (!mounted) return;
 
     if (success) {
-      // 提前持有 messenger 引用，避免 pop 后 context 卸载导致失效
       final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context, true);
       messenger.showSnackBar(
-        const SnackBar(content: Text('回访记录已保存'), backgroundColor: Colors.green),
+        SnackBar(
+          content: Text(widget.isEditing ? '跟进记录已修改' : '回访记录已保存'),
+          backgroundColor: Colors.green,
+        ),
       );
     } else {
       setState(() => _isSaving = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('保存失败，请稍后重试'), backgroundColor: Colors.red),
       );
+    }
+  }
+
+  Future<void> _confirmDelete() async {
+    if (!widget.isEditing || _isSaving) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('删除跟进记录'),
+        content: const Text('确定要删除该条跟进记录吗？删除后将从时间轴中移除，无法恢复。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('确认删除',
+                style:
+                    TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() => _isSaving = true);
+      final success = await context
+          .read<AppProvider>()
+          .deleteVisitLog(widget.clueId, widget.existingLog!.id);
+      if (!mounted) return;
+      if (success) {
+        final messenger = ScaffoldMessenger.of(context);
+        Navigator.pop(context, true);
+        messenger.showSnackBar(
+          const SnackBar(
+              content: Text('已删除该条跟进记录'), backgroundColor: Colors.orange),
+        );
+      } else {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('删除失败，请重试'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -167,7 +257,17 @@ class _AddVisitPageState extends State<AddVisitPage> {
     return PopScope(
       canPop: !_isSaving,
       child: Scaffold(
-        appBar: AppBar(title: const Text('新增回访')),
+        appBar: AppBar(
+          title: Text(widget.isEditing ? '编辑跟进记录' : '新增回访'),
+          actions: [
+            if (widget.isEditing)
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                tooltip: '删除此记录',
+                onPressed: _isSaving ? null : _confirmDelete,
+              ),
+          ],
+        ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -632,9 +732,31 @@ class _AddVisitPageState extends State<AddVisitPage> {
                           color: Colors.white,
                         ),
                       )
-                    : const Text('保存回访记录', style: TextStyle(fontSize: 16)),
+                    : Text(
+                        widget.isEditing ? '保存修改' : '保存回访记录',
+                        style: const TextStyle(fontSize: 16),
+                      ),
               ),
             ),
+            if (widget.isEditing) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton.icon(
+                  onPressed: _isSaving ? null : _confirmDelete,
+                  icon: const Icon(Icons.delete_outline,
+                      color: Colors.red, size: 18),
+                  label: const Text('删除此条跟进记录',
+                      style: TextStyle(
+                          color: Colors.red,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold)),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
