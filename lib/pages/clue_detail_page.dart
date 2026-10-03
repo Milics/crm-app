@@ -356,6 +356,51 @@ class _HeaderCardState extends State<_HeaderCard> {
                               ),
                             ],
                           ),
+                          if (clue.status == ClueStatus.enrolled) ...[
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _InfoChip(
+                                    label: '报名时间',
+                                    value: DateFormat('yyyy-MM-dd HH:mm')
+                                        .format(clue.effectiveEnrollTime),
+                                    enableCopy: false,
+                                    actionIcon: Icons.edit_calendar_outlined,
+                                    customTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (_) =>
+                                              EnrollPage(clue: clue)),
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                    width: 1,
+                                    height: 30,
+                                    color: Colors.white24),
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(left: 12),
+                                    child: _InfoChip(
+                                      label: '报名备注',
+                                      value: clue.remark.isEmpty
+                                          ? '无特殊备注'
+                                          : clue.remark,
+                                      enableCopy: true,
+                                      actionIcon: Icons.edit_outlined,
+                                      customTap: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (_) =>
+                                                EnrollPage(clue: clue)),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                           if (clue.tags.isNotEmpty) ...[
                             const SizedBox(height: 12),
                             Align(
@@ -999,7 +1044,8 @@ class _TimelineSection extends StatelessWidget {
         logs.add(l);
       }
     }
-    final totalCount = logs.length + 1;
+    final isEnrolled = clue.status == ClueStatus.enrolled;
+    final totalCount = logs.length + 1 + (isEnrolled ? 1 : 0);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12),
@@ -1047,12 +1093,31 @@ class _TimelineSection extends StatelessWidget {
                 '来源：${clue.source.isEmpty ? "未知" : clue.source} · 归属顾问：${clue.ownerName.isEmpty ? "待分配" : clue.ownerName}',
             color: const Color(0xFF1976D2),
             dotFilled: true,
-            isLast: logs.isEmpty,
+            isLast: !isEnrolled && logs.isEmpty,
             onEdit: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => EditCluePage(clue: clue)),
             ),
           ),
+
+          // 报名成功节点（支持点击直接进入报名详情修改报名时间与信息）
+          if (isEnrolled)
+            _TimelineItem(
+              date: DateFormat('yyyy.MM.dd HH:mm')
+                  .format(clue.effectiveEnrollTime),
+              title: '成功报名',
+              subtitle:
+                  '已报班型：${clue.classType.isEmpty ? "未指定" : clue.classType}'
+                  '${clue.enrollAmount != null ? " · 预交金额：¥${clue.enrollAmount! % 1 == 0 ? clue.enrollAmount!.toInt() : clue.enrollAmount}" : ""}'
+                  '${clue.remark.isNotEmpty ? " · 备注：${clue.remark}" : ""}',
+              color: const Color(0xFF2E7D32),
+              dotFilled: true,
+              isLast: logs.isEmpty,
+              onEdit: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => EnrollPage(clue: clue)),
+              ),
+            ),
 
           // 回访记录（支持修改内容、次回访时间与删除写错记录）
           ...logs.asMap().entries.map((e) {

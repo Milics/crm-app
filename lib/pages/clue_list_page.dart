@@ -1494,7 +1494,7 @@ class _EnrolledCard extends StatelessWidget {
                             size: 12, color: Colors.grey[500]),
                         const SizedBox(width: 4),
                         Text(
-                          '报名日期：${DateFormat('yyyy-MM-dd').format(clue.createTime)}',
+                          '报名日期：${DateFormat('yyyy-MM-dd').format(clue.effectiveEnrollTime)}',
                           style: TextStyle(
                               fontSize: 12, color: Colors.grey[600]),
                         ),

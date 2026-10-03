@@ -70,6 +70,10 @@ class Clue {
   String? aiAnalysisReport; // 最新保存的 AI 大模型深度分析报告
   DateTime? aiAnalysisTime; // 最新分析生成时间
   double? enrollAmount; // 报名预交金额（元）
+  DateTime? enrollTime; // 报名时间（支持自定义与修改）
+
+  /// 有效报名时间（若未指定 enrollTime 则兼容回退到 createTime）
+  DateTime get effectiveEnrollTime => enrollTime ?? createTime;
 
   Clue({
     required this.id,
@@ -95,6 +99,7 @@ class Clue {
     this.aiAnalysisReport,
     this.aiAnalysisTime,
     this.enrollAmount,
+    this.enrollTime,
   })  : visitLogs = visitLogs ?? [],
         chatRecords = chatRecords ?? [],
         tags = tags ?? [],
@@ -125,6 +130,7 @@ class Clue {
     String? aiAnalysisReport,
     DateTime? aiAnalysisTime,
     double? enrollAmount,
+    DateTime? enrollTime,
   }) {
     return Clue(
       id: id ?? this.id,
@@ -152,6 +158,7 @@ class Clue {
       aiAnalysisReport: aiAnalysisReport ?? this.aiAnalysisReport,
       aiAnalysisTime: aiAnalysisTime ?? this.aiAnalysisTime,
       enrollAmount: enrollAmount ?? this.enrollAmount,
+      enrollTime: enrollTime ?? this.enrollTime,
     );
   }
 
@@ -181,6 +188,7 @@ class Clue {
         'aiAnalysisReport': aiAnalysisReport,
         'aiAnalysisTime': aiAnalysisTime?.toIso8601String(),
         'enrollAmount': enrollAmount,
+        'enrollTime': enrollTime?.toIso8601String(),
       };
 
   factory Clue.fromJson(Map<String, dynamic> json) => Clue(
@@ -232,6 +240,7 @@ class Clue {
                 ? (json['enrollAmount'] as num).toDouble()
                 : double.tryParse(json['enrollAmount'].toString()))
             : null,
+        enrollTime: _safeParseDatetime(json['enrollTime']),
       );
 
   String get statusText {

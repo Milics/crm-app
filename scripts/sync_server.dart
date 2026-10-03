@@ -279,7 +279,8 @@ void main() async {
       'status',
       'intentLevel',
       'remark',
-      'enrollAmount'
+      'enrollAmount',
+      'enrollTime'
     ]) {
       if (incoming.containsKey(key) && incoming[key] != null) {
         if (incoming[key] is String &&

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../models/clue.dart';
 
-/// 转为报名独立页（原型图：班型选择 + 预交金额 + 备注 + 确认按钮）
+/// 转为报名独立页（原型图：班型选择 + 预交金额 + 报名时间 + 备注 + 确认按钮）
 class EnrollPage extends StatefulWidget {
   final Clue clue;
   const EnrollPage({super.key, required this.clue});
@@ -16,6 +17,7 @@ class _EnrollPageState extends State<EnrollPage> {
   int _selectedClassType = 0;
   final _amountCtrl = TextEditingController();
   final _remarkCtrl = TextEditingController();
+  late DateTime _enrollTime;
   bool _loading = false;
 
   late final List<_ClassType> _classTypes;
@@ -72,6 +74,11 @@ class _EnrollPageState extends State<EnrollPage> {
     if (widget.clue.remark.isNotEmpty) {
       _remarkCtrl.text = widget.clue.remark;
     }
+    // 自动回显报名时间（已报名学员优先使用其报名时间，未设时取其有效报名时间；新报名默认为当前时间）
+    _enrollTime = widget.clue.enrollTime ??
+        (widget.clue.status == ClueStatus.enrolled
+            ? widget.clue.effectiveEnrollTime
+            : DateTime.now());
   }
 
   @override
@@ -79,6 +86,40 @@ class _EnrollPageState extends State<EnrollPage> {
     _amountCtrl.dispose();
     _remarkCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickEnrollTime() async {
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _enrollTime,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2035),
+      helpText: '选择报名日期',
+      cancelText: '取消',
+      confirmText: '下一步',
+    );
+    if (pickedDate == null || !mounted) return;
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_enrollTime),
+      helpText: '选择报名具体时间',
+      cancelText: '取消',
+      confirmText: '确定',
+    );
+    if (!mounted) return;
+
+    final finalTime = pickedTime ?? TimeOfDay.fromDateTime(_enrollTime);
+
+    setState(() {
+      _enrollTime = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+        finalTime.hour,
+        finalTime.minute,
+      );
+    });
   }
 
   Future<void> _confirmEnroll() async {
@@ -112,6 +153,7 @@ class _EnrollPageState extends State<EnrollPage> {
         _classTypes[_selectedClassType].name,
         amount,
         _remarkCtrl.text.trim(),
+        enrollTime: _enrollTime,
       );
     } else {
       provider.enrollClue(
@@ -119,6 +161,7 @@ class _EnrollPageState extends State<EnrollPage> {
         _classTypes[_selectedClassType].name,
         _remarkCtrl.text.trim(),
         enrollAmount: amount,
+        enrollTime: _enrollTime,
       );
     }
     setState(() => _loading = false);
@@ -349,6 +392,81 @@ class _EnrollPageState extends State<EnrollPage> {
                   ),
                   const SizedBox(height: 16),
 
+                  // 报名时间
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const _SectionTitle(title: '报名时间'),
+                      TextButton.icon(
+                        onPressed: () => setState(() => _enrollTime = DateTime.now()),
+                        icon: const Icon(Icons.restore, size: 15),
+                        label: const Text('设为当前时间', style: TextStyle(fontSize: 12)),
+                        style: TextButton.styleFrom(
+                          foregroundColor: themeColor,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  InkWell(
+                    onTap: _pickEnrollTime,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 13),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey[200]!),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.calendar_month_rounded,
+                              color: themeColor, size: 20),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              DateFormat('yyyy-MM-dd HH:mm').format(_enrollTime),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF222222),
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: themeColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.edit_calendar_outlined,
+                                    size: 14, color: themeColor),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '修改时间',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: themeColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
                   // 备注信息
                   const _SectionTitle(title: '备注信息'),
                   const SizedBox(height: 10),
@@ -392,7 +510,7 @@ class _EnrollPageState extends State<EnrollPage> {
                         Expanded(
                           child: Text(
                             isEnrolled
-                                ? '该学员已成功报名，如班型、预交金额或特殊协议备注有变动，可直接修改并保存更新。'
+                                ? '该学员已成功报名，如班型、预交金额、报名时间或特殊协议备注有变动，可直接修改并保存更新。'
                                 : '确认后，该线索状态将更新为"已报名"，请核实信息无误后再提交。',
                             style: TextStyle(
                                 color: isEnrolled

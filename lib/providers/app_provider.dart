@@ -974,6 +974,9 @@ class AppProvider extends ChangeNotifier {
           ? (local.remark.isNotEmpty ? local.remark : remote.remark)
           : (remote.remark.isNotEmpty ? remote.remark : local.remark),
       enrollAmount: local.enrollAmount ?? remote.enrollAmount,
+      enrollTime: preferLocal
+          ? (local.enrollTime ?? remote.enrollTime)
+          : (remote.enrollTime ?? local.enrollTime),
       aiAnalysisReport: mergedAiReport,
       aiAnalysisTime: mergedAiTime,
       createTime: local.createTime.isBefore(remote.createTime)
@@ -2425,8 +2428,9 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  // 转为报名
-  void enrollClue(String clueId, String classType, String remark, {double? enrollAmount}) {
+  // 转为报名（支持指定或默认当前真实报名时间）
+  void enrollClue(String clueId, String classType, String remark,
+      {double? enrollAmount, DateTime? enrollTime}) {
     final clue = getClueById(clueId);
     if (clue != null) {
       clue.status = ClueStatus.enrolled;
@@ -2435,19 +2439,25 @@ class AppProvider extends ChangeNotifier {
       if (enrollAmount != null) {
         clue.enrollAmount = enrollAmount;
       }
+      clue.enrollTime = enrollTime ?? DateTime.now();
       clue.nextVisitTime = null;
       notifyListeners();
       _saveClues(changedClue: clue);
     }
   }
 
-  // 修改报名详情信息（已报名学员更新班型、金额及备注）
-  void updateEnrollInfo(String clueId, String classType, double? enrollAmount, String remark) {
+  // 修改报名详情信息（已报名学员更新班型、金额、备注以及修改报名时间）
+  void updateEnrollInfo(
+      String clueId, String classType, double? enrollAmount, String remark,
+      {DateTime? enrollTime}) {
     final clue = getClueById(clueId);
     if (clue != null) {
       clue.classType = classType;
       clue.enrollAmount = enrollAmount;
       clue.remark = remark;
+      if (enrollTime != null) {
+        clue.enrollTime = enrollTime;
+      }
       notifyListeners();
       _saveClues(changedClue: clue);
     }
