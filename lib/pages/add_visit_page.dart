@@ -30,6 +30,7 @@ class _AddVisitPageState extends State<AddVisitPage> {
   bool _enableNextVisit = true;
   DateTime _nextVisitDate = DateTime.now().add(const Duration(days: 1));
   TimeOfDay _nextVisitTime = const TimeOfDay(hour: 14, minute: 30);
+  bool _isCustomPicked = false;
 
   final List<String> _concernOptions = ['学费', '基础', '住宿', '时间', '距离', '效果'];
 
@@ -50,6 +51,24 @@ class _AddVisitPageState extends State<AddVisitPage> {
           hour: log.nextVisitTime!.hour,
           minute: log.nextVisitTime!.minute,
         );
+        final now = DateTime.now();
+        final isToday = _nextVisitDate.year == now.year &&
+            _nextVisitDate.month == now.month &&
+            _nextVisitDate.day == now.day;
+        final isTomorrow = _nextVisitDate.year == now.year &&
+            _nextVisitDate.month == now.month &&
+            _nextVisitDate.day == now.day + 1;
+        final d3 = now.add(const Duration(days: 3));
+        final isDay3 = _nextVisitDate.year == d3.year &&
+            _nextVisitDate.month == d3.month &&
+            _nextVisitDate.day == d3.day;
+        final d7 = now.add(const Duration(days: 7));
+        final isDay7 = _nextVisitDate.year == d7.year &&
+            _nextVisitDate.month == d7.month &&
+            _nextVisitDate.day == d7.day;
+        if (!isToday && !isTomorrow && !isDay3 && !isDay7) {
+          _isCustomPicked = true;
+        }
       } else {
         _enableNextVisit = false;
       }
@@ -209,15 +228,20 @@ class _AddVisitPageState extends State<AddVisitPage> {
 
   Future<void> _pickCustomDate() async {
     final now = DateTime.now();
+    final initial = _nextVisitDate.isBefore(now) ? now : _nextVisitDate;
     final picked = await showDatePicker(
       context: context,
-      initialDate: _nextVisitDate,
+      initialDate: initial,
       firstDate: now,
       lastDate: now.add(const Duration(days: 365)),
+      helpText: '选择下次回访日期',
+      cancelText: '取消',
+      confirmText: '确定',
     );
     if (picked != null) {
       setState(() {
         _enableNextVisit = true;
+        _isCustomPicked = true;
         _nextVisitDate = picked;
       });
     }
@@ -245,6 +269,20 @@ class _AddVisitPageState extends State<AddVisitPage> {
     final isTomorrow = _nextVisitDate.year == now.year &&
         _nextVisitDate.month == now.month &&
         _nextVisitDate.day == now.day + 1;
+    final day3 = now.add(const Duration(days: 3));
+    final isDay3 = _nextVisitDate.year == day3.year &&
+        _nextVisitDate.month == day3.month &&
+        _nextVisitDate.day == day3.day;
+    final day7 = now.add(const Duration(days: 7));
+    final isDay7 = _nextVisitDate.year == day7.year &&
+        _nextVisitDate.month == day7.month &&
+        _nextVisitDate.day == day7.day;
+
+    final isCustomDateSelected = _enableNextVisit &&
+        (_isCustomPicked || (!isToday && !isTomorrow && !isDay3 && !isDay7));
+    final customDateLabel = isCustomDateSelected
+        ? '${_nextVisitDate.month}月${_nextVisitDate.day}日'
+        : '自选日期';
 
     final dateLabel = isToday
         ? '今天'
@@ -573,57 +611,59 @@ class _AddVisitPageState extends State<AddVisitPage> {
                     child: Row(
                       children: [
                         _QuickDateChip(
-                          label: '不设提醒',
-                          selected: !_enableNextVisit,
-                          onTap: () => setState(() => _enableNextVisit = false),
+                          icon: Icons.calendar_month,
+                          label: customDateLabel,
+                          selected: isCustomDateSelected,
+                          onTap: _pickCustomDate,
                         ),
                         const SizedBox(width: 8),
                         _QuickDateChip(
                           label: '今天',
-                          selected: _enableNextVisit && isToday,
+                          selected: _enableNextVisit && !isCustomDateSelected && isToday,
                           onTap: () => setState(() {
                             _enableNextVisit = true;
+                            _isCustomPicked = false;
                             _nextVisitDate = now;
                           }),
                         ),
                         const SizedBox(width: 8),
                         _QuickDateChip(
                           label: '明天',
-                          selected: _enableNextVisit && isTomorrow,
+                          selected: _enableNextVisit && !isCustomDateSelected && isTomorrow,
                           onTap: () => setState(() {
                             _enableNextVisit = true;
+                            _isCustomPicked = false;
                             _nextVisitDate = now.add(const Duration(days: 1));
                           }),
                         ),
                         const SizedBox(width: 8),
                         _QuickDateChip(
                           label: '3天后',
-                          selected: _enableNextVisit &&
-                              _nextVisitDate.day == now.add(const Duration(days: 3)).day,
+                          selected: _enableNextVisit && !isCustomDateSelected && isDay3,
                           onTap: () => setState(() {
                             _enableNextVisit = true;
+                            _isCustomPicked = false;
                             _nextVisitDate = now.add(const Duration(days: 3));
                           }),
                         ),
                         const SizedBox(width: 8),
                         _QuickDateChip(
                           label: '7天后',
-                          selected: _enableNextVisit &&
-                              _nextVisitDate.day == now.add(const Duration(days: 7)).day,
+                          selected: _enableNextVisit && !isCustomDateSelected && isDay7,
                           onTap: () => setState(() {
                             _enableNextVisit = true;
+                            _isCustomPicked = false;
                             _nextVisitDate = now.add(const Duration(days: 7));
                           }),
                         ),
                         const SizedBox(width: 8),
-                        OutlinedButton.icon(
-                          onPressed: _pickCustomDate,
-                          icon: const Icon(Icons.calendar_month, size: 16),
-                          label: const Text('自选日期', style: TextStyle(fontSize: 12)),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                            visualDensity: VisualDensity.compact,
-                          ),
+                        _QuickDateChip(
+                          label: '不设提醒',
+                          selected: !_enableNextVisit,
+                          onTap: () => setState(() {
+                            _enableNextVisit = false;
+                            _isCustomPicked = false;
+                          }),
                         ),
                       ],
                     ),
@@ -775,11 +815,13 @@ class _QuickDateChip extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final IconData? icon;
 
   const _QuickDateChip({
     required this.label,
     required this.selected,
     required this.onTap,
+    this.icon,
   });
 
   @override
@@ -795,13 +837,26 @@ class _QuickDateChip extends StatelessWidget {
             color: selected ? const Color(0xFF1976D2) : Colors.grey[300]!,
           ),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: selected ? Colors.white : Colors.grey[700],
-            fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(
+                icon,
+                size: 14,
+                color: selected ? Colors.white : const Color(0xFF1976D2),
+              ),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: selected ? Colors.white : Colors.grey[700],
+                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
         ),
       ),
     );
