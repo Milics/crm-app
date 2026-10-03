@@ -973,7 +973,9 @@ class AppProvider extends ChangeNotifier {
       remark: preferLocal
           ? (local.remark.isNotEmpty ? local.remark : remote.remark)
           : (remote.remark.isNotEmpty ? remote.remark : local.remark),
-      enrollAmount: local.enrollAmount ?? remote.enrollAmount,
+      enrollAmount: preferLocal
+          ? (local.enrollAmount ?? remote.enrollAmount)
+          : (remote.enrollAmount ?? local.enrollAmount),
       enrollTime: preferLocal
           ? (local.enrollTime ?? remote.enrollTime)
           : (remote.enrollTime ?? local.enrollTime),
@@ -989,7 +991,7 @@ class AppProvider extends ChangeNotifier {
       deletedChatRecordIds: allDeletedChatRecordIds.toList(),
     );
 
-    // 🛡️ 核心保全规则 7：自愈补推（若合并后字段比云端更丰富，自动加入上传队列自愈修复云端）
+    // 🛡️ 核心保全规则 7：自愈补推（若合并后字段比云端更丰富或发生关键更新，自动加入上传队列自愈修复云端）
     final bool hasNewAiForRemote = (localHasAi && !remoteHasAi) ||
         (localHasAi &&
             remoteHasAi &&
@@ -1009,6 +1011,9 @@ class AppProvider extends ChangeNotifier {
         mergedIntentLevel == IntentLevel.high;
     final bool schoolEnriched =
         mergedClue.school.isNotEmpty && remote.school.isEmpty;
+    final bool enrollEnriched =
+        (mergedClue.enrollAmount != remote.enrollAmount && mergedClue.enrollAmount != null) ||
+        (mergedClue.enrollTime != remote.enrollTime && mergedClue.enrollTime != null);
 
     if (preferLocal ||
         localHasNewChats ||
@@ -1020,7 +1025,8 @@ class AppProvider extends ChangeNotifier {
         sourceEnriched ||
         tagsEnriched ||
         intentEnriched ||
-        schoolEnriched) {
+        schoolEnriched ||
+        enrollEnriched) {
       needsUpload.add(mergedClue);
     }
 

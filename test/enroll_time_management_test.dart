@@ -170,5 +170,42 @@ void main() {
       expect(savedClue.enrollTime!.month, equals(now.month));
       expect(savedClue.enrollTime!.day, equals(now.day));
     });
+
+    test('6. 云端与多端合并：enrollTime 与 enrollAmount 正确合并保全，且自动触发 needsUpload 自愈上报', () {
+      final provider = AppProvider();
+
+      final localTime = DateTime(2025, 6, 1, 10, 0);
+      final localClue = Clue(
+        id: 'c_merge_enroll_01',
+        wxNick: '周八',
+        status: ClueStatus.enrolled,
+        createTime: DateTime(2025, 3, 1),
+        classType: '全程协议班',
+        enrollAmount: 3000,
+        enrollTime: localTime,
+      );
+
+      final remoteClue = Clue(
+        id: 'c_merge_enroll_01',
+        wxNick: '周八',
+        status: ClueStatus.enrolled,
+        createTime: DateTime(2025, 3, 1),
+        classType: '全程协议班',
+        enrollAmount: null, // 远端暂无学费
+        enrollTime: null,   // 远端暂无报名时间
+      );
+
+      final needsUpload = <Clue>[];
+      final merged = provider.mergeClueForTesting(
+        localClue,
+        remoteClue,
+        needsUpload: needsUpload,
+      );
+
+      expect(merged.enrollAmount, equals(3000.0));
+      expect(merged.enrollTime, equals(localTime));
+      // 验证自愈补推：本地拥有更全的报名信息，成功加入上传队列自动同步推上云端
+      expect(needsUpload.any((c) => c.id == 'c_merge_enroll_01'), isTrue);
+    });
   });
 }
