@@ -281,8 +281,8 @@ class AppProvider extends ChangeNotifier {
 
         // 🛡️ 补全聊天截图图片二进制数据
         List<ChatRecord> fixedChats = localClue.chatRecords;
+        bool chatsFixed = false;
         if (seed.chatRecords.isNotEmpty) {
-          bool chatsFixed = false;
           final updatedChats = <ChatRecord>[];
           for (final lc in localClue.chatRecords) {
             // 优先按 ID 匹配，找不到则按 OCR 文本匹配
@@ -328,6 +328,7 @@ class AppProvider extends ChangeNotifier {
             shouldFixIntent ||
             shouldFixNext ||
             shouldFixAi ||
+            chatsFixed ||
             fixedChats.length != localClue.chatRecords.length ||
             dedupLogs.length != localClue.visitLogs.length) {
           _clues[i] = localClue.copyWith(

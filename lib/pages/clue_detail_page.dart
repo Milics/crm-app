@@ -1634,9 +1634,38 @@ class _ChatRecordsSection extends StatelessWidget {
     }
   }
 
+  Widget _buildChatImageWidget(ChatRecord record, {BoxFit fit = BoxFit.cover}) {
+    if (record.imageData != null && record.imageData!.trim().isNotEmpty) {
+      final imgBytes = _safeBase64Decode(record.imageData!);
+      if (imgBytes != null && imgBytes.isNotEmpty) {
+        return Image.memory(
+          imgBytes,
+          fit: fit,
+          errorBuilder: (context, error, stackTrace) =>
+              _buildFallbackAssetOrBroken(record, fit),
+        );
+      }
+    }
+    return _buildFallbackAssetOrBroken(record, fit);
+  }
+
+  Widget _buildFallbackAssetOrBroken(ChatRecord record, BoxFit fit) {
+    if (record.imagePath.trim().isNotEmpty) {
+      return Image.asset(
+        record.imagePath.trim(),
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) => Center(
+          child: Icon(Icons.broken_image, color: Colors.grey[400]),
+        ),
+      );
+    }
+    return Center(
+      child: Icon(Icons.broken_image, color: Colors.grey[400]),
+    );
+  }
+
   void _showFullImage(BuildContext context, ChatRecord record) {
-    final hasImg = record.imageData != null && record.imageData!.trim().isNotEmpty;
-    final imgBytes = hasImg ? _safeBase64Decode(record.imageData!) : null;
+    final hasImg = record.hasImage;
 
     showDialog(
       context: context,
@@ -1692,28 +1721,9 @@ class _ChatRecordsSection extends StatelessWidget {
                   child: Container(
                     constraints: const BoxConstraints(maxHeight: 420),
                     color: Colors.black12,
-                    child: imgBytes != null
-                        ? InteractiveViewer(
-                            child: Image.memory(
-                              imgBytes,
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.all(24),
-                                  child: Text('图片格式异常或渲染失败',
-                                      style: TextStyle(color: Colors.grey)),
-                                ),
-                              ),
-                            ),
-                          )
-                        : const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(24),
-                              child: Text('图片数据未完全加载或格式异常',
-                                  style: TextStyle(color: Colors.grey)),
-                            ),
-                          ),
+                    child: InteractiveViewer(
+                      child: _buildChatImageWidget(record, fit: BoxFit.contain),
+                    ),
                   ),
                 ),
               if (record.ocrText.isNotEmpty)
@@ -1926,8 +1936,6 @@ class _ChatRecordsSection extends StatelessWidget {
               itemBuilder: (context, idx) {
                 final rec = validRecords[idx];
                 final hasImg = rec.hasImage;
-                final imgBytes =
-                    hasImg ? _safeBase64Decode(rec.imageData!) : null;
 
                 // 区分图片卡片与文字备忘卡片排版
                 if (hasImg) {
@@ -1950,21 +1958,7 @@ class _ChatRecordsSection extends StatelessWidget {
                                   top: Radius.circular(9)),
                               child: SizedBox(
                                 width: double.infinity,
-                                child: imgBytes != null
-                                    ? Image.memory(
-                                        imgBytes,
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) =>
-                                                Center(
-                                          child: Icon(Icons.broken_image,
-                                              color: Colors.grey[400]),
-                                        ),
-                                      )
-                                    : Center(
-                                        child: Icon(Icons.broken_image,
-                                            color: Colors.grey[400]),
-                                      ),
+                                child: _buildChatImageWidget(rec, fit: BoxFit.cover),
                               ),
                             ),
                           ),

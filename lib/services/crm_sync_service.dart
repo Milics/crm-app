@@ -13,6 +13,9 @@ class CrmSyncService {
   factory CrmSyncService() => _instance;
   CrmSyncService._internal();
 
+  /// 🛡️ 全局单元测试隔离防线：若处于测试模式，彻底阻断任何对真实生产云端的 HTTP 发包
+  static bool disableSyncForTesting = false;
+
   // 候选服务端点列表（涵盖云端域名、Mac 当前 IP、USB 端口映射、本机 Localhost 等）
   final List<String> _candidateUrls = [
     'https://crm-app-ojs3.onrender.com', // 🌟 用户专属云端 7x24 小时公网同步中枢
@@ -30,7 +33,7 @@ class CrmSyncService {
   String? _activeBaseUrl = 'https://crm-app-ojs3.onrender.com';
   String? get activeBaseUrl => _activeBaseUrl;
   String get serverUrl => _activeBaseUrl ?? 'https://crm-app-ojs3.onrender.com';
-  bool get isConnected => _activeBaseUrl != null;
+  bool get isConnected => _activeBaseUrl != null && !disableSyncForTesting;
 
   String? lastError;
 
@@ -164,6 +167,7 @@ class CrmSyncService {
 
   /// 获取云端全部线索（支持 summary=true 过滤超大图片二进制，极速秒级拉取）
   Future<List<Clue>?> fetchAllClues({bool summary = false}) async {
+    if (disableSyncForTesting) return null;
     final baseUrl = _activeBaseUrl ?? 'https://crm-app-ojs3.onrender.com';
 
     try {
@@ -188,6 +192,7 @@ class CrmSyncService {
 
   /// 获取单个学员的完整详情（含微信聊天记录的高清原图）
   Future<Clue?> fetchClueDetail(String clueId) async {
+    if (disableSyncForTesting) return null;
     final baseUrl = _activeBaseUrl ?? 'https://crm-app-ojs3.onrender.com';
 
     try {
@@ -208,7 +213,7 @@ class CrmSyncService {
 
   /// 保存单个或批量线索
   Future<bool> saveClues(List<Clue> clues) async {
-    if (clues.isEmpty) return true;
+    if (disableSyncForTesting || clues.isEmpty) return true;
     final baseUrl = _activeBaseUrl ?? 'https://crm-app-ojs3.onrender.com';
 
     try {
@@ -234,6 +239,7 @@ class CrmSyncService {
 
   /// 删除单个线索
   Future<bool> deleteClue(String clueId) async {
+    if (disableSyncForTesting) return true;
     if (_activeBaseUrl == null) {
       final found = await detectServer();
       if (!found) return false;

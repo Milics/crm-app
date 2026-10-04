@@ -13,10 +13,12 @@ import 'package:crm_app/pages/ai_analysis_page.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:crm_app/services/crm_sync_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   SharedPreferences.setMockInitialValues({});
+  CrmSyncService.disableSyncForTesting = true;
 
   group('【QA 专项测试 1】专升本规范智能语义解析器 (ClueTextParser) 极限与边界测试', () {
     test('1.1 标准团队规范：李文文-河南经贸-24级-视传', () {
@@ -1633,6 +1635,67 @@ void main() {
 
       // 3. 验证图片记录正常渲染了「点击放大查看」
       expect(find.text('点击放大查看'), findsOneWidget);
+    });
+
+    testWidgets('【QA 专项测试 25】微信聊天记录 Asset 图片与 Base64 混合渲染防崩及大图弹窗测试', (tester) async {
+      final now = DateTime.now();
+      final clueAsset = Clue(
+        id: 'clue_linjian_asset_01',
+        wxNick: '林建（老学员）',
+        status: ClueStatus.following,
+        ownerName: '超级管理员',
+        createTime: now,
+        chatRecords: [
+          // 仅具备本地 Asset 路径但 imageData 为 null 的历史记录（如林建等老学员截图）
+          ChatRecord(
+            id: 'cr_asset_01',
+            clueId: 'test_linjian_asset_01',
+            imagePath: 'assets/chat_1.png',
+            imageData: null,
+            ocrText: '打听打听来这个学校了',
+            createTime: now,
+          ),
+          // 具备 Base64 的记录
+          ChatRecord(
+            id: 'cr_base64_02',
+            clueId: 'test_linjian_asset_01',
+            imagePath: '',
+            imageData: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+            ocrText: '高数和英语周末班',
+            createTime: now,
+          ),
+        ],
+      );
+
+      final provider = AppProvider();
+      provider.addClue(clueAsset);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChangeNotifierProvider<AppProvider>.value(
+            value: provider,
+            child: ClueDetailPage(clueId: clueAsset.id),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 1. 验证标题包含清晰的统计说明：2张
+      expect(find.text('(2张)'), findsOneWidget);
+
+      // 2. 验证 Asset 记录与 Base64 记录均安全渲染，未抛出 Null check operator 异常
+      expect(find.text('打听打听来这个学校了'), findsOneWidget);
+      expect(find.text('高数和英语周末班'), findsOneWidget);
+
+      // 3. 验证点击放大查看弹窗能够正常弹出，无空指针崩溃
+      final cardFinder = find.text('打听打听来这个学校了');
+      await tester.ensureVisible(cardFinder);
+      await tester.pumpAndSettle();
+      await tester.tap(cardFinder);
+      await tester.pumpAndSettle();
+
+      expect(find.text('删除记录'), findsOneWidget);
+      expect(find.text('关 闭'), findsOneWidget);
     });
   });
 }
