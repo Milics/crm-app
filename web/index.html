@@ -25,18 +25,11 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <!-- 云端中枢首屏静默预热探针：在启动页展示期间提前激活 Render 休眠实例，并强制检查 PWA Service Worker 升级 -->
+  <!-- 云端中枢首屏静默预热探针：在启动页展示期间提前激活 Render 休眠实例（不阻塞前端启动流程） -->
   <script>
     (function() {
       try {
         fetch('https://crm-app-ojs3.onrender.com/api/health', { mode: 'no-cors', cache: 'no-cache' }).catch(function(){});
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.getRegistrations().then(function(regs) {
-            for (var i = 0; i < regs.length; i++) {
-              regs[i].update();
-            }
-          });
-        }
       } catch(e) {}
     })();
   </script>
@@ -273,13 +266,56 @@
       }
     }, 450);
 
-    // 超过 20 秒若还未加载完毕，提示用户网络稍慢但继续等待，不强制关闭
+    // 🛡️ 紧急自愈重置：一键彻底清洗可能死锁或损坏的 PWA ServiceWorker 与临时缓存
+    function emergencyClearPwaCache() {
+      if (statusText) statusText.innerText = "正在清除损坏缓存并秒速重载...";
+      try {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(regs) {
+            for (var i = 0; i < regs.length; i++) {
+              regs[i].unregister();
+            }
+          }).catch(function(){});
+        }
+        if ('caches' in window) {
+          caches.keys().then(function(keys) {
+            return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+          }).catch(function(){});
+        }
+      } catch(e) {}
+      setTimeout(function() {
+        window.location.reload(true);
+      }, 350);
+    }
+
+    // 超过 3.8 秒若未进入，立即显示快捷修复与重连选项，绝不让用户干等
     setTimeout(function() {
       if (!splashDismissed) {
         var slowTip = document.getElementById('slow-network-tip');
-        if (slowTip) slowTip.style.display = 'block';
+        if (slowTip) {
+          slowTip.style.display = 'block';
+          slowTip.innerHTML = '<div style="font-size: 11.5px; color: rgba(255,255,255,0.9); margin-bottom: 8px;">若卡在加载页，点击下方极速自愈进入系统</div>' +
+            '<button class="reload-btn" onclick="emergencyClearPwaCache()" style="background:#FFF;color:#1565C0;margin-right:8px;">⚡ 极速修复进入</button>' +
+            '<button class="reload-btn" onclick="location.reload()" style="background:rgba(255,255,255,0.25);color:#FFF;">重新连接</button>';
+        }
       }
-    }, 20000);
+    }, 3800);
+
+    // 超过 6.5 秒看门狗自动兜底：尝试向 head 注入原生 script 破除 ServiceWorker 挂起
+    setTimeout(function() {
+      if (!splashDismissed) {
+        console.warn("Watchdog triggered: Flutter main.dart.js may be blocked by ServiceWorker. Attempting fallback.");
+        try {
+          if (!window._flutterEntrypointInjected) {
+            window._flutterEntrypointInjected = true;
+            var script = document.createElement("script");
+            script.src = "main.dart.js?v=" + Date.now();
+            script.type = "application/javascript";
+            document.head.appendChild(script);
+          }
+        } catch(e) {}
+      }
+    }, 6500);
 
     function hideSplash() {
       if (splashDismissed) return;
@@ -297,6 +333,19 @@
           }, 350);
         }, 120);
       }
+
+      // 🛡️ 在应用正常进入稳定运行 3.5 秒后，再在后台静默检查 ServiceWorker 更新，绝不阻塞启动！
+      setTimeout(function() {
+        try {
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+              for (var i = 0; i < regs.length; i++) {
+                regs[i].update();
+              }
+            });
+          }
+        } catch(e) {}
+      }, 3500);
     }
 
     // 监听 Flutter 首帧就绪信号
