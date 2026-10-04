@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -46,27 +47,58 @@ class _UploadChatPageState extends State<UploadChatPage> {
       setState(() => _isProcessing = true);
       final picker = ImagePicker();
 
+      List<XFile> pickedList = [];
+
       if (source == ImageSource.gallery) {
-        final pickedList = await picker.pickMultiImage(
-          maxWidth: 1200,
-          maxHeight: 1200,
-          imageQuality: 75,
-        );
-        for (final item in pickedList) {
-          final bytes = await item.readAsBytes();
-          _selectedImages.add(base64Encode(bytes));
+        // 关键防御：在 Web (Safari PWA) 环境下绝不传递 maxWidth/maxHeight/imageQuality，
+        // 彻底消除浏览器 Canvas 缩放由于内存/安全限制在 iOS 上静默失败返回 0 字节的致命 bug！
+        if (kIsWeb) {
+          pickedList = await picker.pickMultiImage();
+          // 若某些移动浏览器在 pickMultiImage 下返回空，自动安全回退单选
+          if (pickedList.isEmpty) {
+            final single = await picker.pickImage(source: ImageSource.gallery);
+            if (single != null) pickedList = [single];
+          }
+        } else {
+          pickedList = await picker.pickMultiImage(
+            maxWidth: 1600,
+            maxHeight: 1600,
+            imageQuality: 80,
+          );
         }
       } else {
-        final picked = await picker.pickImage(
-          source: ImageSource.camera,
-          maxWidth: 1200,
-          maxHeight: 1200,
-          imageQuality: 75,
-        );
-        if (picked != null) {
-          final bytes = await picked.readAsBytes();
-          _selectedImages.add(base64Encode(bytes));
+        final single = kIsWeb
+            ? await picker.pickImage(source: ImageSource.camera)
+            : await picker.pickImage(
+                source: ImageSource.camera,
+                maxWidth: 1600,
+                maxHeight: 1600,
+                imageQuality: 80,
+              );
+        if (single != null) {
+          pickedList = [single];
         }
+      }
+
+      int addedCount = 0;
+      for (final item in pickedList) {
+        final bytes = await item.readAsBytes();
+        // 🛡️ 严格非空保全：只有真实包含图片数据（大于 200 字节）才允许加入，彻底杜绝 0 字节空图！
+        if (bytes.length > 200) {
+          _selectedImages.add(base64Encode(bytes));
+          addedCount++;
+        } else {
+          debugPrint('⚠️ [UploadChat] 跳过字节异常的图片: ${item.name} (${bytes.length} bytes)');
+        }
+      }
+
+      if (pickedList.isNotEmpty && addedCount == 0 && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('⚠️ 图片读取失败，请重新从相册选择原图'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
       setState(() {});
     } catch (e) {
@@ -83,9 +115,13 @@ class _UploadChatPageState extends State<UploadChatPage> {
   }
 
   Future<void> _saveRecords({bool thenOpenAi = false}) async {
-    if (_selectedImages.isEmpty) {
+    final validImages =
+        _selectedImages.where((s) => s.trim().isNotEmpty).toList();
+
+    if (validImages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请至少选择一张聊天截图！'), backgroundColor: Colors.orange),
+        const SnackBar(
+            content: Text('请至少选择一张有效的聊天截图！'), backgroundColor: Colors.orange),
       );
       return;
     }
@@ -105,13 +141,13 @@ class _UploadChatPageState extends State<UploadChatPage> {
     final newRecords = <ChatRecord>[];
     final notes = _notesCtrl.text.trim();
 
-    for (int i = 0; i < _selectedImages.length; i++) {
+    for (int i = 0; i < validImages.length; i++) {
       newRecords.add(
         ChatRecord(
           id: 'chat_${DateTime.now().millisecondsSinceEpoch}_$i',
           clueId: widget.clueId,
           imagePath: '',
-          imageData: _selectedImages[i],
+          imageData: validImages[i],
           ocrText: notes,
           createTime: DateTime.now(),
         ),
@@ -334,6 +370,25 @@ class _UploadChatPageState extends State<UploadChatPage> {
                                   child: Image.memory(
                                     base64Decode(imgBase64),
                                     fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            Container(
+                                      color: Colors.grey[200],
+                                      child: const Center(
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.broken_image,
+                                                color: Colors.grey, size: 24),
+                                            SizedBox(height: 4),
+                                            Text('预览异常',
+                                                style: TextStyle(
+                                                    color: Colors.grey,
+                                                    fontSize: 10)),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),

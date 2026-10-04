@@ -1580,6 +1580,60 @@ void main() {
       // 3. 验证提取到了实战话术快捷复制胶囊
       expect(find.text('话术一 · 价值破冰'), findsOneWidget);
     });
+
+    testWidgets('【QA 专项测试 24】沟通截图与文字备忘清晰区分、空图片严格过滤及便签卡片渲染测试', (tester) async {
+      final now = DateTime.now();
+      final clueWithBoth = Clue(
+        id: 'test_chat_section_01',
+        wxNick: '18724',
+        status: ClueStatus.following,
+        ownerName: '超级管理员',
+        createTime: now,
+        chatRecords: [
+          // 纯文字沟通备忘
+          ChatRecord(
+            id: 'cr_memo_01',
+            clueId: 'test_chat_section_01',
+            imagePath: '',
+            imageData: '',
+            ocrText: '不回复微信',
+            createTime: now,
+          ),
+          // 具备真实图片的聊天截图
+          ChatRecord(
+            id: 'cr_img_01',
+            clueId: 'test_chat_section_01',
+            imagePath: '',
+            imageData: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+            ocrText: '',
+            createTime: now,
+          ),
+        ],
+      );
+
+      final provider = AppProvider();
+      provider.addClue(clueWithBoth);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChangeNotifierProvider<AppProvider>.value(
+            value: provider,
+            child: ClueDetailPage(clueId: clueWithBoth.id),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 1. 验证标题包含清晰的统计说明：1张截图 + 1条文字备忘
+      expect(find.text('(1张截图 + 1条文字备忘)'), findsOneWidget);
+
+      // 2. 验证纯文字备忘渲染了专属便签胶囊标签「文字备忘」，而不是被当成占位图
+      expect(find.text('文字备忘'), findsOneWidget);
+      expect(find.text('不回复微信'), findsWidgets);
+
+      // 3. 验证图片记录正常渲染了「点击放大查看」
+      expect(find.text('点击放大查看'), findsOneWidget);
+    });
   });
 }
 

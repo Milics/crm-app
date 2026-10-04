@@ -1796,12 +1796,34 @@ class _ChatRecordsSection extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
+                    if (!hasImg) ...[
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => UploadChatPage(clueId: clue.id),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.add_photo_alternate_outlined,
+                              size: 15),
+                          label: const Text('补传截图'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF00897B),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
                     Expanded(
-                      child: ElevatedButton(
+                      child: OutlinedButton(
                         onPressed: () => Navigator.pop(ctx),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF00897B),
-                          foregroundColor: Colors.white,
+                        style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 10),
                         ),
                         child: const Text('关 闭'),
@@ -1830,7 +1852,9 @@ class _ChatRecordsSection extends StatelessWidget {
     if (imgCount > 0 && noteCount == 0) {
       countLabel = '$imgCount张';
     } else if (imgCount > 0 && noteCount > 0) {
-      countLabel = '$imgCount张图 + $noteCount条便签';
+      countLabel = '$imgCount张截图 + $noteCount条文字备忘';
+    } else if (imgCount == 0 && noteCount > 0) {
+      countLabel = '$noteCount条文字备忘';
     }
 
     return Container(
@@ -1878,7 +1902,9 @@ class _ChatRecordsSection extends StatelessWidget {
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.add, size: 15, color: Color(0xFF00897B)),
+                    Icon(Icons.add_photo_alternate_outlined,
+                        size: 15, color: Color(0xFF00897B)),
+                    SizedBox(width: 2),
                     Text(
                       '加截图',
                       style: TextStyle(
@@ -1903,103 +1929,166 @@ class _ChatRecordsSection extends StatelessWidget {
                 final imgBytes =
                     hasImg ? _safeBase64Decode(rec.imageData!) : null;
 
-                return GestureDetector(
-                  onTap: () => _showFullImage(context, rec),
-                  child: Container(
-                    width: 110,
-                    margin: const EdgeInsets.only(right: 10),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: hasImg
-                            ? Colors.grey[200]!
-                            : const Color(0xFFC8E6C9),
+                // 区分图片卡片与文字备忘卡片排版
+                if (hasImg) {
+                  return GestureDetector(
+                    onTap: () => _showFullImage(context, rec),
+                    child: Container(
+                      width: 110,
+                      margin: const EdgeInsets.only(right: 10),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.grey[200]!),
+                        color: Colors.grey[50],
                       ),
-                      color: hasImg ? Colors.grey[50] : const Color(0xFFF1F8E9),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: ClipRRect(
-                            borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(9)),
-                            child: SizedBox(
-                              width: double.infinity,
-                              child: hasImg
-                                  ? (imgBytes != null
-                                      ? Image.memory(
-                                          imgBytes,
-                                          fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) =>
-                                                  Center(
-                                            child: Icon(Icons.broken_image,
-                                                color: Colors.grey[400]),
-                                          ),
-                                        )
-                                      : Center(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(9)),
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: imgBytes != null
+                                    ? Image.memory(
+                                        imgBytes,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) =>
+                                                Center(
                                           child: Icon(Icons.broken_image,
                                               color: Colors.grey[400]),
-                                        ))
-                                  : Container(
-                                      color: const Color(0xFFE8F5E9),
-                                      padding: const EdgeInsets.all(8),
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          const Icon(
-                                              Icons.sticky_note_2_outlined,
-                                              color: Color(0xFF388E3C),
-                                              size: 28),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            rec.ocrText.isNotEmpty
-                                                ? rec.ocrText
-                                                : '文字便签',
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              fontSize: 10,
-                                              color: Color(0xFF2E7D32),
-                                              height: 1.2,
-                                            ),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                        ],
+                                        ),
+                                      )
+                                    : Center(
+                                        child: Icon(Icons.broken_image,
+                                            color: Colors.grey[400]),
                                       ),
-                                    ),
+                              ),
                             ),
                           ),
-                        ),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 4),
-                          color:
-                              hasImg ? Colors.white : const Color(0xFFE8F5E9),
-                          child: Text(
-                            hasImg
-                                ? (rec.ocrText.isNotEmpty
-                                    ? rec.ocrText
-                                    : '点击放大查看')
-                                : DateFormat('MM-dd HH:mm')
-                                    .format(rec.createTime),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              color: rec.ocrText.isNotEmpty
-                                  ? const Color(0xFF2E7D32)
-                                  : Colors.grey[600],
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 4),
+                            color: Colors.white,
+                            child: Text(
+                              rec.ocrText.isNotEmpty
+                                  ? rec.ocrText
+                                  : '点击放大查看',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                color: rec.ocrText.isNotEmpty
+                                    ? const Color(0xFF00796B)
+                                    : Colors.grey[600],
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                );
+                  );
+                } else {
+                  // 📝 纯文字备忘便签卡片（精致贴纸设计，绝不误导为“加载失败占位图”）
+                  return GestureDetector(
+                    onTap: () => _showFullImage(context, rec),
+                    child: Container(
+                      width: 110,
+                      margin: const EdgeInsets.only(right: 10),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        color: const Color(0xFFFFFDE7),
+                        border: Border.all(
+                          color: const Color(0xFFFFE082),
+                          width: 1.2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.amber.withValues(alpha: 0.08),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 顶部便签标签栏
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 3),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFFFF9C4),
+                              borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(9)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.edit_note,
+                                    size: 14, color: Color(0xFFF57F17)),
+                                const SizedBox(width: 2),
+                                const Expanded(
+                                  child: Text(
+                                    '文字备忘',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFFF57F17),
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                InkWell(
+                                  onTap: () => _confirmDelete(context, rec),
+                                  child: const Icon(Icons.close,
+                                      size: 13, color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.all(8),
+                              child: Center(
+                                child: Text(
+                                  rec.ocrText.isNotEmpty
+                                      ? rec.ocrText
+                                      : '（未录入文字）',
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF424242),
+                                    height: 1.3,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 3),
+                            color: const Color(0xFFFFF9C4).withValues(alpha: 0.6),
+                            child: Text(
+                              DateFormat('MM-dd HH:mm').format(rec.createTime),
+                              style: const TextStyle(
+                                fontSize: 9.5,
+                                color: Color(0xFF9E9D24),
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
               },
             ),
           ),
