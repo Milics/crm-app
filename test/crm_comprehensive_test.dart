@@ -9,6 +9,8 @@ import 'package:crm_app/services/material_rag_service.dart';
 import 'package:crm_app/providers/app_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:crm_app/pages/clue_detail_page.dart';
+import 'package:crm_app/pages/ai_analysis_page.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -1531,6 +1533,52 @@ void main() {
       expect(merged6.tags.contains('林州老乡'), true);
       expect(merged6.tags.contains('需要实习'), true);
       expect(merged6.intentLevel, IntentLevel.high, reason: '高意向学员极具业务价值，绝不被默认中意向冲刷');
+    });
+
+    testWidgets('【QA 专项测试 23】AI 深度分析报告 Markdown 富文本、表格渲染与话术快捷复制验证', (tester) async {
+      final clue = Clue(
+        id: 'test_ai_md_01',
+        wxNick: '林建',
+        status: ClueStatus.following,
+        ownerName: '超级管理员',
+        createTime: DateTime.now(),
+        aiAnalysisReport: '''
+## 1. 🎯 学员心理与成交痛点诊断
+
+### 核心画像
+**林州建筑25届预科生**，二战升本。
+
+### 真实心理剖析
+| 维度 | 诊断 |
+|---|---|
+| **已解决的顾虑** | 考前集训冲刺已有安排 |
+| **当前核心卡点** | 仍在对比多家机构 |
+
+• 【话术一 · 价值破冰】：林同学你好，这是咱们建筑工程近三年省控线与考情分析！
+''',
+        aiAnalysisTime: DateTime.now(),
+      );
+
+      final provider = AppProvider();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChangeNotifierProvider<AppProvider>.value(
+            value: provider,
+            child: AiAnalysisPage(clue: clue),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 1. 验证渲染了 MarkdownBody，不再是简单粗糙的纯文本
+      expect(find.byType(MarkdownBody), findsOneWidget);
+
+      // 2. 验证 Markdown 中的表格被正确渲染为 Table 组件
+      expect(find.byType(Table), findsOneWidget);
+
+      // 3. 验证提取到了实战话术快捷复制胶囊
+      expect(find.text('话术一 · 价值破冰'), findsOneWidget);
     });
   });
 }

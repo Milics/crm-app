@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../models/clue.dart';
@@ -833,51 +834,77 @@ class _AiAnalysisPageState extends State<AiAnalysisPage> {
   }
 }
 
-/// 大模型生成的 Markdown 富文本报告卡片
+/// 大模型生成的 Markdown 富文本报告卡片（已全面优化排版层级、表格渲染与实战话术快捷复制）
 class _LlmReportCard extends StatelessWidget {
   final String output;
   const _LlmReportCard({required this.output});
 
+  /// 提取报告中可能出现的话术段落，以便提供快捷一键复制
+  List<Map<String, String>> _extractQuickScripts(String text) {
+    final list = <Map<String, String>>[];
+    // 匹配如：• 【话术一 · 价值破冰】：... 或 【话术一】：...
+    final reg = RegExp(
+      r'(?:•\s*)?(?:【(话术[一二三123][^】]*)】|(?:\*\*)?(话术[一二三123][^：:\n]*)(?:\*\*)?)[：:]\s*([^\n]+(?:\n(?!•|【|话术|###|##|\d\.)[^\n]+)*)',
+    );
+    for (final m in reg.allMatches(text)) {
+      final name = (m.group(1) ?? m.group(2) ?? '话术').trim();
+      final body = (m.group(3) ?? '').trim();
+      if (body.isNotEmpty) {
+        list.add({'title': name, 'content': body});
+      }
+    }
+    return list;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final scripts = _extractQuickScripts(output);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
-            color: const Color(0xFF7B1FA2).withValues(alpha: 0.3), width: 1.5),
+          color: const Color(0xFF7B1FA2).withValues(alpha: 0.25),
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF7B1FA2).withValues(alpha: 0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            color: const Color(0xFF7B1FA2).withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 顶部标题栏与复制方案按钮
           Row(
             children: [
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF7B1FA2),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF7B1FA2), Color(0xFF9C27B0)],
+                  ),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.psychology, size: 15, color: Colors.white),
-                    SizedBox(width: 4),
+                    Icon(Icons.psychology, size: 16, color: Colors.white),
+                    SizedBox(width: 5),
                     Text(
                       'DeepSeek 实时深度诊断',
                       style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold),
+                        color: Colors.white,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
@@ -899,19 +926,197 @@ class _LlmReportCard extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF7B1FA2),
                   foregroundColor: Colors.white,
+                  elevation: 0,
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
                 ),
               ),
             ],
           ),
+
+          // 若智能识别到实战话术，展示快捷复制胶囊栏
+          if (scripts.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF3E5F5).withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: const Color(0xFFCE93D8).withValues(alpha: 0.5),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.flash_on, size: 14, color: Color(0xFF7B1FA2)),
+                      SizedBox(width: 4),
+                      Text(
+                        '快捷促单话术直发（点击直接复制）：',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF7B1FA2),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: scripts.map((s) {
+                      return InkWell(
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: s['content']!));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content:
+                                  Text('已复制【${s['title']}】：${s['content']}'),
+                              backgroundColor: const Color(0xFF7B1FA2),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: const Color(0xFFAB47BC),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.copy,
+                                  size: 11, color: Color(0xFF7B1FA2)),
+                              const SizedBox(width: 4),
+                              Text(
+                                s['title']!,
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  color: Color(0xFF4A148C),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           const SizedBox(height: 12),
-          SelectableText(
-            output,
-            style: const TextStyle(
-              fontSize: 13.5,
-              color: Color(0xFF263238),
-              height: 1.6,
+          const Divider(height: 1, color: Color(0xFFF0F0F0)),
+          const SizedBox(height: 10),
+
+          // 富文本 Markdown 专业排版区域
+          MarkdownBody(
+            data: output,
+            selectable: true,
+            shrinkWrap: true,
+            styleSheet: MarkdownStyleSheet(
+              h1: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF311B92),
+                height: 1.4,
+              ),
+              h1Padding: const EdgeInsets.only(top: 14, bottom: 6),
+              h2: const TextStyle(
+                fontSize: 15.5,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF4A148C),
+                height: 1.4,
+              ),
+              h2Padding: const EdgeInsets.only(top: 14, bottom: 6),
+              h3: const TextStyle(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF6A1B9A),
+                height: 1.4,
+              ),
+              h3Padding: const EdgeInsets.only(top: 10, bottom: 4),
+              p: const TextStyle(
+                fontSize: 13.5,
+                color: Color(0xFF263238),
+                height: 1.65,
+              ),
+              pPadding: const EdgeInsets.only(bottom: 8),
+              strong: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1565C0), // 重点短语高亮为醒目蓝，形成视觉抓手
+              ),
+              em: const TextStyle(
+                fontStyle: FontStyle.italic,
+                color: Color(0xFF546E7A),
+              ),
+              blockquote: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF4A148C),
+                height: 1.5,
+              ),
+              blockquoteDecoration: BoxDecoration(
+                color: const Color(0xFFF3E5F5).withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(6),
+                border: const Border(
+                  left: BorderSide(color: Color(0xFF7B1FA2), width: 3.5),
+                ),
+              ),
+              blockquotePadding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              listBullet: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF7B1FA2),
+              ),
+              listBulletPadding: const EdgeInsets.only(right: 6),
+              tableHead: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF4A148C),
+              ),
+              tableBody: const TextStyle(
+                fontSize: 12.5,
+                color: Color(0xFF37474F),
+                height: 1.5,
+              ),
+              tableBorder: TableBorder.all(
+                color: const Color(0xFFCE93D8).withValues(alpha: 0.7),
+                width: 0.8,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              tableCellsPadding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+              tableColumnWidth: const FlexColumnWidth(),
+              code: const TextStyle(
+                fontSize: 12.5,
+                fontFamily: 'monospace',
+                color: Color(0xFF7B1FA2),
+                backgroundColor: Color(0xFFF3E5F5),
+              ),
+              horizontalRuleDecoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(
+                    color: Colors.grey.shade200,
+                    width: 1,
+                  ),
+                ),
+              ),
             ),
           ),
         ],
