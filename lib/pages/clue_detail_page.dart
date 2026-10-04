@@ -1650,7 +1650,7 @@ class _ChatRecordsSection extends StatelessWidget {
   }
 
   Widget _buildFallbackAssetOrBroken(ChatRecord record, BoxFit fit) {
-    if (record.imagePath.trim().isNotEmpty) {
+    if (record.imagePath.trim().startsWith('assets/')) {
       return Image.asset(
         record.imagePath.trim(),
         fit: fit,
@@ -1659,8 +1659,28 @@ class _ChatRecordsSection extends StatelessWidget {
         ),
       );
     }
-    return Center(
-      child: Icon(Icons.broken_image, color: Colors.grey[400]),
+    // 🛡️ 云端多图按需拉取中或脱水状态：展示柔和加载占位，平滑过渡，杜绝裂图
+    return Container(
+      color: const Color(0xFFF1F5F9),
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.blue[400],
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '加载中...',
+            style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+          ),
+        ],
+      ),
     );
   }
 

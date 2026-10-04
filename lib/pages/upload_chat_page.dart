@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -82,13 +83,14 @@ class _UploadChatPageState extends State<UploadChatPage> {
 
       int addedCount = 0;
       for (final item in pickedList) {
-        final bytes = await item.readAsBytes();
+        final rawBytes = await item.readAsBytes();
         // 🛡️ 严格非空保全：只有真实包含图片数据（大于 200 字节）才允许加入，彻底杜绝 0 字节空图！
-        if (bytes.length > 200) {
-          _selectedImages.add(base64Encode(bytes));
+        if (rawBytes.length > 200) {
+          final processedBytes = await _compressImageBytes(rawBytes);
+          _selectedImages.add(base64Encode(processedBytes));
           addedCount++;
         } else {
-          debugPrint('⚠️ [UploadChat] 跳过字节异常的图片: ${item.name} (${bytes.length} bytes)');
+          debugPrint('⚠️ [UploadChat] 跳过字节异常的图片: ${item.name} (${rawBytes.length} bytes)');
         }
       }
 
@@ -112,6 +114,26 @@ class _UploadChatPageState extends State<UploadChatPage> {
         setState(() => _isProcessing = false);
       }
     }
+  }
+
+  /// 🛡️ 高性能跨端图像等比缩放压缩：将超大相册原图等比缩放至 800px 宽度，保障 30+ 张多图秒级上传且不超限
+  Future<Uint8List> _compressImageBytes(Uint8List rawBytes) async {
+    try {
+      if (rawBytes.lengthInBytes < 100 * 1024) return rawBytes;
+
+      final codec = await ui.instantiateImageCodec(
+        rawBytes,
+        targetWidth: 800,
+      );
+      final frame = await codec.getNextFrame();
+      final byteData = await frame.image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData != null) {
+        return byteData.buffer.asUint8List();
+      }
+    } catch (e) {
+      debugPrint('⚠️ [UploadChat] 图像智能压缩稍有异常，自动采用原图: $e');
+    }
+    return rawBytes;
   }
 
   Future<void> _saveRecords({bool thenOpenAi = false}) async {
@@ -140,16 +162,18 @@ class _UploadChatPageState extends State<UploadChatPage> {
 
     final newRecords = <ChatRecord>[];
     final notes = _notesCtrl.text.trim();
+    final now = DateTime.now();
 
     for (int i = 0; i < validImages.length; i++) {
+      final recId = 'chat_${now.millisecondsSinceEpoch}_$i';
       newRecords.add(
         ChatRecord(
-          id: 'chat_${DateTime.now().millisecondsSinceEpoch}_$i',
+          id: recId,
           clueId: widget.clueId,
-          imagePath: '',
+          imagePath: 'cloud_chat_$recId.png',
           imageData: validImages[i],
           ocrText: notes,
-          createTime: DateTime.now(),
+          createTime: now,
         ),
       );
     }

@@ -398,7 +398,11 @@ class ChatRecord {
   Map<String, dynamic> toJson({bool includeImageData = true}) => {
         'id': id,
         'clueId': clueId,
-        'imagePath': imagePath,
+        'imagePath': imagePath.isNotEmpty
+            ? imagePath
+            : ((imageData != null && imageData!.trim().isNotEmpty)
+                ? 'cloud_chat_$id.png'
+                : ''),
         'imageData': includeImageData ? imageData : null,
         'ocrText': ocrText,
         'createTime': createTime.toIso8601String(),

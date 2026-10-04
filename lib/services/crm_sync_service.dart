@@ -208,6 +208,19 @@ class CrmSyncService {
     } catch (e) {
       debugPrint('⚠️ [CrmSync] 获取学员详情异常(ID: $clueId): $e');
     }
+
+    // 🛡️ 智能兼容兜底：若云端服务单条接口返回 404（老版本部署），平滑降级调用全量接口匹配提取
+    try {
+      final allClues = await fetchAllClues(summary: false);
+      if (allClues != null) {
+        final found = allClues.where((c) => c.id == clueId).firstOrNull;
+        if (found != null) {
+          debugPrint('🟢 [CrmSync] 已通过全量兜底通道成功命中学员 ${found.wxNick} 的高清原图数据！');
+          return found;
+        }
+      }
+    } catch (_) {}
+
     return null;
   }
 

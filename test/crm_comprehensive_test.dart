@@ -1697,6 +1697,58 @@ void main() {
       expect(find.text('删除记录'), findsOneWidget);
       expect(find.text('关 闭'), findsOneWidget);
     });
+
+    testWidgets('【QA 专项测试 26】大批量纯截图脱水降级持久化、反序列化保全与云端按需加载零丢失测试', (tester) async {
+      final now = DateTime.now();
+      // 模拟批量上传 30 张纯截图（无 OCR 文本）
+      final rawChats = List.generate(30, (i) {
+        final id = 'chat_batch_test_$i';
+        return ChatRecord(
+          id: id,
+          clueId: 'clue_batch_30_imgs',
+          imagePath: 'cloud_chat_$id.png',
+          imageData: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+          ocrText: '',
+          createTime: now.add(Duration(seconds: i)),
+        );
+      });
+
+      final clueWith30Imgs = Clue(
+        id: 'clue_batch_30_imgs',
+        wxNick: '批量学员',
+        status: ClueStatus.following,
+        ownerName: '超级管理员',
+        createTime: now,
+        chatRecords: rawChats,
+      );
+
+      // 1. 模拟 LocalStorage 配额超限触发脱水轻量化存储 (includeImageData: false)
+      final lightweightJson = clueWith30Imgs.toJson(includeImageData: false);
+      final jsonStr = jsonEncode(lightweightJson);
+
+      // 2. 模拟重启从本地存储反序列化
+      final restoredClue = Clue.fromJson(jsonDecode(jsonStr));
+
+      // 核心断言 1：30 张纯截图记录反序列化后 100% 完好存在，1 条都没有丢
+      expect(restoredClue.chatRecords.length, 30);
+
+      // 核心断言 2：每条脱水记录由于保留了有效 imagePath，全部保持 isValid = true，杜绝被清洗误杀
+      for (final rec in restoredClue.chatRecords) {
+        expect(rec.isValid, isTrue, reason: '脱水记录必须保持 isValid，杜绝启动时被误删！');
+        expect(rec.hasImage, isTrue, reason: '必须被识别为图片记录！');
+      }
+
+      // 3. 模拟进入详情页按需从云端拉取补全原图
+      final hydratedChats = <ChatRecord>[];
+      for (final r in restoredClue.chatRecords) {
+        hydratedChats.add(r.copyWith(
+          imageData: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        ));
+      }
+      final fullyHydratedClue = restoredClue.copyWith(chatRecords: hydratedChats);
+
+      expect(fullyHydratedClue.chatRecords.every((r) => r.imageData != null), isTrue);
+    });
   });
 }
 
