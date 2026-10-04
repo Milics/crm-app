@@ -17,10 +17,12 @@ _flutter.loader.load({
     canvasKitBaseUrl: "canvaskit/",
   }
 }).catch(function(err) {
-  console.warn("Flutter load failed, attempting direct entrypoint fallback:", err);
-  if (typeof _flutter !== 'undefined' && _flutter.loader && _flutter.loader.loadEntrypoint) {
-    _flutter.loader.loadEntrypoint({
-      entrypointUrl: "main.dart.js"
+  console.warn("Flutter load failed, attempting direct fallback without service worker:", err);
+  if (typeof _flutter !== 'undefined' && _flutter.loader && _flutter.loader.load) {
+    _flutter.loader.load({
+      config: {
+        canvasKitBaseUrl: "canvaskit/",
+      }
     });
   }
 });
