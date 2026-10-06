@@ -50,9 +50,9 @@ class AppUpgradeService {
   static const String defaultVersionCheckUrl =
       'https://milics.github.io/crm-app/app_version.json';
 
-  /// 默认 APK 下载直链
+  /// 默认 APK 下载直链（托管于 GitHub 仓库 Raw 通道，无 50MB 网页限制）
   static const String defaultApkDownloadUrl =
-      'https://milics.github.io/crm-app/crm_app_release.apk';
+      'https://raw.githubusercontent.com/Milics/crm-app/gh-pages/crm_app_release.apk';
 
   /// 避免单次冷启动内静默弹窗频繁打扰
   bool _hasPromptedThisSession = false;
