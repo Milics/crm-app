@@ -10,6 +10,7 @@ import '../services/crm_sync_service.dart';
 import '../widgets/batch_import_dialog.dart';
 import 'materials_page.dart';
 import 'user_management_page.dart';
+import '../services/app_upgrade_service.dart';
 
 /// 我的页面（顾问个人中心 & 数据概况）
 class MinePage extends StatelessWidget {
@@ -164,6 +165,14 @@ class MinePage extends StatelessWidget {
                   onTap: () => _showChangePasswordDialog(context, provider),
                 ),
                 _MenuItem(
+                  icon: Icons.system_update_alt_rounded,
+                  title: '检查软件更新',
+                  subtitle: '当前版本 V${AppUpgradeService.currentVersionName}（点击检测云端最新版并一键更新）',
+                  iconColor: const Color(0xFF1976D2),
+                  onTap: () => AppUpgradeService.instance
+                      .checkAndPromptUpdate(context, manual: true),
+                ),
+                _MenuItem(
                   icon: Icons.info_outline,
                   title: '关于 CRM 系统',
                   iconColor: const Color(0xFF26A69A),
@@ -183,7 +192,7 @@ class MinePage extends StatelessWidget {
 
                 const SizedBox(height: 32),
                 const Text(
-                  '专升本招生 CRM  v1.0.0 (Release)',
+                  '专升本招生 CRM  v${AppUpgradeService.currentVersionName} (Release)',
                   style: TextStyle(color: Colors.grey, fontSize: 12),
                 ),
                 const SizedBox(height: 100), // 留出底部闲鱼导航栏充足安全距离
@@ -599,8 +608,8 @@ class MinePage extends StatelessWidget {
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 8),
-            const Text('版本：V1.0.0 (Release)',
-                style: TextStyle(color: Colors.black87, fontSize: 13)),
+            Text('版本：V${AppUpgradeService.currentVersionName} (Release)',
+                style: const TextStyle(color: Colors.black87, fontSize: 13)),
             const SizedBox(height: 4),
             const Text('适用对象：专升本招生团队 / 咨询顾问',
                 style: TextStyle(color: Colors.grey, fontSize: 13)),
@@ -613,6 +622,15 @@ class MinePage extends StatelessWidget {
           ],
         ),
         actions: [
+          TextButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              AppUpgradeService.instance
+                  .checkAndPromptUpdate(context, manual: true);
+            },
+            icon: const Icon(Icons.refresh, size: 16),
+            label: const Text('检查更新'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('知道了'),

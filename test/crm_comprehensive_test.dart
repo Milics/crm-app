@@ -15,6 +15,9 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:crm_app/services/crm_sync_service.dart';
 import 'package:crm_app/pages/add_clue_page.dart';
+import 'package:crm_app/services/app_upgrade_service.dart';
+import 'package:http/testing.dart';
+import 'package:http/http.dart' as http;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -1783,6 +1786,69 @@ void main() {
 
       final r3 = ClueTextParser.parse('孙小美 河南经贸 24级 视觉传达 13933334444');
       expect(r3.subject, '美术专业综合');
+    });
+
+    testWidgets('【QA 专项测试 28】在线版本检查与热升级服务 (AppUpgradeService) 自动化测试', (tester) async {
+      final service = AppUpgradeService.instance;
+      service.resetSession();
+
+      // 1. 测试云端高版本场景：解析成功且触发升级弹窗
+      final higherVersionJson = jsonEncode({
+        "versionCode": 999,
+        "versionName": "2.0.0",
+        "title": "全新重大版本 V2.0.0 升级通知",
+        "changelog": "1. 全新架构升级\n2. 增加自动化在线安装\n3. 提升流畅度",
+        "downloadUrl": "https://milics.github.io/crm-app/crm_app_release.apk",
+        "forceUpdate": false,
+        "publishTime": "2026-10-06"
+      });
+
+      final mockHigherClient = MockClient((request) async {
+        return http.Response(higherVersionJson, 200,
+            headers: {'content-type': 'application/json; charset=utf-8'});
+      });
+
+      final info = await service.fetchLatestVersion(client: mockHigherClient);
+      expect(info, isNotNull);
+      expect(info!.versionCode, 999);
+      expect(info.versionName, '2.0.0');
+      expect(info.changelog.contains('全新架构升级'), isTrue);
+
+      // 2. 验证弹出升级对话框并能展示新特性与立即更新按钮
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(builder: (ctx) {
+              return ElevatedButton(
+                onPressed: () => service.showUpgradeDialog(ctx, info),
+                child: const Text('触发升级'),
+              );
+            }),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('触发升级'));
+      await tester.pumpAndSettle();
+
+      // 断言弹窗内各元素
+      expect(find.text('全新重大版本 V2.0.0 升级通知'), findsOneWidget);
+      expect(find.text('发布时间：2026-10-06'), findsOneWidget);
+      expect(find.text('立即更新'), findsOneWidget);
+      expect(find.text('稍后提醒'), findsOneWidget);
+
+      // 点击稍后提醒能正常关闭
+      await tester.tap(find.text('稍后提醒'));
+      await tester.pumpAndSettle();
+      expect(find.text('全新重大版本 V2.0.0 升级通知'), findsNothing);
+
+      // 3. 测试网络异常容错：500 错误时返回 null，绝不崩溃
+      final mockErrorClient = MockClient((request) async {
+        return http.Response('Server Error', 500);
+      });
+      final errInfo = await service.fetchLatestVersion(client: mockErrorClient);
+      expect(errInfo, isNull);
     });
   });
 }

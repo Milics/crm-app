@@ -4,6 +4,7 @@ import 'materials_page.dart';
 import 'statistic_page.dart';
 import 'mine_page.dart';
 import 'add_clue_page.dart';
+import '../services/app_upgrade_service.dart';
 
 /// 主底部导航页（标准闲鱼风格底栏：一体化白色平滑拱形底座 + 醒目微凸暖黄发布按钮）
 class MainTabPage extends StatefulWidget {
@@ -21,6 +22,11 @@ class _MainTabPageState extends State<MainTabPage> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        AppUpgradeService.instance.checkAndPromptUpdate(context, manual: false);
+      }
+    });
   }
 
   final List<Widget> _pages = const [
