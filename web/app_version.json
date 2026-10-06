@@ -1,8 +1,8 @@
 {
-  "versionCode": 2,
-  "versionName": "1.0.1",
-  "title": "发现新版本 V1.0.1",
-  "changelog": "1. 报考科目默认首选美术专业综合\n2. 新增美术中高考、美术对口升学细分赛道\n3. 聊天记录大图客户端智能硬件压缩，多图秒传\n4. 优化大批量截图离线与云端数据保全机制\n5. 新增应用内版本检查更新，支持一键升级",
+  "versionCode": 3,
+  "versionName": "1.0.2",
+  "title": "发现新版本 V1.0.2",
+  "changelog": "1. 报名的学员列表支持按报名时间倒序排列（最新报名的排在最上面）\n2. 报考科目默认首选美术专业综合\n3. 新增美术中高考、美术对口升学细分赛道\n4. 聊天记录大图客户端智能硬件压缩，多图秒传\n5. 新增应用内版本检查更新，支持一键升级",
   "downloadUrl": "https://raw.githubusercontent.com/Milics/crm-app/gh-pages/crm_app_release.apk",
   "forceUpdate": false,
   "publishTime": "2026-10-06"

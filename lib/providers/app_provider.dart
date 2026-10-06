@@ -1939,7 +1939,14 @@ class AppProvider extends ChangeNotifier {
         result = result.where((c) => c.status == ClueStatus.attended).toList();
         break;
       case 4:
-        result = result.where((c) => c.status == ClueStatus.enrolled).toList();
+        result = result
+            .where((c) => c.status == ClueStatus.enrolled)
+            .toList()
+          ..sort((a, b) {
+            final comp = b.effectiveEnrollTime.compareTo(a.effectiveEnrollTime);
+            if (comp != 0) return comp;
+            return b.createTime.compareTo(a.createTime);
+          });
         break;
       case 5: // 暂搁置
         result = result.where((c) => c.status == ClueStatus.paused).toList();
@@ -2055,11 +2062,15 @@ class AppProvider extends ChangeNotifier {
           ..sort((a, b) => b.createTime.compareTo(a.createTime));
         break;
 
-      case 4: // 已报名
+      case 4: // 已报名（按报名时间倒序排列，最新报名的排在最上面；报名时间相同时按创建时间倒序兜底）
         result = result
             .where((c) => c.status == ClueStatus.enrolled)
             .toList()
-          ..sort((a, b) => b.createTime.compareTo(a.createTime));
+          ..sort((a, b) {
+            final comp = b.effectiveEnrollTime.compareTo(a.effectiveEnrollTime);
+            if (comp != 0) return comp;
+            return b.createTime.compareTo(a.createTime);
+          });
         break;
 
       case 5: // 暂搁置（按创建时间倒序）

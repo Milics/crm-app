@@ -1850,6 +1850,76 @@ void main() {
       final errInfo = await service.fetchLatestVersion(client: mockErrorClient);
       expect(errInfo, isNull);
     });
+
+    testWidgets('【QA 专项测试 29】已报名学员列表严格按照报名时间倒序排列测试（最新报名的排在最上面）', (tester) async {
+      final provider = AppProvider();
+      final adminUser = AppUser(
+        id: 'usr_admin',
+        username: 'admin',
+        password: '123',
+        name: '超级管理员',
+        role: UserRole.superAdmin,
+      );
+      provider.setCurrentUserForTesting(adminUser);
+
+      // 清理已有测试线索，构造 4 个已报名学员
+      final clueA = Clue(
+        id: 'c_enrolled_01',
+        wxNick: '怡然自乐',
+        status: ClueStatus.enrolled,
+        ownerName: '超级管理员',
+        createTime: DateTime.parse('2026-09-19T17:02:49.000'),
+        enrollTime: DateTime.parse('2026-10-05T14:20:00.000'), // 最近报名：10-05
+      );
+
+      final clueB = Clue(
+        id: 'c_enrolled_02',
+        wxNick: '杨佳欣',
+        status: ClueStatus.enrolled,
+        ownerName: '超级管理员',
+        createTime: DateTime.parse('2026-09-20T10:00:00.000'),
+        enrollTime: DateTime.parse('2026-09-25T11:30:00.000'), // 次近报名：09-25
+      );
+
+      final clueC = Clue(
+        id: 'c_enrolled_03',
+        wxNick: '王艺霏',
+        status: ClueStatus.enrolled,
+        ownerName: '超级管理员',
+        createTime: DateTime.parse('2026-09-30T18:00:00.000'), // 虽创建时间更晚
+        enrollTime: DateTime.parse('2026-09-19T09:15:00.000'), // 但报名较早：09-19
+      );
+
+      final clueD = Clue(
+        id: 'c_enrolled_04',
+        wxNick: '袁睿琪',
+        status: ClueStatus.enrolled,
+        ownerName: '超级管理员',
+        createTime: DateTime.parse('2026-09-10T08:00:00.000'),
+        enrollTime: DateTime.parse('2026-09-12T16:45:00.000'), // 最早报名：09-12
+      );
+
+      provider.addClue(clueA);
+      provider.addClue(clueB);
+      provider.addClue(clueC);
+      provider.addClue(clueD);
+
+      // 设置筛选全员并切换到“已报名” Tab (index 4)
+      provider.setOwnerFilter('all');
+      provider.setClueTabIndex(4);
+
+      final enrolledList = provider.filteredClues
+          .where((c) => c.id.startsWith('c_enrolled_'))
+          .toList();
+
+      expect(enrolledList.length, 4);
+
+      // 核心断言：必须严格按照报名时间倒序排列，最新报名的排在最上面！
+      expect(enrolledList[0].wxNick, '怡然自乐', reason: '10-05 最新报名应排在第 1 位');
+      expect(enrolledList[1].wxNick, '杨佳欣', reason: '09-25 报名应排在第 2 位');
+      expect(enrolledList[2].wxNick, '王艺霏', reason: '09-19 报名应排在第 3 位');
+      expect(enrolledList[3].wxNick, '袁睿琪', reason: '09-12 最早报名应排在最后一位');
+    });
   });
 }
 

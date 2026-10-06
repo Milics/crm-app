@@ -43,8 +43,8 @@ class AppUpgradeService {
   static final AppUpgradeService instance = AppUpgradeService._();
 
   /// 当前安装包内置版本号（与 pubspec.yaml 保持严格同步）
-  static const int currentVersionCode = 2;
-  static const String currentVersionName = '1.0.1';
+  static const int currentVersionCode = 3;
+  static const String currentVersionName = '1.0.2';
 
   /// 云端版本配置文件直链（托管于 GitHub Pages）
   static const String defaultVersionCheckUrl =
