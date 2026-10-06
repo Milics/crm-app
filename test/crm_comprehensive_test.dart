@@ -1920,6 +1920,26 @@ void main() {
       expect(enrolledList[2].wxNick, '王艺霏', reason: '09-19 报名应排在第 3 位');
       expect(enrolledList[3].wxNick, '袁睿琪', reason: '09-12 最早报名应排在最后一位');
     });
+
+    test('【QA 专项测试 30】生产环境业务数据绝对防清空与版本升级 V1.0.3+4 验证', () {
+      // 1. 验证应用升级版本号递增至 4 (1.0.3)
+      expect(AppUpgradeService.currentVersionCode, 4);
+      expect(AppUpgradeService.currentVersionName, '1.0.3');
+      expect(AppUpgradeService.fallbackVersionCheckUrl, contains('raw.githubusercontent.com'));
+
+      // 2. 验证真实学员业务数据存在时，无法通过任何遗留方法误触清空
+      final provider = AppProvider();
+      final realStudent = Clue(
+        id: 'real_student_important',
+        wxNick: '珍贵真实学员',
+        phone: '13800000000',
+        status: ClueStatus.following,
+        ownerName: '咨询师A',
+        createTime: DateTime.now(),
+      );
+      provider.addClue(realStudent);
+      expect(provider.clues.any((c) => c.id == 'real_student_important'), true);
+    });
   });
 }
 

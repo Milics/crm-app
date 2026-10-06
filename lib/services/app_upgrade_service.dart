@@ -43,12 +43,16 @@ class AppUpgradeService {
   static final AppUpgradeService instance = AppUpgradeService._();
 
   /// 当前安装包内置版本号（与 pubspec.yaml 保持严格同步）
-  static const int currentVersionCode = 3;
-  static const String currentVersionName = '1.0.2';
+  static const int currentVersionCode = 4;
+  static const String currentVersionName = '1.0.3';
 
   /// 云端版本配置文件直链（托管于 GitHub Pages）
   static const String defaultVersionCheckUrl =
       'https://milics.github.io/crm-app/app_version.json';
+
+  /// 备用云端版本检查直链（托管于 GitHub Raw，直连无 Pages 构建延迟）
+  static const String fallbackVersionCheckUrl =
+      'https://raw.githubusercontent.com/Milics/crm-app/gh-pages/app_version.json';
 
   /// 默认 APK 下载直链（托管于 GitHub 仓库 Raw 通道，无 50MB 网页限制）
   static const String defaultApkDownloadUrl =
@@ -77,11 +81,29 @@ class AppUpgradeService {
         final decoded = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
         return AppVersionInfo.fromJson(decoded);
       } else {
-        debugPrint('⚠️ [AppUpgrade] 获取版本信息失败，HTTP状态码: ${response.statusCode}');
+        debugPrint('⚠️ [AppUpgrade] 主通道获取版本信息失败，HTTP状态码: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('⚠️ [AppUpgrade] 检查版本异常: $e');
-    } finally {
+      debugPrint('⚠️ [AppUpgrade] 主通道检查版本异常: $e');
+    }
+
+    // 备用通道检测（若当前使用的是默认主地址，且主通道未成功）
+    if (versionCheckUrl == defaultVersionCheckUrl) {
+      try {
+        final fallbackUri = Uri.parse('$fallbackVersionCheckUrl?t=${DateTime.now().millisecondsSinceEpoch}');
+        final fbResponse = await httpClient.get(fallbackUri).timeout(const Duration(seconds: 8));
+        if (fbResponse.statusCode == 200) {
+          final decoded = jsonDecode(utf8.decode(fbResponse.bodyBytes)) as Map<String, dynamic>;
+          return AppVersionInfo.fromJson(decoded);
+        }
+      } catch (e) {
+        debugPrint('⚠️ [AppUpgrade] 备用通道检查版本异常: $e');
+      } finally {
+        if (client == null) {
+          httpClient.close();
+        }
+      }
+    } else {
       if (client == null) {
         httpClient.close();
       }

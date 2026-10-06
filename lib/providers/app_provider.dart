@@ -1753,15 +1753,6 @@ class AppProvider extends ChangeNotifier {
     _saveMaterials();
   }
 
-  /// 重置并恢复初始演示数据
-  void resetToMockData() {
-    _clues.clear();
-    _textMaterials.clear();
-    _imageMaterials.clear();
-    initMockData();
-    notifyListeners();
-  }
-
   // 搜索线索
   void setSearchKeyword(String keyword) {
     _searchKeyword = keyword;

@@ -149,14 +149,6 @@ class MinePage extends StatelessWidget {
                   badgeColor: provider.isCloudConnected ? Colors.green : Colors.grey,
                   onTap: () => _showCloudSyncDialog(context, provider),
                 ),
-                if (isSuper)
-                  _MenuItem(
-                    icon: Icons.restart_alt_rounded,
-                    title: '恢复初始演示数据',
-                    subtitle: '清空当前修改并重置15条测试线索',
-                    iconColor: Colors.orange,
-                    onTap: () => _showResetDialog(context, provider),
-                  ),
                 _MenuItem(
                   icon: Icons.lock_outline,
                   title: '修改我的密码',
@@ -527,38 +519,6 @@ class MinePage extends StatelessWidget {
       ),
     );
   }
-
-  void _showResetDialog(BuildContext context, AppProvider provider) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('重置演示数据'),
-        content: const Text('确定要将所有线索与物料恢复至初始模拟数据吗？\n当前添加的线索与修改将被覆盖。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('取消'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              provider.resetToMockData();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('数据已恢复至初始演示状态'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-            child: const Text('确认重置'),
-          ),
-        ],
-      ),
-    );
-  }
-
-
 
   void _showAboutDialog(BuildContext context) {
     showDialog(
