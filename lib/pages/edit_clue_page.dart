@@ -33,6 +33,9 @@ class _EditCluePageState extends State<EditCluePage> {
   final List<String> _presetGrades = ['27级', '26级', '25级', '24级', '23级', '其他'];
   final List<String> _sources = ['抖音', '小红书', '地推', '电话打入', '转介绍', '老带新'];
   final List<String> _subjects = [
+    '美术专业综合',
+    '美术中高考',
+    '美术对口升学',
     '高等数学',
     '管理学',
     '大学语文',
@@ -42,7 +45,6 @@ class _EditCluePageState extends State<EditCluePage> {
     '生理学病理解剖学',
     '中医基础',
     '动物植物遗传学',
-    '美术专业综合',
     '音乐专业综合',
     '舞蹈专业综合',
     '体育专业综合',

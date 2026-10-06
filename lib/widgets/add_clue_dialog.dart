@@ -16,7 +16,7 @@ class AddClueDialog extends StatefulWidget {
 class _AddClueDialogState extends State<AddClueDialog> {
   final _wxNickCtrl = TextEditingController();
   final _wxIdCtrl = TextEditingController();
-  String _subject = '';
+  String _subject = '美术专业综合';
   String _source = '';
 
   // 下次回访时间（默认明天 10:00）
@@ -26,6 +26,9 @@ class _AddClueDialogState extends State<AddClueDialog> {
 
   // 报考科目选项
   final List<String> _subjects = [
+    '美术专业综合',
+    '美术中高考',
+    '美术对口升学',
     '高等数学',
     '管理学',
     '大学语文',
@@ -35,7 +38,6 @@ class _AddClueDialogState extends State<AddClueDialog> {
     '生理学病理解剖学',
     '中医基础',
     '动物植物遗传学',
-    '美术专业综合',
     '音乐专业综合',
     '舞蹈专业综合',
     '体育专业综合',
@@ -215,7 +217,7 @@ class _AddClueDialogState extends State<AddClueDialog> {
               items: _subjects
                   .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                   .toList(),
-              onChanged: (v) => setState(() => _subject = v ?? ''),
+              onChanged: (v) => setState(() => _subject = v ?? '美术专业综合'),
             ),
             const SizedBox(height: 14),
 

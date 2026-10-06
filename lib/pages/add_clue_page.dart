@@ -79,7 +79,7 @@ class _ManualFormState extends State<_ManualForm> {
   final _phoneCtrl = TextEditingController();
   final _schoolCtrl = TextEditingController();
   final _gradeCtrl = TextEditingController();
-  String _subject = '';
+  String _subject = '美术专业综合';
   String _source = '';
   String _classType = '';
   ClueStatus _status = ClueStatus.following;
@@ -93,6 +93,9 @@ class _ManualFormState extends State<_ManualForm> {
 
   final List<String> _presetGrades = ['27级', '26级', '25级', '24级', '23级', '其他'];
   final List<String> _subjects = [
+    '美术专业综合',
+    '美术中高考',
+    '美术对口升学',
     '高等数学',
     '管理学',
     '大学语文',
@@ -102,7 +105,6 @@ class _ManualFormState extends State<_ManualForm> {
     '生理学病理解剖学',
     '中医基础',
     '动物植物遗传学',
-    '美术专业综合',
     '音乐专业综合',
     '舞蹈专业综合',
     '体育专业综合',
@@ -238,7 +240,7 @@ class _ManualFormState extends State<_ManualForm> {
           ]),
           const SizedBox(height: 16),
           _buildSection('招生信息', [
-            _buildDropdown('报考科目', _subjects, _subject, (v) => setState(() => _subject = v ?? '')),
+            _buildDropdown('报考科目', _subjects, _subject, (v) => setState(() => _subject = v ?? '美术专业综合')),
             const SizedBox(height: 12),
             _buildDropdown('线索来源', _sources, _source, (v) => setState(() => _source = v ?? '')),
             const SizedBox(height: 12),
@@ -753,7 +755,7 @@ class _OcrFormState extends State<_OcrForm> {
   final _phoneCtrl = TextEditingController();
   final _schoolCtrl = TextEditingController();
   final _gradeCtrl = TextEditingController();
-  String _subject = '高等数学';
+  String _subject = '美术专业综合';
   String _source = '微信';
   String _classType = '全程协议班';
   final IntentLevel _intentLevel = IntentLevel.high;
@@ -767,6 +769,9 @@ class _OcrFormState extends State<_OcrForm> {
 
   final List<String> _presetGrades = ['27级', '26级', '25级', '24级', '23级', '其他'];
   final List<String> _subjects = [
+    '美术专业综合',
+    '美术中高考',
+    '美术对口升学',
     '高等数学',
     '管理学',
     '大学语文',
@@ -776,7 +781,6 @@ class _OcrFormState extends State<_OcrForm> {
     '生理学病理解剖学',
     '中医基础',
     '动物植物遗传学',
-    '美术专业综合',
     '音乐专业综合',
     '舞蹈专业综合',
     '体育专业综合',
@@ -1462,7 +1466,7 @@ class _OcrFormState extends State<_OcrForm> {
                     items: _subjects
                         .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                         .toList(),
-                    onChanged: (v) => setState(() => _subject = v ?? '高等数学'),
+                    onChanged: (v) => setState(() => _subject = v ?? '美术专业综合'),
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(

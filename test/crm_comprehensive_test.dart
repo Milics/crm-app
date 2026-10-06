@@ -14,6 +14,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:crm_app/services/crm_sync_service.dart';
+import 'package:crm_app/pages/add_clue_page.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -1748,6 +1749,40 @@ void main() {
       final fullyHydratedClue = restoredClue.copyWith(chatRecords: hydratedChats);
 
       expect(fullyHydratedClue.chatRecords.every((r) => r.imageData != null), isTrue);
+    });
+
+    testWidgets('【QA 专项测试 27】新建线索科目首选项美术专业综合默认、前三项顺序及文本解析识别测试', (tester) async {
+      final provider = AppProvider();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChangeNotifierProvider<AppProvider>.value(
+            value: provider,
+            child: const AddCluePage(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 1. 验证手动录入页面中，报考科目默认选中并显示为“美术专业综合”
+      expect(find.text('美术专业综合'), findsWidgets);
+
+      // 2. 点击展开科目下拉框，验证列表前三项项顺序依次为：美术专业综合、美术中高考、美术对口升学
+      final dropdownFinder = find.byType(DropdownButtonFormField<String>).first;
+      await tester.tap(dropdownFinder);
+      await tester.pumpAndSettle();
+
+      expect(find.text('美术中高考'), findsOneWidget);
+      expect(find.text('美术对口升学'), findsOneWidget);
+
+      // 3. 验证文本解析器对美术中高考、美术对口升学与美术专业综合的精准解析
+      final r1 = ClueTextParser.parse('赵小明 郑州轻工业学院 25届 美术中高考 13911112222');
+      expect(r1.subject, '美术中高考');
+
+      final r2 = ClueTextParser.parse('钱小华 河南工程学院 24级 对口升学 13922223333');
+      expect(r2.subject, '美术对口升学');
+
+      final r3 = ClueTextParser.parse('孙小美 河南经贸 24级 视觉传达 13933334444');
+      expect(r3.subject, '美术专业综合');
     });
   });
 }
