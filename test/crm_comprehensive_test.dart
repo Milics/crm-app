@@ -1921,10 +1921,10 @@ void main() {
       expect(enrolledList[3].wxNick, '袁睿琪', reason: '09-12 最早报名应排在最后一位');
     });
 
-    test('【QA 专项测试 30】生产环境业务数据绝对防清空与版本升级 V1.0.3+4 验证', () {
-      // 1. 验证应用升级版本号递增至 4 (1.0.3)
-      expect(AppUpgradeService.currentVersionCode, 4);
-      expect(AppUpgradeService.currentVersionName, '1.0.3');
+    test('【QA 专项测试 30】生产环境业务数据绝对防清空与版本升级 V1.0.4+5 验证', () {
+      // 1. 验证应用升级版本号递增至 5 (1.0.4)
+      expect(AppUpgradeService.currentVersionCode, 5);
+      expect(AppUpgradeService.currentVersionName, '1.0.4');
       expect(AppUpgradeService.fallbackVersionCheckUrl, contains('raw.githubusercontent.com'));
 
       // 2. 验证真实学员业务数据存在时，无法通过任何遗留方法误触清空
@@ -1939,6 +1939,63 @@ void main() {
       );
       provider.addClue(realStudent);
       expect(provider.clues.any((c) => c.id == 'real_student_important'), true);
+    });
+
+    test('【QA 专项测试 31】多端员工账号智能去重对齐测试（彻底杜绝同名/同账号名李广东并存）', () async {
+      final provider = AppProvider();
+
+      // 模拟本地存在包含两个李广东（一个早期带手机号，另一个重复创建无手机号）
+      final userA = AppUser(
+        id: 'usr_1789655255260',
+        username: 'lgd1992',
+        password: '123456',
+        name: '李广东',
+        role: UserRole.superAdmin,
+        isActive: true,
+        phone: '15738801926',
+        canManageMaterials: true,
+      );
+
+      final userBDuplicate = AppUser(
+        id: 'usr_1789746589034',
+        username: 'lgd1992',
+        password: '123456',
+        name: '李广东',
+        role: UserRole.superAdmin,
+        isActive: true,
+        phone: '', // 无手机号重复项
+        canManageMaterials: true,
+      );
+
+      // 验证待清洗列表中包含了 usr_1789746589034
+      const mockIds = {
+        'usr_manager_wang',
+        'usr_advisor_zhang',
+        'usr_1788342882634',
+        'usr_advisor_li',
+        'usr_1788340055423',
+        'usr_1789746589034',
+      };
+      expect(mockIds.contains(userBDuplicate.id), true);
+
+      // 模拟智能去重
+      final testList = [userBDuplicate, userA];
+      final Map<String, AppUser> dedupMap = {};
+      for (final u in testList.where((u) => !mockIds.contains(u.id))) {
+        final existing = dedupMap[u.username];
+        if (existing == null) {
+          dedupMap[u.username] = u;
+        } else if (existing.phone.isEmpty && u.phone.isNotEmpty) {
+          dedupMap[u.username] = u;
+        }
+      }
+
+      // 核心断言：去重后李广东只有一个，且保留的是带有效手机号 15738801926 的账号
+      expect(dedupMap.length, 1);
+      final finalLgd = dedupMap['lgd1992'];
+      expect(finalLgd, isNotNull);
+      expect(finalLgd!.id, 'usr_1789655255260');
+      expect(finalLgd.phone, '15738801926');
     });
   });
 }

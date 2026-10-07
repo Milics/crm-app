@@ -202,15 +202,32 @@ class AppProvider extends ChangeNotifier {
       _users.addAll(list.map((e) => AppUser.fromJson(e)));
     }
 
-    // 自动清洗历史遗留测试账号（彻底剔除王主管、张老师、旧郭培杨、旧李老师等）
+    // 自动清洗历史遗留测试账号与跨设备重复脏数据（彻底剔除王主管、张老师、旧郭培杨、旧李老师及重复李广东等）
     const mockUserIds = {
       'usr_manager_wang',
       'usr_advisor_zhang',
       'usr_1788342882634',
       'usr_advisor_li',
       'usr_1788340055423',
+      'usr_1789746589034', // 历史跨设备重复创建的无手机号李广东
     };
     _users.removeWhere((u) => mockUserIds.contains(u.id));
+
+    // 智能去重：同一个 username 只能保留一个账号，优先保留手机号完整的记录
+    final Map<String, AppUser> dedupMap = {};
+    for (final u in _users) {
+      final existing = dedupMap[u.username];
+      if (existing == null) {
+        dedupMap[u.username] = u;
+      } else {
+        if (existing.phone.isEmpty && u.phone.isNotEmpty) {
+          dedupMap[u.username] = u;
+        }
+      }
+    }
+    _users.clear();
+    _users.addAll(dedupMap.values);
+
     if (_users.isEmpty) {
       _initDefaultUsers();
     }
@@ -476,18 +493,31 @@ class AppProvider extends ChangeNotifier {
           'usr_1788342882634',
           'usr_advisor_li',
           'usr_1788340055423',
+          'usr_1789746589034', // 历史跨设备重复创建的无手机号李广东
         };
         final cleanRemote =
             remoteUsers.where((u) => !mockUserIds.contains(u.id)).toList();
-        final map = {
-          for (var u in _users.where((u) => !mockUserIds.contains(u.id)))
-            u.id: u
-        };
-        for (var ru in cleanRemote) {
-          map[ru.id] = ru;
+
+        // 🛡️ 智能对齐合并：以云端为权威来源，并支持本地离线自建账号
+        final Map<String, AppUser> dedupByUsername = {};
+        // 优先载入云端最新账号
+        for (final ru in cleanRemote) {
+          final existing = dedupByUsername[ru.username];
+          if (existing == null) {
+            dedupByUsername[ru.username] = ru;
+          } else if (existing.phone.isEmpty && ru.phone.isNotEmpty) {
+            dedupByUsername[ru.username] = ru;
+          }
         }
+        // 兼容本地尚未同步到云端的新建有效账号（排除已废弃测试ID）
+        for (final u in _users.where((u) => !mockUserIds.contains(u.id))) {
+          if (!dedupByUsername.containsKey(u.username)) {
+            dedupByUsername[u.username] = u;
+          }
+        }
+
         _users.clear();
-        _users.addAll(map.values);
+        _users.addAll(dedupByUsername.values);
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(
             'crm_users', jsonEncode(_users.map((u) => u.toJson()).toList()));
