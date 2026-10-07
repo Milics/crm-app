@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 /// 登录页面
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -11,10 +13,26 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _usernameCtrl = TextEditingController(text: 'admin');
-  final _passwordCtrl = TextEditingController(text: '123456');
+  final _usernameCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
   bool _obscurePassword = true;
   bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLastUsername();
+  }
+
+  Future<void> _loadLastUsername() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lastUser = prefs.getString('crm_last_login_username');
+      if (lastUser != null && lastUser.isNotEmpty && mounted) {
+        _usernameCtrl.text = lastUser;
+      }
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -40,6 +58,10 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _loading = false);
 
     if (res['success'] == true) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('crm_last_login_username', username);
+      } catch (_) {}
       // 登录成功由 AppProvider 状态变更自动进入 MainTabPage
     } else {
       _showError(res['message'] ?? '登录失败，请检查账号密码');

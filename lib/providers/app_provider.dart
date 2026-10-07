@@ -244,15 +244,6 @@ class AppProvider extends ChangeNotifier {
         }
       } catch (_) {}
     }
-    // 默认兜底：若未登录，默认激活超级管理员账号，确保权限与筛选与管理员无缝衔接
-    if (_currentUserObj == null && _users.isNotEmpty) {
-      final defaultAdmin = _users.firstWhere(
-        (u) => u.isSuperAdmin && u.isActive,
-        orElse: () => _users.first,
-      );
-      _currentUserObj = defaultAdmin;
-      _currentUser = defaultAdmin.name;
-    }
 
     // 🛡️ 核心数据安全防护 1：解除由于远端返回空导致的墓碑误判，确保真实线索绝不受墓碑拦截
     final realSeeds = InitialRealClues.getClues();

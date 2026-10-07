@@ -1921,10 +1921,10 @@ void main() {
       expect(enrolledList[3].wxNick, '袁睿琪', reason: '09-12 最早报名应排在最后一位');
     });
 
-    test('【QA 专项测试 30】生产环境业务数据绝对防清空与版本升级 V1.0.4+5 验证', () {
-      // 1. 验证应用升级版本号递增至 5 (1.0.4)
-      expect(AppUpgradeService.currentVersionCode, 5);
-      expect(AppUpgradeService.currentVersionName, '1.0.4');
+    test('【QA 专项测试 30】生产环境业务数据绝对防清空与版本升级 V1.0.5+6 验证', () {
+      // 1. 验证应用升级版本号递增至 6 (1.0.5)
+      expect(AppUpgradeService.currentVersionCode, 6);
+      expect(AppUpgradeService.currentVersionName, '1.0.5');
       expect(AppUpgradeService.fallbackVersionCheckUrl, contains('raw.githubusercontent.com'));
 
       // 2. 验证真实学员业务数据存在时，无法通过任何遗留方法误触清空
@@ -1996,6 +1996,32 @@ void main() {
       expect(finalLgd, isNotNull);
       expect(finalLgd!.id, 'usr_1789655255260');
       expect(finalLgd.phone, '15738801926');
+    });
+
+    test('【QA 专项测试 32】新设备与未登录状态绝不自动免密成为admin，必须显式登录个人账号测试', () async {
+      SharedPreferences.setMockInitialValues({}); // 模拟首次安装新设备（无任何本地登录态）
+      final provider = AppProvider();
+
+      // 核心断言 1：首次冷启动或未登录时，绝不可自动填充/假冒超级管理员！必须是未登录态（currentUser 为空）
+      expect(provider.currentUser, '', reason: '新装或未登录设备绝不可自动免密伪装为admin！');
+      expect(provider.currentUserObj, isNull);
+      expect(provider.isSuperAdmin, false);
+
+      // 核心断言 2：登录不存在的账号失败
+      final failRes = await provider.loginAuth('not_exist_user', '123456');
+      expect(failRes['success'], false);
+      expect(provider.currentUser, '');
+
+      // 核心断言 3：员工主动登录自己的账号（以 admin 为例）
+      final okRes = await provider.loginAuth('admin', 'admin123');
+      expect(okRes['success'], true);
+      expect(provider.currentUser, '超级管理员');
+      expect(provider.isSuperAdmin, true);
+
+      // 核心断言 4：主动退出登录后，状态立即回到未登录态
+      await provider.logout();
+      expect(provider.currentUser, '');
+      expect(provider.currentUserObj, isNull);
     });
   });
 }
