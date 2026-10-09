@@ -1,0 +1,9 @@
+{
+  "versionCode": 6,
+  "versionName": "1.0.5",
+  "title": "发现新版本 V1.0.5",
+  "changelog": "1. 修复新设备默认免密登录admin的问题，登录页不再预填admin账号与密码，确保同事独立登录\n2. 修复账号管理中同名账号重复显示的问题，实现多端员工账号智能去重与自动对齐\n3. 移除高危'恢复初始演示数据'功能，彻底杜绝数据误清空隐患\n4. 报名的学员列表支持按报名时间倒序排列（最新报名的排在最上面）\n5. 报考科目默认首选美术专业综合，新增美术中高考、美术对口升学细分赛道",
+  "downloadUrl": "https://milics.github.io/crm-app/download.html",
+  "forceUpdate": false,
+  "publishTime": "2026-10-07"
+}

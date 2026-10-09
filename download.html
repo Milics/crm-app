@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#1976D2">
+  <title>专升本招生 CRM - 官方最新版下载</title>
+  <link rel="icon" type="image/png" href="favicon.png"/>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(135deg, #0D47A1 0%, #1976D2 50%, #42A5F5 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      color: #333;
+    }
+    .card {
+      width: 100%;
+      max-width: 440px;
+      background: #FFFFFF;
+      border-radius: 24px;
+      padding: 28px 24px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+      text-align: center;
+      animation: fadeIn 0.4s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .logo-wrap {
+      width: 80px;
+      height: 80px;
+      background: #F0F4F8;
+      border-radius: 20px;
+      margin: 0 auto 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 16px rgba(25, 118, 210, 0.15);
+      overflow: hidden;
+    }
+    .logo-wrap img {
+      width: 60px;
+      height: 60px;
+      object-fit: contain;
+    }
+    .app-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1A237E;
+      margin-bottom: 6px;
+    }
+    .version-tag {
+      display: inline-block;
+      background: #E3F2FD;
+      color: #1565C0;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+    .btn-main {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      background: linear-gradient(135deg, #1976D2 0%, #1565C0 100%);
+      color: #FFFFFF;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 600;
+      padding: 15px 20px;
+      border-radius: 14px;
+      box-shadow: 0 8px 18px rgba(21, 101, 192, 0.35);
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    .btn-main:active {
+      transform: scale(0.98);
+      box-shadow: 0 4px 10px rgba(21, 101, 192, 0.25);
+    }
+    .sub-btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .btn-sub {
+      flex: 1;
+      display: block;
+      background: #F5F7FA;
+      color: #455A64;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 10px 8px;
+      border-radius: 10px;
+      border: 1px solid #CFD8DC;
+      transition: all 0.2s;
+    }
+    .btn-sub:active {
+      background: #ECEFF1;
+    }
+    .info-box {
+      margin-top: 22px;
+      padding: 16px;
+      background: #F8FAFC;
+      border-radius: 14px;
+      text-align: left;
+      border: 1px solid #E2E8F0;
+    }
+    .info-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .info-list {
+      font-size: 12.5px;
+      color: #64748B;
+      line-height: 1.6;
+      list-style-position: inside;
+      padding-left: 2px;
+    }
+    .tips {
+      margin-top: 16px;
+      font-size: 12px;
+      color: #90A4AE;
+      line-height: 1.5;
+    }
+    .status-text {
+      font-size: 12.5px;
+      color: #2E7D32;
+      margin-top: 10px;
+      font-weight: 500;
+    }
+    /* 微信/QQ 内置浏览器遮罩提示 */
+    .wx-mask {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 9999;
+      color: #FFFFFF;
+      padding: 24px;
+      text-align: right;
+    }
+    .wx-arrow {
+      font-size: 40px;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    .wx-tip-text {
+      font-size: 16px;
+      font-weight: 600;
+      text-align: center;
+      margin-top: 40px;
+      line-height: 1.8;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 微信内置浏览器引导遮罩 -->
+  <div id="wxMask" class="wx-mask">
+    <div class="wx-arrow">↗</div>
+    <div class="wx-tip-text">
+      请点击右上角 <span style="color:#FFD54F">···</span> 菜单<br>
+      选择 <span style="color:#81C784">“在浏览器打开”</span> 即可高速下载
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="logo-wrap">
+      <img src="assets/images/logo.png" alt="Logo" onerror="this.src='favicon.png'">
+    </div>
+    <h1 class="app-title">专升本招生 CRM</h1>
+    <div class="version-tag">最新版本 V1.0.5 (官方正式版)</div>
+
+    <!-- 主高速下载按钮 -->
+    <a id="primaryBtn" class="btn-main" href="https://ghfast.top/https://raw.githubusercontent.com/Milics/crm-app/gh-pages/crm_app_release.apk">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </svg>
+      <span>🚀 立即高速下载 APK (56.6MB)</span>
+    </a>
+
+    <div id="statusNotice" class="status-text">⏳ 正在自动唤起极速下载...</div>
+
+    <!-- 备用多线路按钮 -->
+    <div class="sub-btn-group">
+      <a class="btn-sub" href="https://gh-proxy.com/https://raw.githubusercontent.com/Milics/crm-app/gh-pages/crm_app_release.apk">⚡ 备用线路 1</a>
+      <a class="btn-sub" href="https://ghproxy.net/https://raw.githubusercontent.com/Milics/crm-app/gh-pages/crm_app_release.apk">🌐 备用线路 2</a>
+    </div>
+
+    <!-- 更新内容说明 -->
+    <div class="info-box">
+      <div class="info-title">
+        <span>✨</span>
+        <span>本次重要更新 (V1.0.5)</span>
+      </div>
+      <ul class="info-list">
+        <li>彻底修复新设备默认免密登录管理员问题，各顾问独立登录</li>
+        <li>修复账号管理同名员工重复显示问题，支持多端智能去重</li>
+        <li>彻底移除高危重置数据入口，保障业务学员资产绝对安全</li>
+        <li>报名的学员列表支持按报名时间倒序排列（最新在最前）</li>
+        <li>报考科目首选项优化为“美术专业综合”</li>
+      </ul>
+    </div>
+
+    <div class="tips">
+      💡 温馨提示：若系统提示“来自外部来源的应用”，请点击“允许”或“继续安装”即可。
+    </div>
+  </div>
+
+  <script>
+    // 1. 判断是否微信或 QQ 客户端
+    var ua = navigator.userAgent.toLowerCase();
+    var isWeixin = ua.indexOf('micromessenger') !== -1;
+    var isQQ = ua.indexOf('qq/') !== -1;
+    if (isWeixin || isQQ) {
+      document.getElementById('wxMask').style.display = 'block';
+      document.getElementById('statusNotice').style.display = 'none';
+    } else {
+      // 2. 正常浏览器环境下，0.6秒后自动唤起主高速下载
+      setTimeout(function() {
+        var btn = document.getElementById('primaryBtn');
+        if (btn) {
+          document.getElementById('statusNotice').innerText = '✅ 如未自动弹出下载，请点击上方蓝色按钮';
+          window.location.href = btn.href;
+        }
+      }, 600);
+    }
+  </script>
+</body>
+</html>
