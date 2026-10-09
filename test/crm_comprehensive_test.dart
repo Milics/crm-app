@@ -2023,8 +2023,103 @@ void main() {
       expect(provider.currentUser, '');
       expect(provider.currentUserObj, isNull);
     });
+
+    test('【QA 专项测试 33】数据统计页届别与时间切片联动计算、销售个人数据隔离与超管全员统计测试', () async {
+      SharedPreferences.setMockInitialValues({});
+      final provider = AppProvider();
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      // 准备测试数据：李广东 (26届本月1条，25届历史1条)，郭培杨 (26届本月1条)
+      final now = DateTime.now();
+      final thisMonthTime = DateTime(now.year, now.month, 2);
+      final lastYearTime = DateTime(now.year - 1, 1, 1);
+
+      final clue1 = Clue(
+        id: 'clue_stat_1',
+        wxNick: '李广东26届学员',
+        grade: '26届',
+        status: ClueStatus.enrolled,
+        ownerName: '李广东',
+        createTime: thisMonthTime,
+        enrollTime: thisMonthTime,
+      );
+      final clue2 = Clue(
+        id: 'clue_stat_2',
+        wxNick: '李广东25届学员',
+        grade: '25级',
+        status: ClueStatus.attended,
+        ownerName: '李广东',
+        createTime: lastYearTime,
+      );
+      final clue3 = Clue(
+        id: 'clue_stat_3',
+        wxNick: '郭培杨26届学员',
+        grade: '26级',
+        status: ClueStatus.enrolled,
+        ownerName: '郭培杨',
+        createTime: thisMonthTime,
+        enrollTime: thisMonthTime,
+      );
+
+      // 1. 先创建李广东销售顾问账号并登录（验证权限隔离）
+      await provider.addUser(
+        AppUser(
+          id: 'usr_lgd_test',
+          name: '李广东',
+          username: 'liguangdong',
+          password: '123456',
+          phone: '15738801926',
+          role: UserRole.advisor,
+        ),
+      );
+      final lgdLogin = await provider.loginAuth('liguangdong', '123456');
+      expect(lgdLogin['success'], true);
+      expect(provider.currentUser, '李广东');
+      expect(provider.canViewAllClues, false);
+
+      // 通过 addClue 添加测试线索
+      provider.addClue(clue1);
+      provider.addClue(clue2);
+      provider.addClue(clue3);
+
+      // 李广东只能看到自己的2条线索（李广东26届、李广东25届）
+      expect(provider.accessibleClues.length, 2);
+      expect(provider.accessibleClues.map((c) => c.ownerName).toSet(), {'李广东'});
+
+      // 2. 退出李广东，切换超管登录验证（可看全员3条线索）
+      await provider.logout();
+      final adminLogin = await provider.loginAuth('admin', 'admin123');
+      expect(adminLogin['success'], true);
+      expect(provider.currentUser, '超级管理员');
+      expect(provider.canViewAllClues, true);
+
+      // 超管切换到全员汇总
+      provider.setOwnerFilter('all');
+      expect(provider.accessibleClues.length, 3);
+
+      // 3. 验证届别规范化切片
+      // 26届全员应有 2 条（李广东1条 + 郭培杨1条）
+      final grade26Clues = provider.accessibleClues
+          .where((c) => AppProvider.normalizeGrade(c.grade) == '26级')
+          .toList();
+      expect(grade26Clues.length, 2);
+
+      // 25届全员应有 1 条（李广东1条）
+      final grade25Clues = provider.accessibleClues
+          .where((c) => AppProvider.normalizeGrade(c.grade) == '25级')
+          .toList();
+      expect(grade25Clues.length, 1);
+
+      // 4. 验证时间切片
+      final monthStart = DateTime(now.year, now.month, 1);
+      final monthClues = provider.accessibleClues
+          .where((c) => c.createTime.isAfter(monthStart))
+          .toList();
+      expect(monthClues.length, 2); // 仅本月的2条26届
+    });
   });
 }
+
 
 
 
