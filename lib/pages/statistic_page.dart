@@ -4,7 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import '../providers/app_provider.dart';
 import '../models/clue.dart';
 
-/// 数据统计页（支持届别/时间/人员多维联动筛选，包含核心指标、转化率、渠道分布饼图、科目分布柱状图与咨询师排行）
+/// 数据统计页（支持届别多选、时间周期、销售人员多维联动筛选，支持点击按钮向下展开筛选器）
 class StatisticPage extends StatefulWidget {
   const StatisticPage({super.key});
 
@@ -15,8 +15,11 @@ class StatisticPage extends StatefulWidget {
 class _StatisticPageState extends State<StatisticPage> {
   int? _touchedPieIndex;
 
+  // 筛选器面板是否向下展开（默认收起，点击右上角按钮切换展开/收起）
+  bool _isFilterExpanded = false;
+
   // 多维筛选状态
-  String _selectedGrade = 'all'; // 'all' 或 '26级', '25级', '24级' 等
+  final Set<String> _selectedGrades = {}; // 为空表示全部届别，非空表示多选的具体届别（如 '26级', '25级'）
   String _selectedTimeRange = 'all'; // 'all', 'this_month', 'this_week', 'today'
   String _selectedAdvisor = 'all'; // 'all', 'mine', 或具体顾问姓名（仅超管可用）
 
@@ -53,11 +56,13 @@ class _StatisticPageState extends State<StatisticPage> {
             }
           }
 
-          // 2. 届别/年级过滤
+          // 2. 届别/年级过滤（支持除“全部”外的多选）
           List<Clue> gradeFilteredClues = baseClues;
-          if (_selectedGrade != 'all' && _selectedGrade.isNotEmpty) {
-            gradeFilteredClues = baseClues.where((c) =>
-                AppProvider.normalizeGrade(c.grade) == _selectedGrade).toList();
+          if (_selectedGrades.isNotEmpty) {
+            gradeFilteredClues = baseClues.where((c) {
+              final norm = AppProvider.normalizeGrade(c.grade);
+              return _selectedGrades.contains(norm);
+            }).toList();
           }
 
           // 3. 时间范围计算起点
@@ -120,9 +125,9 @@ class _StatisticPageState extends State<StatisticPage> {
           final sourceStats = _computeSourceStats(chartClues);
           final subjectStats = _computeSubjectStats(chartClues);
 
-          // 格式化时间标签
+          // 格式化时间标签与届别标签
           final timeRangeLabel = _getTimeRangeLabel(_selectedTimeRange);
-          final gradeLabel = _getGradeLabel(_selectedGrade);
+          final gradeLabel = _getGradesSummaryLabel();
 
           return MediaQuery.removePadding(
             context: context,
@@ -159,37 +164,65 @@ class _StatisticPageState extends State<StatisticPage> {
                             ],
                           ),
                         ),
-                        // 顶部时间范围快捷切换药丸
+                        // 顶部展开/收起筛选器按钮（点击向下展示现在的筛选器）
                         InkWell(
-                          onTap: () => _showTimeRangePicker(context),
+                          onTap: () => setState(() => _isFilterExpanded = !_isFilterExpanded),
                           borderRadius: BorderRadius.circular(20),
-                          child: Container(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 6),
+                                horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.22),
+                              color: _isFilterExpanded
+                                  ? Colors.white
+                                  : Colors.white.withValues(alpha: 0.22),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.35),
+                                color: _isFilterExpanded
+                                    ? Colors.white
+                                    : Colors.white.withValues(alpha: 0.35),
                                 width: 1,
                               ),
+                              boxShadow: _isFilterExpanded
+                                  ? [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.12),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ]
+                                  : null,
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.calendar_today_rounded,
-                                    size: 13, color: Colors.white),
+                                Icon(
+                                  Icons.tune_rounded,
+                                  size: 13,
+                                  color: _isFilterExpanded
+                                      ? const Color(0xFF1976D2)
+                                      : Colors.white,
+                                ),
                                 const SizedBox(width: 5),
                                 Text(
                                   timeRangeLabel,
-                                  style: const TextStyle(
-                                      color: Colors.white,
+                                  style: TextStyle(
+                                      color: _isFilterExpanded
+                                          ? const Color(0xFF1976D2)
+                                          : Colors.white,
                                       fontSize: 12,
-                                      fontWeight: FontWeight.w600),
+                                      fontWeight: FontWeight.bold),
                                 ),
-                                const SizedBox(width: 2),
-                                const Icon(Icons.arrow_drop_down,
-                                    size: 16, color: Colors.white),
+                                const SizedBox(width: 3),
+                                Icon(
+                                  _isFilterExpanded
+                                      ? Icons.keyboard_arrow_up
+                                      : Icons.keyboard_arrow_down,
+                                  size: 16,
+                                  color: _isFilterExpanded
+                                      ? const Color(0xFF1976D2)
+                                      : Colors.white,
+                                ),
                               ],
                             ),
                           ),
@@ -198,8 +231,14 @@ class _StatisticPageState extends State<StatisticPage> {
                     ),
                   ),
 
-                  // 顶部多维筛选控制面板（届别、时间、顾问）
-                  _buildFilterControlPanel(provider),
+                  // 点击按钮后，向下展开的筛选器面板（带丝滑尺寸动画）
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 240),
+                    curve: Curves.easeInOut,
+                    child: _isFilterExpanded
+                        ? _buildFilterControlPanel(provider)
+                        : const SizedBox.shrink(),
+                  ),
 
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
@@ -314,7 +353,7 @@ class _StatisticPageState extends State<StatisticPage> {
     );
   }
 
-  /// 顶部多维筛选控制面板
+  /// 顶部多维筛选控制面板（向下滑出展示）
   Widget _buildFilterControlPanel(AppProvider provider) {
     final allGrades = provider.allGrades;
 
@@ -324,18 +363,21 @@ class _StatisticPageState extends State<StatisticPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
+        border: const Border(
+          bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. 届别筛选胶囊行（专升本招生核心周期）
+          // 1. 届别筛选胶囊行（除了“全部届别”，其他支持多选）
           Row(
             children: [
               const Icon(Icons.school_outlined,
@@ -354,16 +396,32 @@ class _StatisticPageState extends State<StatisticPage> {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
+                      // 全部届别（单选重置）
                       _buildChip(
                         label: '全部届别',
-                        isSelected: _selectedGrade == 'all',
-                        onTap: () => setState(() => _selectedGrade = 'all'),
+                        isSelected: _selectedGrades.isEmpty,
+                        onTap: () {
+                          setState(() {
+                            _selectedGrades.clear();
+                          });
+                        },
                       ),
+                      // 具体届别（支持多选）
                       ...allGrades.map((g) {
+                        final isSelected = _selectedGrades.contains(g);
                         return _buildChip(
                           label: _getGradeDisplayWithRemark(g),
-                          isSelected: _selectedGrade == g,
-                          onTap: () => setState(() => _selectedGrade = g),
+                          isSelected: isSelected,
+                          isMultiSelect: true,
+                          onTap: () {
+                            setState(() {
+                              if (_selectedGrades.contains(g)) {
+                                _selectedGrades.remove(g);
+                              } else {
+                                _selectedGrades.add(g);
+                              }
+                            });
+                          },
                         );
                       }),
                     ],
@@ -372,9 +430,9 @@ class _StatisticPageState extends State<StatisticPage> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
 
-          // 2. 时间周期筛选胶囊行
+          // 2. 时间周期筛选胶囊行（直接在此点击切换，无需底部弹窗）
           Row(
             children: [
               const Icon(Icons.access_time_rounded,
@@ -425,7 +483,7 @@ class _StatisticPageState extends State<StatisticPage> {
 
           // 3. 销售顾问切换行（仅超级管理员有权查看全员与其他顾问）
           if (provider.canViewAllClues) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Row(
               children: [
                 const Icon(Icons.badge_outlined,
@@ -504,11 +562,12 @@ class _StatisticPageState extends State<StatisticPage> {
     );
   }
 
-  /// 筛选胶囊小部件
+  /// 筛选胶囊小部件（支持多选指示勾选标记）
   Widget _buildChip({
     required String label,
     required bool isSelected,
     required VoidCallback onTap,
+    bool isMultiSelect = false,
   }) {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
@@ -517,7 +576,7 @@ class _StatisticPageState extends State<StatisticPage> {
         borderRadius: BorderRadius.circular(16),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
           decoration: BoxDecoration(
             color: isSelected ? const Color(0xFF1976D2) : const Color(0xFFF1F5F9),
             borderRadius: BorderRadius.circular(16),
@@ -526,13 +585,22 @@ class _StatisticPageState extends State<StatisticPage> {
               width: 1,
             ),
           ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              color: isSelected ? Colors.white : const Color(0xFF475569),
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isMultiSelect && isSelected) ...[
+                const Icon(Icons.check, size: 12, color: Colors.white),
+                const SizedBox(width: 3),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? Colors.white : const Color(0xFF475569),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -604,92 +672,6 @@ class _StatisticPageState extends State<StatisticPage> {
           ),
         ],
       ),
-    );
-  }
-
-  /// 弹出时间周期切换底部弹窗
-  void _showTimeRangePicker(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                '选择统计时间范围',
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B)),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(Icons.all_inclusive, color: Color(0xFF1976D2)),
-                title: const Text('全部时间（历史全量）'),
-                trailing: _selectedTimeRange == 'all'
-                    ? const Icon(Icons.check, color: Color(0xFF1976D2))
-                    : null,
-                onTap: () {
-                  setState(() => _selectedTimeRange = 'all');
-                  Navigator.pop(ctx);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.calendar_month, color: Color(0xFF0284C7)),
-                title: const Text('本月数据'),
-                trailing: _selectedTimeRange == 'this_month'
-                    ? const Icon(Icons.check, color: Color(0xFF1976D2))
-                    : null,
-                onTap: () {
-                  setState(() => _selectedTimeRange = 'this_month');
-                  Navigator.pop(ctx);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.view_week, color: Color(0xFF059669)),
-                title: const Text('本周数据'),
-                trailing: _selectedTimeRange == 'this_week'
-                    ? const Icon(Icons.check, color: Color(0xFF1976D2))
-                    : null,
-                onTap: () {
-                  setState(() => _selectedTimeRange = 'this_week');
-                  Navigator.pop(ctx);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.today, color: Color(0xFFE11D48)),
-                title: const Text('今日数据'),
-                trailing: _selectedTimeRange == 'today'
-                    ? const Icon(Icons.check, color: Color(0xFF1976D2))
-                    : null,
-                onTap: () {
-                  setState(() => _selectedTimeRange = 'today');
-                  Navigator.pop(ctx);
-                },
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 
@@ -996,7 +978,7 @@ class _StatisticPageState extends State<StatisticPage> {
     );
   }
 
-  /// 咨询师排行榜（完全随选中的届别与时间段动态计算积分战报）
+  /// 咨询师排行榜（完全随选中的届别多选与时间段动态计算积分战报）
   Widget _buildRankList(AppProvider provider, DateTime? timeFilterStart) {
     // 收集所有顾问姓名（去重）
     final advisorNames = <String>{};
@@ -1013,11 +995,12 @@ class _StatisticPageState extends State<StatisticPage> {
           c.ownerName == name ||
           provider.users.any((u) => u.name == name && c.ownerName == u.username)).toList();
 
-      // 届别过滤
-      if (_selectedGrade != 'all' && _selectedGrade.isNotEmpty) {
-        advisorClues = advisorClues
-            .where((c) => AppProvider.normalizeGrade(c.grade) == _selectedGrade)
-            .toList();
+      // 届别多选过滤
+      if (_selectedGrades.isNotEmpty) {
+        advisorClues = advisorClues.where((c) {
+          final norm = AppProvider.normalizeGrade(c.grade);
+          return _selectedGrades.contains(norm);
+        }).toList();
       }
 
       // 时间切片过滤
@@ -1048,7 +1031,6 @@ class _StatisticPageState extends State<StatisticPage> {
       );
     }).toList();
 
-    // 仅保留有数据的，或者展示全部顾问
     // 倒序排列：总积分高 -> 低，同分看报名数
     ranks.sort((a, b) {
       final sc = b.score.compareTo(a.score);
@@ -1254,9 +1236,20 @@ class _StatisticPageState extends State<StatisticPage> {
     }
   }
 
-  String _getGradeLabel(String grade) {
-    if (grade == 'all') return '全部届别';
-    return _getGradeDisplayWithRemark(grade);
+  /// 届别多选摘要标签
+  String _getGradesSummaryLabel() {
+    if (_selectedGrades.isEmpty) return '全部届别';
+    if (_selectedGrades.length == 1) {
+      return _getGradeDisplayWithRemark(_selectedGrades.first);
+    }
+    final labels = _selectedGrades.map((g) {
+      final clean = g.replaceAll('级', '').replaceAll('届', '').trim();
+      return '${clean}届';
+    }).toList();
+    if (labels.length <= 2) {
+      return labels.join('+');
+    }
+    return '${labels.take(2).join('+')}等${labels.length}届';
   }
 
   /// 届别显示名称，自动补齐大一/大二/大三标注，业务沟通零成本
