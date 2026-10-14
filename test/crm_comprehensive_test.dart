@@ -1921,10 +1921,10 @@ void main() {
       expect(enrolledList[3].wxNick, '袁睿琪', reason: '09-12 最早报名应排在最后一位');
     });
 
-    test('【QA 专项测试 30】生产环境业务数据绝对防清空与版本升级 V1.0.5+6 验证', () {
-      // 1. 验证应用升级版本号递增至 6 (1.0.5)
-      expect(AppUpgradeService.currentVersionCode, 6);
-      expect(AppUpgradeService.currentVersionName, '1.0.5');
+    test('【QA 专项测试 30】生产环境业务数据绝对防清空与版本升级 V1.0.7+8 验证', () {
+      // 1. 验证应用升级版本号递增至 8 (1.0.7)
+      expect(AppUpgradeService.currentVersionCode, 8);
+      expect(AppUpgradeService.currentVersionName, '1.0.7');
       expect(AppUpgradeService.fallbackVersionCheckUrl, contains('raw.githubusercontent.com'));
 
       // 2. 验证真实学员业务数据存在时，无法通过任何遗留方法误触清空
@@ -2116,6 +2116,105 @@ void main() {
           .where((c) => c.createTime.isAfter(monthStart))
           .toList();
       expect(monthClues.length, 2); // 仅本月的2条26届
+    });
+  });
+
+  group('【QA 专项测试 34】已逾期多粒度时长展示（天数/小时/不足1小时）与边界计算测试', () {
+    test('34.1 逾期天数级别计算验证（>=24小时，显示逾期X天）', () {
+      final now = DateTime(2026, 10, 14, 15, 0);
+
+      // 逾期 50 小时（超过2天）
+      final t50h = now.subtract(const Duration(hours: 50));
+      expect(formatOverdueDuration(t50h, now), '逾期2天');
+
+      // 逾期 48 小时（整2天）
+      final t48h = now.subtract(const Duration(hours: 48));
+      expect(formatOverdueDuration(t48h, now), '逾期2天');
+
+      // 逾期 25 小时（超过1天不足2天）
+      final t25h = now.subtract(const Duration(hours: 25));
+      expect(formatOverdueDuration(t25h, now), '逾期1天');
+
+      // 逾期 24 小时（整1天）
+      final t24h = now.subtract(const Duration(hours: 24));
+      expect(formatOverdueDuration(t24h, now), '逾期1天');
+    });
+
+    test('34.2 逾期小时级别计算验证（<24小时 且 >=1小时，显示逾期X小时）', () {
+      final now = DateTime(2026, 10, 14, 15, 0);
+
+      // 逾期 23 小时
+      final t23h = now.subtract(const Duration(hours: 23));
+      expect(formatOverdueDuration(t23h, now), '逾期23小时');
+
+      // 逾期 10 小时
+      final t10h = now.subtract(const Duration(hours: 10));
+      expect(formatOverdueDuration(t10h, now), '逾期10小时');
+
+      // 逾期 1 小时 30 分钟
+      final t1h30m = now.subtract(const Duration(hours: 1, minutes: 30));
+      expect(formatOverdueDuration(t1h30m, now), '逾期1小时');
+
+      // 逾期 1 小时整
+      final t1h = now.subtract(const Duration(hours: 1));
+      expect(formatOverdueDuration(t1h, now), '逾期1小时');
+    });
+
+    test('34.3 逾期不足1小时友好文案展示验证', () {
+      final now = DateTime(2026, 10, 14, 15, 0);
+
+      // 逾期 45 分钟
+      final t45m = now.subtract(const Duration(minutes: 45));
+      expect(formatOverdueDuration(t45m, now), '逾期不足1小时');
+
+      // 逾期 1 分钟
+      final t1m = now.subtract(const Duration(minutes: 1));
+      expect(formatOverdueDuration(t1m, now), '逾期不足1小时');
+    });
+
+    test('34.4 未逾期、刚刚到期与无回访时间边界验证', () {
+      final now = DateTime(2026, 10, 14, 15, 0);
+
+      // 时间完全相等（刚刚到期，未超过）
+      expect(formatOverdueDuration(now, now), '');
+
+      // 未来时间（尚未逾期）
+      final future = now.add(const Duration(hours: 2));
+      expect(formatOverdueDuration(future, now), '');
+
+      // null 时间
+      expect(formatOverdueDuration(null, now), '');
+    });
+
+    test('34.5 Clue 模型实例的 getter 与方法联动验证', () {
+      final now = DateTime(2026, 10, 14, 15, 0);
+
+      final clueOverdueDays = Clue(
+        id: 'c_overdue_days',
+        wxNick: '逾期三天学员',
+        createTime: now.subtract(const Duration(days: 10)),
+        nextVisitTime: now.subtract(const Duration(days: 3)),
+      );
+      expect(clueOverdueDays.isOverdueAt(now), true);
+      expect(clueOverdueDays.getOverdueDurationText(now), '逾期3天');
+
+      final clueOverdueHours = Clue(
+        id: 'c_overdue_hours',
+        wxNick: '逾期三小时学员',
+        createTime: now.subtract(const Duration(days: 1)),
+        nextVisitTime: now.subtract(const Duration(hours: 3)),
+      );
+      expect(clueOverdueHours.isOverdueAt(now), true);
+      expect(clueOverdueHours.getOverdueDurationText(now), '逾期3小时');
+
+      final clueFuture = Clue(
+        id: 'c_future',
+        wxNick: '明天待回访学员',
+        createTime: now,
+        nextVisitTime: now.add(const Duration(days: 1)),
+      );
+      expect(clueFuture.isOverdueAt(now), false);
+      expect(clueFuture.getOverdueDurationText(now), '');
     });
   });
 }

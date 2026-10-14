@@ -1531,6 +1531,17 @@ class _TimelineItem extends StatelessWidget {
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
+                                    if (nextVisitTime!.isBefore(DateTime.now())) ...[
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        '(${formatOverdueDuration(nextVisitTime!)})',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFFD32F2F),
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),

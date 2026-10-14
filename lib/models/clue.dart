@@ -272,6 +272,47 @@ class Clue {
         return '未标记';
     }
   }
+
+  /// 是否已逾期
+  bool get isOverdue => isOverdueAt(DateTime.now());
+
+  /// 在指定时刻是否已逾期（方便测试与模拟时间校验）
+  bool isOverdueAt(DateTime now) {
+    if (nextVisitTime == null) return false;
+    return nextVisitTime!.isBefore(now);
+  }
+
+  /// 获取逾期时长的文案（例如："逾期2天"、"逾期5小时"、"逾期不足1小时"）
+  /// 若未逾期或无回访时间，返回空字符串
+  String get overdueDurationText => getOverdueDurationText(DateTime.now());
+
+  /// 计算在指定时刻的逾期时长文案
+  String getOverdueDurationText(DateTime now) {
+    return formatOverdueDuration(nextVisitTime, now);
+  }
+}
+
+/// 计算逾期时长的工具函数
+/// - 逾期 >= 24小时：显示 "逾期X天"
+/// - 逾期 < 24小时 且 >= 1小时：显示 "逾期X小时"
+/// - 逾期 < 1小时（即不足1小时）：显示 "逾期不足1小时"
+/// - 未逾期或时间为空：返回空字符串 ''
+String formatOverdueDuration(DateTime? nextVisitTime, [DateTime? targetNow]) {
+  if (nextVisitTime == null) return '';
+  final now = targetNow ?? DateTime.now();
+  if (!nextVisitTime.isBefore(now)) return '';
+
+  final diff = now.difference(nextVisitTime);
+  final hours = diff.inHours;
+
+  if (hours >= 24) {
+    final days = hours ~/ 24;
+    return '逾期${days}天';
+  } else if (hours >= 1) {
+    return '逾期${hours}小时';
+  } else {
+    return '逾期不足1小时';
+  }
 }
 
 /// 回访记录数据模型
