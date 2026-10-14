@@ -222,47 +222,21 @@ class _TodoCard extends StatelessWidget {
               Text(clue.subject,
                   style:
                       const TextStyle(color: Colors.grey, fontSize: 12)),
-            Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 6,
-              runSpacing: 2,
+            Row(
               children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.schedule, size: 13, color: accentColor),
-                    const SizedBox(width: 4),
-                    Text(
-                      DateFormat('MM月dd日 HH:mm')
-                          .format(clue.nextVisitTime!),
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: accentColor,
-                          fontWeight: FontWeight.w500),
-                    ),
-                  ],
-                ),
-                if (isOverdue || clue.isOverdue)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 5, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFEE2E2),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                          color: const Color(0xFFFCA5A5), width: 0.5),
-                    ),
-                    child: Text(
-                      clue.overdueDurationText.isNotEmpty
+                Icon(Icons.schedule, size: 13, color: accentColor),
+                const SizedBox(width: 4),
+                Text(
+                  (isOverdue || clue.isOverdue)
+                      ? (clue.overdueDurationText.isNotEmpty
                           ? clue.overdueDurationText
-                          : '已逾期',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFFDC2626),
-                      ),
-                    ),
-                  ),
+                          : '已逾期')
+                      : DateFormat('MM月dd日 HH:mm').format(clue.nextVisitTime!),
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: accentColor,
+                      fontWeight: FontWeight.w500),
+                ),
               ],
             ),
           ],

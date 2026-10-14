@@ -1023,42 +1023,18 @@ class _ClueCard extends StatelessWidget {
 
                     // 回访时间
                     if (hasNextVisit)
-                      Wrap(
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        spacing: 6,
-                        runSpacing: 2,
-                        children: [
-                          Text(
-                            '下次回访：${DateFormat('yyyy-MM-dd HH:mm').format(clue.nextVisitTime!)}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight:
-                                  isOverdue ? FontWeight.w600 : FontWeight.normal,
-                              color: isOverdue
-                                  ? const Color(0xFFDC2626)
-                                  : const Color(0xFF94A3B8),
-                            ),
-                          ),
-                          if (isOverdue)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 5, vertical: 1),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFEE2E2),
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(
-                                    color: const Color(0xFFFCA5A5), width: 0.5),
-                              ),
-                              child: Text(
-                                clue.overdueDurationText,
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFFDC2626),
-                                ),
-                              ),
-                            ),
-                        ],
+                      Text(
+                        isOverdue
+                            ? clue.overdueDurationText
+                            : '下次回访：${DateFormat('yyyy-MM-dd HH:mm').format(clue.nextVisitTime!)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight:
+                              isOverdue ? FontWeight.w600 : FontWeight.normal,
+                          color: isOverdue
+                              ? const Color(0xFFDC2626)
+                              : const Color(0xFF94A3B8),
+                        ),
                       )
                     else
                       const Text(
