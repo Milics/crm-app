@@ -46,7 +46,7 @@ var _isIosStandalone = (window.navigator.standalone === true) ||
 
 _flutter.loader.load({
   serviceWorkerSettings: {
-    serviceWorkerVersion: "508015523",
+    serviceWorkerVersion: "1688331765",
     timeoutMillis: _isIosStandalone ? 1500 : 3000,
   },
   config: {
