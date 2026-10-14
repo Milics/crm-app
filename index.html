@@ -222,14 +222,33 @@
   </div>
 
   <script>
-    // 捕获异常
-    window.onerror = function(msg, url, lineNo, columnNo, error) {
+    // 🛡️ 全局异常捕获器（直接在启动卡片上显示真实错误，杜绝静默卡死）
+    window.showFatalError = function(msg) {
       var errBox = document.getElementById('error-display');
       if (errBox) {
         errBox.style.display = 'block';
-        errBox.innerText = '运行提示: ' + msg;
+        errBox.innerText = (errBox.innerText ? errBox.innerText + '\n' : '') + msg;
       }
     };
+
+    window.onerror = function(msg, url, lineNo, columnNo, error) {
+      window.showFatalError('运行错误: ' + msg);
+    };
+
+    window.addEventListener('unhandledrejection', function(event) {
+      var reason = event.reason;
+      var msg = (reason && (reason.stack || reason.message)) ? (reason.message || reason) : reason;
+      window.showFatalError('加载异常: ' + msg);
+    });
+
+    // 🛡️ 自动彻底解除任何残留的 ServiceWorker 挂起死锁（CRM 全面直连核心引擎）
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(regs) {
+        for (var i = 0; i < regs.length; i++) {
+          regs[i].unregister();
+        }
+      }).catch(function(){});
+    }
 
     var statusText = document.getElementById('status-text');
     var progressFill = document.getElementById('progress-bar-fill');
@@ -266,7 +285,7 @@
       }
     }, 450);
 
-    // 🛡️ 紧急自愈重置：一键彻底清洗可能死锁或损坏的 PWA ServiceWorker 与临时缓存
+    // 🛡️ 紧急自愈重置：一键彻底清洗可能死锁或损坏的 PWA 临时缓存
     function emergencyClearPwaCache() {
       if (statusText) statusText.innerText = "正在清除损坏缓存并秒速重载...";
       try {
@@ -288,7 +307,7 @@
       }, 350);
     }
 
-    // 超过 3.8 秒若未进入，立即显示快捷修复与重连选项，绝不让用户干等
+    // 超过 3 秒若未进入，立即显示快捷修复与重连选项，绝不让用户干等
     setTimeout(function() {
       if (!splashDismissed) {
         var slowTip = document.getElementById('slow-network-tip');
@@ -299,23 +318,23 @@
             '<button class="reload-btn" onclick="location.reload()" style="background:rgba(255,255,255,0.25);color:#FFF;">重新连接</button>';
         }
       }
-    }, 3800);
+    }, 3000);
 
-    // 超过 6 秒看门狗自动兜底：若仍未进入，自动清理可能死锁的 ServiceWorker 保证下次加载通畅
+    // 超过 5.5 秒终极看门狗强制保底：检查 Flutter 是否已就绪，若已就绪强制淡出启动页
     setTimeout(function() {
       if (!splashDismissed) {
-        console.warn("Watchdog triggered: stuck at loading screen. Auto-recovering service worker.");
-        try {
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(regs) {
-              for (var i = 0; i < regs.length; i++) {
-                regs[i].unregister();
-              }
-            });
-          }
-        } catch(e) {}
+        console.warn("Watchdog triggered: forcing hide splash.");
+        if (
+          document.querySelector('flutter-view') ||
+          document.querySelector('flt-glass-pane') ||
+          document.querySelector('flt-scene-host') ||
+          document.querySelector('canvas') ||
+          document.body.getAttribute('flt-renderer')
+        ) {
+          hideSplash();
+        }
       }
-    }, 6000);
+    }, 5500);
 
     function hideSplash() {
       if (splashDismissed) return;
@@ -333,19 +352,6 @@
           }, 350);
         }, 120);
       }
-
-      // 🛡️ 在应用正常进入稳定运行 3.5 秒后，再在后台静默检查 ServiceWorker 更新，绝不阻塞启动！
-      setTimeout(function() {
-        try {
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(regs) {
-              for (var i = 0; i < regs.length; i++) {
-                regs[i].update();
-              }
-            });
-          }
-        } catch(e) {}
-      }, 3500);
     }
 
     // 监听 Flutter 首帧就绪信号
