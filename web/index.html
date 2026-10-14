@@ -301,21 +301,21 @@
       }
     }, 3800);
 
-    // 超过 6.5 秒看门狗自动兜底：尝试向 head 注入原生 script 破除 ServiceWorker 挂起
+    // 超过 6 秒看门狗自动兜底：若仍未进入，自动清理可能死锁的 ServiceWorker 保证下次加载通畅
     setTimeout(function() {
       if (!splashDismissed) {
-        console.warn("Watchdog triggered: Flutter main.dart.js may be blocked by ServiceWorker. Attempting fallback.");
+        console.warn("Watchdog triggered: stuck at loading screen. Auto-recovering service worker.");
         try {
-          if (!window._flutterEntrypointInjected) {
-            window._flutterEntrypointInjected = true;
-            var script = document.createElement("script");
-            script.src = "main.dart.js?v=" + Date.now();
-            script.type = "application/javascript";
-            document.head.appendChild(script);
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+              for (var i = 0; i < regs.length; i++) {
+                regs[i].unregister();
+              }
+            });
           }
         } catch(e) {}
       }
-    }, 6500);
+    }, 6000);
 
     function hideSplash() {
       if (splashDismissed) return;
@@ -439,17 +439,8 @@
       window.visualViewport.addEventListener('scroll', _resetViewportOffset);
     }
 
-    // 3. 页面全局滚动兜底拦截（节流防暴击）
-    // 强制清理旧版本 ServiceWorker 强缓存，保证最新代码秒级生效
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function(regs) {
-        for (var i = 0; i < regs.length; i++) {
-          regs[i].update();
-        }
-      });
-    }
   </script>
 
-  <script src="flutter_bootstrap.js?v=20261014_overdue_pure" async></script>
+  <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
