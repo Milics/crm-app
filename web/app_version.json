@@ -1,9 +1,9 @@
 {
-  "versionCode": 8,
-  "versionName": "1.0.7",
-  "title": "发现新版本 V1.0.7",
-  "changelog": "1. 逾期回访精细化时长提示：超过24小时显示逾期X天，不足1天显示逾期X小时\n2. 线索列表、今日回访、待办回访及详情页全方位支持逾期时长红字徽章提醒\n3. 优化小屏设备排版自适应，彻底杜绝回访标签溢出问题\n4. 全系统 81 项自动化回归测试全绿通过",
+  "versionCode": 9,
+  "versionName": "1.0.8",
+  "title": "发现新版本 V1.0.8",
+  "changelog": "1. 新建线索默认意向班型统一优化为「全程非协议班」\n2. 手动录入与截图/文本智能解析全面同步默认班型与选项顺序\n3. 线索编辑页班型选择器同步对齐\n4. 全系统 82 项自动化回归测试全绿通过",
   "downloadUrl": "https://milics.github.io/crm-app/download.html",
   "forceUpdate": false,
-  "publishTime": "2026-10-14"
+  "publishTime": "2026-10-25"
 }

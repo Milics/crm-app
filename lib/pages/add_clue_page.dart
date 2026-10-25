@@ -81,7 +81,7 @@ class _ManualFormState extends State<_ManualForm> {
   final _gradeCtrl = TextEditingController();
   String _subject = '美术专业综合';
   String _source = '';
-  String _classType = '';
+  String _classType = '全程非协议班';
   ClueStatus _status = ClueStatus.following;
   IntentLevel _intentLevel = IntentLevel.none;
   final List<String> _selectedTags = [];
@@ -110,7 +110,7 @@ class _ManualFormState extends State<_ManualForm> {
     '体育专业综合',
   ];
   final List<String> _sources = ['抖音', '小红书', '地推', '电话打入', '转介绍', '老带新', '其他'];
-  final List<String> _classTypes = ['全程协议班', '全程非协议班', '单科班', '网课班', '冲刺班'];
+  final List<String> _classTypes = ['全程非协议班', '全程协议班', '单科班', '网课班', '冲刺班'];
   final _customTagCtrl = TextEditingController();
 
   final List<String> _presetTags = [
@@ -244,7 +244,7 @@ class _ManualFormState extends State<_ManualForm> {
             const SizedBox(height: 12),
             _buildDropdown('线索来源', _sources, _source, (v) => setState(() => _source = v ?? '')),
             const SizedBox(height: 12),
-            _buildDropdown('意向班型', _classTypes, _classType, (v) => setState(() => _classType = v ?? '')),
+            _buildDropdown('意向班型', _classTypes, _classType, (v) => setState(() => _classType = v ?? '全程非协议班')),
           ]),
           const SizedBox(height: 16),
           _buildSection('状态 & 意向', [
@@ -757,7 +757,7 @@ class _OcrFormState extends State<_OcrForm> {
   final _gradeCtrl = TextEditingController();
   String _subject = '美术专业综合';
   String _source = '微信';
-  String _classType = '全程协议班';
+  String _classType = '全程非协议班';
   final IntentLevel _intentLevel = IntentLevel.high;
   final List<String> _selectedTags = ['价格敏感'];
   final _customTagCtrl = TextEditingController();
@@ -786,7 +786,7 @@ class _OcrFormState extends State<_OcrForm> {
     '体育专业综合',
   ];
   final List<String> _sources = ['微信', '抖音', '小红书', '地推', '电话打入', '转介绍', '老带新'];
-  final List<String> _classTypes = ['全程协议班', '全程非协议班', '单科班', '网课班', '冲刺班'];
+  final List<String> _classTypes = ['全程非协议班', '全程协议班', '单科班', '网课班', '冲刺班'];
   final List<String> _presetTags = [
     '价格敏感',
     '基础薄弱',
@@ -1490,7 +1490,7 @@ class _OcrFormState extends State<_OcrForm> {
                     items: _classTypes
                         .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                         .toList(),
-                    onChanged: (v) => setState(() => _classType = v ?? '全程协议班'),
+                    onChanged: (v) => setState(() => _classType = v ?? '全程非协议班'),
                   ),
                   const SizedBox(height: 16),
                   const Text('AI 提炼特征标签',

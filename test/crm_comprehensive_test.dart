@@ -1921,10 +1921,10 @@ void main() {
       expect(enrolledList[3].wxNick, '袁睿琪', reason: '09-12 最早报名应排在最后一位');
     });
 
-    test('【QA 专项测试 30】生产环境业务数据绝对防清空与版本升级 V1.0.7+8 验证', () {
-      // 1. 验证应用升级版本号递增至 8 (1.0.7)
-      expect(AppUpgradeService.currentVersionCode, 8);
-      expect(AppUpgradeService.currentVersionName, '1.0.7');
+    test('【QA 专项测试 30】生产环境业务数据绝对防清空与版本升级 V1.0.8+9 验证', () {
+      // 1. 验证应用升级版本号递增至 9 (1.0.8)
+      expect(AppUpgradeService.currentVersionCode, 9);
+      expect(AppUpgradeService.currentVersionName, '1.0.8');
       expect(AppUpgradeService.fallbackVersionCheckUrl, contains('raw.githubusercontent.com'));
 
       // 2. 验证真实学员业务数据存在时，无法通过任何遗留方法误触清空
@@ -2215,6 +2215,55 @@ void main() {
       );
       expect(clueFuture.isOverdueAt(now), false);
       expect(clueFuture.getOverdueDurationText(now), '');
+    });
+
+    testWidgets('【QA 专项测试 35】新建线索默认班型为「全程非协议班」及选项顺序验证', (tester) async {
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final provider = AppProvider();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChangeNotifierProvider<AppProvider>.value(
+            value: provider,
+            child: const AddCluePage(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 1. 验证手动录入页面中，意向班型默认选中并展示为“全程非协议班”
+      expect(find.text('全程非协议班'), findsOneWidget);
+
+      // 点击展开手动录入意向班型下拉框（第3个下拉框），验证选项列表中包含“全程协议班”
+      final dropdowns = find.byType(DropdownButtonFormField<String>);
+      await tester.ensureVisible(dropdowns.at(2));
+      await tester.pumpAndSettle();
+      await tester.tap(dropdowns.at(2));
+      await tester.pumpAndSettle();
+      expect(find.text('全程协议班'), findsOneWidget);
+
+      // 关闭下拉弹层（选中当前项）
+      await tester.tap(find.text('全程非协议班').last);
+      await tester.pumpAndSettle();
+
+      // 2. 切换到「截图导入」Tab
+      final ocrTab = find.text('截图导入');
+      expect(ocrTab, findsOneWidget);
+      await tester.tap(ocrTab);
+      await tester.pumpAndSettle();
+
+      // 3. 在快捷文本框中输入测试文本并点击“智能解析”，调出识别档案核对表单
+      await tester.enterText(
+        find.widgetWithText(TextField, '例：李文文-河南经贸-24级-视传'),
+        '张晓华-河南师范-25级-视传',
+      );
+      await tester.tap(find.text('智能解析'));
+      await tester.pumpAndSettle();
+
+      // 4. 验证截图导入/智能解析 Tab 下档案核对表单中，意向班型默认同样为“全程非协议班”
+      expect(find.text('全程非协议班'), findsWidgets);
     });
   });
 }
