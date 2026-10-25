@@ -1921,10 +1921,10 @@ void main() {
       expect(enrolledList[3].wxNick, '袁睿琪', reason: '09-12 最早报名应排在最后一位');
     });
 
-    test('【QA 专项测试 30】生产环境业务数据绝对防清空与版本升级 V1.0.8+9 验证', () {
-      // 1. 验证应用升级版本号递增至 9 (1.0.8)
-      expect(AppUpgradeService.currentVersionCode, 9);
-      expect(AppUpgradeService.currentVersionName, '1.0.8');
+    test('【QA 专项测试 30】生产环境业务数据绝对防清空与版本升级 V1.0.9+10 验证', () {
+      // 1. 验证应用升级版本号递增至 10 (1.0.9)
+      expect(AppUpgradeService.currentVersionCode, 10);
+      expect(AppUpgradeService.currentVersionName, '1.0.9');
       expect(AppUpgradeService.fallbackVersionCheckUrl, contains('raw.githubusercontent.com'));
 
       // 2. 验证真实学员业务数据存在时，无法通过任何遗留方法误触清空
@@ -2264,6 +2264,68 @@ void main() {
 
       // 4. 验证截图导入/智能解析 Tab 下档案核对表单中，意向班型默认同样为“全程非协议班”
       expect(find.text('全程非协议班'), findsWidgets);
+    });
+
+    test('【QA 专项测试 36】线索从已逾期转为已报名状态时防覆盖与杜绝已逾期/已报名双重并存测试', () async {
+      final now = DateTime.now();
+      final overdueTime = now.subtract(const Duration(days: 3));
+
+      // 1. 模型防御验证：已报名 (enrolled) 与 暂搁置 (paused) 学员即使带有历史逾期时间，绝不判定为逾期
+      final clueWithOverdue = Clue(
+        id: 'c_test_enrolled_01',
+        wxNick: '报名学员防逾期测试',
+        status: ClueStatus.enrolled,
+        createTime: now,
+        nextVisitTime: overdueTime,
+      );
+      expect(clueWithOverdue.isOverdue, isFalse);
+      expect(clueWithOverdue.isOverdueAt(now), isFalse);
+      expect(clueWithOverdue.overdueDurationText, isEmpty);
+
+      // 2. 云端融合保护验证：本地已报名学员在与远端历史逾期数据合并时，状态不可逆保全且清空回访时间
+      final provider = AppProvider();
+      final localEnrolled = Clue(
+        id: 'c_feng_01',
+        wxNick: '冯若凡',
+        status: ClueStatus.enrolled,
+        createTime: now,
+        nextVisitTime: null,
+        enrollAmount: 7624,
+        enrollTime: now,
+        ownerName: '超级管理员',
+      );
+      final remoteOverdue = Clue(
+        id: 'c_feng_01',
+        wxNick: '冯若凡',
+        status: ClueStatus.following,
+        createTime: now,
+        nextVisitTime: overdueTime,
+        ownerName: '超级管理员',
+      );
+
+      final uploadList = <Clue>[];
+      final merged = provider.mergeClueForTesting(localEnrolled, remoteOverdue, needsUpload: uploadList);
+      expect(merged.status, ClueStatus.enrolled);
+      expect(merged.nextVisitTime, isNull);
+      expect(merged.enrollAmount, 7624);
+      expect(uploadList.any((c) => c.id == 'c_feng_01'), isTrue, reason: '应自动加入上报队列修复云端');
+
+      // 3. 业务过滤联动验证：在 AppProvider 列表过滤中，已报名线索绝不出现在已逾期 Tab (case 2)
+      final adminUser = AppUser(
+        id: 'usr_admin',
+        username: 'admin',
+        password: '123',
+        name: '超级管理员',
+        role: UserRole.superAdmin,
+      );
+      provider.setCurrentUserForTesting(adminUser);
+      provider.setOwnerFilter('all');
+      provider.addClue(localEnrolled);
+      provider.setClueTabIndex(2); // 切换到已逾期 Tab
+      expect(provider.filteredClues.any((c) => c.wxNick == '冯若凡'), isFalse);
+
+      provider.setClueTabIndex(4); // 切换到已报名 Tab
+      expect(provider.filteredClues.any((c) => c.wxNick == '冯若凡'), isTrue);
     });
   });
 }

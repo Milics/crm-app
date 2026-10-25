@@ -281,8 +281,10 @@ class AppProvider extends ChangeNotifier {
                 localClue.intentLevel == IntentLevel.none) &&
             seed.intentLevel == IntentLevel.high &&
             localClue.visitLogs.isEmpty;
-        final bool shouldFixNext =
-            localClue.nextVisitTime == null && seed.nextVisitTime != null;
+        final bool shouldFixNext = localClue.status != ClueStatus.enrolled &&
+            localClue.status != ClueStatus.paused &&
+            localClue.nextVisitTime == null &&
+            seed.nextVisitTime != null;
         final bool shouldFixAi = (localClue.aiAnalysisReport == null ||
                 localClue.aiAnalysisReport!.isEmpty) &&
             seed.aiAnalysisReport != null;
@@ -372,6 +374,28 @@ class AppProvider extends ChangeNotifier {
       if (!localClueIds.contains(seed.id) && !_deletedClueIds.contains(seed.id)) {
         _clues.add(seed);
       }
+    }
+
+    // 🛡️ 本地冷启动数据去重净化：融合同一顾问名下的重复线索，确保已报名状态绝对优先保全
+    final Map<String, Clue> localDedupMap = {};
+    final List<String> localRedundantIds = [];
+    for (final clue in _clues) {
+      final key = '${clue.ownerName.trim()}_${clue.wxNick.trim()}_${clue.subject.trim()}';
+      if (clue.wxNick.trim().isNotEmpty && localDedupMap.containsKey(key)) {
+        final existing = localDedupMap[key]!;
+        final fused = _mergeClue(existing, clue, needsUpload: []);
+        localDedupMap[key] = fused;
+        final redundantId = (existing.id == fused.id) ? clue.id : existing.id;
+        localRedundantIds.add(redundantId);
+      } else {
+        localDedupMap[key] = clue;
+      }
+    }
+    if (localRedundantIds.isNotEmpty) {
+      _deletedClueIds.addAll(localRedundantIds);
+      _clues.clear();
+      _clues.addAll(localDedupMap.values);
+      await _saveDeletedClueIdsLocal();
     }
     await _saveCluesLocalOnly();
 
@@ -863,9 +887,21 @@ class AppProvider extends ChangeNotifier {
             (remoteLatestLogTime == null ||
                 localLatestLogTime.isAfter(remoteLatestLogTime)));
 
-    // 🛡️ 核心保全规则 1：下次回访时间 (nextVisitTime) 非空绝对保全，严禁被 null 清空！
+    // 🛡️ 核心保全规则 0：报名状态 (enrolled) 绝对不可逆保全！
+    // 报名是招生业务全生命周期的最终里程碑，一旦任何一端转为 enrolled，绝对不能被未报名的旧状态冲刷覆盖！
+    ClueStatus mergedStatus;
+    if (local.status == ClueStatus.enrolled || remote.status == ClueStatus.enrolled) {
+      mergedStatus = ClueStatus.enrolled;
+    } else {
+      mergedStatus = preferLocal ? local.status : remote.status;
+    }
+
+    // 🛡️ 核心保全规则 1：一旦学员已报名 (enrolled) 或已搁置 (paused)，回访任务完结，nextVisitTime 必须为 null！
+    // 严禁从远端拉回已报名前的历史逾期时间！
     DateTime? mergedNextVisitTime;
-    if (local.nextVisitTime != null && remote.nextVisitTime == null) {
+    if (mergedStatus == ClueStatus.enrolled || mergedStatus == ClueStatus.paused) {
+      mergedNextVisitTime = null;
+    } else if (local.nextVisitTime != null && remote.nextVisitTime == null) {
       mergedNextVisitTime = local.nextVisitTime;
     } else if (local.nextVisitTime == null && remote.nextVisitTime != null) {
       mergedNextVisitTime = remote.nextVisitTime;
@@ -989,7 +1025,7 @@ class AppProvider extends ChangeNotifier {
       source: mergedSource,
       classType: mergedClassType,
       ownerName: mergeText(local.ownerName, remote.ownerName),
-      status: preferLocal ? local.status : remote.status,
+      status: mergedStatus,
       intentLevel: mergedIntentLevel,
       nextVisitTime: mergedNextVisitTime,
       remark: preferLocal
@@ -1034,6 +1070,8 @@ class AppProvider extends ChangeNotifier {
     final bool schoolEnriched =
         mergedClue.school.isNotEmpty && remote.school.isEmpty;
     final bool enrollEnriched =
+        (mergedClue.status != remote.status && mergedClue.status == ClueStatus.enrolled) ||
+        (mergedClue.nextVisitTime != remote.nextVisitTime && mergedClue.nextVisitTime == null) ||
         (mergedClue.enrollAmount != remote.enrollAmount && mergedClue.enrollAmount != null) ||
         (mergedClue.enrollTime != remote.enrollTime && mergedClue.enrollTime != null);
 
@@ -1164,8 +1202,35 @@ class AppProvider extends ChangeNotifier {
       unawaited(_crmSyncService.saveClues(needsUpload));
     }
 
+    // 🛡️ 核心防重去重屏障：检测并智能融合同一顾问名下的同名/双胞胎线索（彻底解决重复创建导致的已报名与已逾期并存问题）
+    final Map<String, Clue> dedupByNameMap = {};
+    final List<String> autoMergedDuplicateIds = [];
+
+    for (final clue in mergedResult) {
+      final key = '${clue.ownerName.trim()}_${clue.wxNick.trim()}_${clue.subject.trim()}';
+      if (clue.wxNick.trim().isNotEmpty && dedupByNameMap.containsKey(key)) {
+        final existing = dedupByNameMap[key]!;
+        // 发现同名重复线索，执行智能融合！保全所有回访、聊天记录、已报名状态与金额
+        final fused = _mergeClue(existing, clue, needsUpload: needsUpload);
+        dedupByNameMap[key] = fused;
+        // 把较晚创建或重复产生的克隆体 ID 记入墓碑表并异步从云端删除
+        final redundantId = (existing.id == fused.id) ? clue.id : existing.id;
+        autoMergedDuplicateIds.add(redundantId);
+      } else {
+        dedupByNameMap[key] = clue;
+      }
+    }
+
+    if (autoMergedDuplicateIds.isNotEmpty) {
+      for (final id in autoMergedDuplicateIds) {
+        _deletedClueIds.add(id);
+        unawaited(_crmSyncService.deleteClue(id));
+      }
+      unawaited(_saveDeletedClueIdsLocal());
+    }
+
     _clues.clear();
-    _clues.addAll(mergedResult);
+    _clues.addAll(dedupByNameMap.values);
     _clues.sort((a, b) => b.createTime.compareTo(a.createTime));
     await _saveCluesLocalOnly();
     _isCloudConnected = true;
@@ -2516,10 +2581,7 @@ class AppProvider extends ChangeNotifier {
   int get todoCount => todoClues.length;
   int get overdueCount {
     final now = DateTime.now();
-    return accessibleClues
-        .where((c) =>
-            c.nextVisitTime != null && c.nextVisitTime!.isBefore(now))
-        .length;
+    return accessibleClues.where((c) => c.isOverdueAt(now)).length;
   }
   int get totalVisits =>
       accessibleClues.fold(0, (sum, c) => sum + c.visitLogs.length);

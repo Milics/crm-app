@@ -88,9 +88,9 @@ class _StatisticPageState extends State<StatisticPage> {
               ? gradeFilteredClues.length
               : gradeFilteredClues.where((c) => c.createTime.isAfter(start)).length;
 
-          // 当前待办逾期量（属于当前所选届别和顾问的逾期线索）
+          // 当前待办逾期量（属于当前所选届别和顾问的逾期线索，自动排除已报名与暂搁置）
           final overdueCount = gradeFilteredClues
-              .where((c) => c.nextVisitTime != null && c.nextVisitTime!.isBefore(now))
+              .where((c) => c.isOverdueAt(now))
               .length;
 
           // 已试听量

@@ -273,21 +273,27 @@ class Clue {
     }
   }
 
-  /// 是否已逾期
+  /// 是否已逾期（已报名与暂搁置学员已完结当前跟进阶段，绝不判定为已逾期）
   bool get isOverdue => isOverdueAt(DateTime.now());
 
   /// 在指定时刻是否已逾期（方便测试与模拟时间校验）
   bool isOverdueAt(DateTime now) {
+    if (status == ClueStatus.enrolled || status == ClueStatus.paused) {
+      return false;
+    }
     if (nextVisitTime == null) return false;
     return nextVisitTime!.isBefore(now);
   }
 
   /// 获取逾期时长的文案（例如："逾期2天"、"逾期5小时"、"逾期不足1小时"）
-  /// 若未逾期或无回访时间，返回空字符串
+  /// 若未逾期、已报名、已暂搁置或无回访时间，返回空字符串
   String get overdueDurationText => getOverdueDurationText(DateTime.now());
 
   /// 计算在指定时刻的逾期时长文案
   String getOverdueDurationText(DateTime now) {
+    if (status == ClueStatus.enrolled || status == ClueStatus.paused) {
+      return '';
+    }
     return formatOverdueDuration(nextVisitTime, now);
   }
 }
