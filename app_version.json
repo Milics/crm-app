@@ -1,8 +1,8 @@
 {
-  "versionCode": 9,
-  "versionName": "1.0.8",
-  "title": "发现新版本 V1.0.8",
-  "changelog": "1. 新建线索默认意向班型统一优化为「全程非协议班」\n2. 手动录入与截图/文本智能解析全面同步默认班型与选项顺序\n3. 线索编辑页班型选择器同步对齐\n4. 全系统 82 项自动化回归测试全绿通过",
+  "versionCode": 10,
+  "versionName": "1.0.9",
+  "title": "发现新版本 V1.0.9",
+  "changelog": "1. 彻底解决线索转为已报名后依然停留在已逾期列表的问题\n2. 增加云端同步双向合并状态保护：已报名状态不可逆，下次回访时间彻底清空\n3. 增加同名同科目线索智能融合去重屏障，自动净化重复数据\n4. 全系统 83 项自动化回归测试全绿通过",
   "downloadUrl": "https://milics.github.io/crm-app/download.html",
   "forceUpdate": false,
   "publishTime": "2026-10-25"
